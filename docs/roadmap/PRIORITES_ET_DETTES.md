@@ -1476,7 +1476,11 @@ la v4 (décision Master 2) teste l'AUTRE forme de correctif de cette entrée —
 harnais publié ; périmètre certifié : SGD sans momentum, traces non allouées, pas de bilinéaire — P4.19 hors périmètre)
 — contre DOUZE shams de RÉÉTIQUETAGE (lignes des seules positions déplacées permutées par un RNG privé : même ordre de
 service, même dose que le bras éteint, seule l'identité change), qualifiée par le contrôle positif, S_off exigé dans la
-bande, NON_MATERIEL vers le haut seulement ; 15 cellules sur la batcave : en cours. **La clause ci-dessous reste celle de l'entrée** : elle décrit la vraie clôture (le correctif devenu le
+bande, NON_MATERIEL vers le haut seulement ; la v4 a été corrigée à son tour (`docs/reviews/2026-09-28-E34-IDENTITY-
+CELL.v4.md`, 15 critiques confirmées : un réétiquetage UNIFORME recollait en espérance un cerveau à son corps par
+événement — et à deux lignes déplacées 5 shams sur 12 appliquaient la réindexation entière — ; S_off confronté à la
+bande était un second test, P(issue non nulle | H0) = 25/91) : la v5 tire les réétiquetages en DÉRANGEMENT relatif à la
+réindexation et met S_off DANS la bande (13 valeurs, fausse alarme <= 2/14) ; 15 cellules sur la batcave : en cours. **La clause ci-dessous reste celle de l'entrée** : elle décrit la vraie clôture (le correctif devenu le
 DÉFAUT, après P4.18 et, si la sonde rend MATERIEL, le plan n = 12) ; la sonde ne ferme qu'un sous-item.
 **Addendum CALIB-LEARNER (2026-09-26, session E34, vu en lisant la recette)** : la MÊME recette vit dans
 `tools/cognitive_demand_inworld.py:575-587` (`run_learner_probe`, contrôle POSITIF de l'apprenant, EDR-CALIB-LEARNER

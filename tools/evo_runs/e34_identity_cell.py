@@ -2,15 +2,16 @@
 au même seed, au même lieu, au même commit : drapeau ÉTEINT (témoin du CODE : mêmes âges, même dose, même Σ|ΔW| que le
 publié), correctif par RÉINDEXATION (`slot_reindex` : les cerveaux suivent leur corps, l'ordre des corps reste celui du
 harnais publié), DOUZE shams de RÉÉTIQUETAGE (à chaque tick où la recharge change l'ordre, les lignes des positions
-déplacées sont permutées par un RNG PRIVÉ, sans réparer l'identité) et un CONTRÔLE POSITIF (crédit coupé au premier de
-ces ticks, t1). Une cellule = une SONDE : MATERIEL écrit un plan n = 12, NON_MATERIEL une note bornée à cette cellule,
+déplacées sont permutées par un RNG PRIVÉ en DÉRANGEMENT : aucune ne reçoit le cerveau de son propre corps) et un
+CONTRÔLE POSITIF (crédit coupé au premier de ces ticks, t1). La bande est {S_off} + 12 réétiquetages : 13 valeurs. Une cellule = une SONDE : MATERIEL écrit un plan n = 12, NON_MATERIEL une note bornée à cette cellule,
 à sa dose et au sens HAUT, NON_TRANCHE dit que l'instrument ne voit pas un effet fort à ce t1.
 
 Pourquoi ce dispositif (revues E34 v1, v2, v3) : le traitement et les shams ne diffèrent que par l'IDENTITÉ — même ordre
 de service que le bras éteint (les corps ne bougent jamais hors de la recharge publiée), même dose de défaut que lui (une
-commutation par position déplacée) ; sous H0 (« l'identité ne compte pas »), la réindexation n'est qu'UNE permutation des
-lignes déplacées parmi treize, échangeable par construction avec les douze réétiquetages. La dose du défaut est le
-nombre de COMMUTATIONS (un cerveau change de corps).
+commutation par position déplacée : ni le bras éteint ni un dérangement ne remettent un cerveau déplacé sur son corps) ;
+sous H0 (« l'identité ne compte pas »), S_on est échangeable avec les treize valeurs {S_off, S_relab_1..12} (revue v4,
+P4.a : S_off n'est plus un second test contre la bande, il en fait partie). La dose du défaut est le nombre de
+COMMUTATIONS (un cerveau change de corps).
 
 Règle SCELLÉE avant toute cellule : docs/preregistrations/E34-IDENTITY-CELL.json.
 
@@ -122,12 +123,13 @@ def starvation_ceiling(agent, base_metabolism=None):
 def run_identity_cell(seed, arm, num_agents=12, ticks_learn=2000, ticks_test=200):
     """Une cellule `b_full` du seed (bassin DAgger cloné ×num_agents, crédit publié) sous le traitement du bras
     (`arm_config`), l'audit de l'invariant et des commutations TOUJOURS allumé (lecture seule), le vote social compté
-    en phase 1 (`compter_consensus`, lecture seule), phase 2 mortelle à poids gelés. Garde EN TÊTE : un argument
+    en phase 1 et en phase 2, les reconstructions de la population comptées en phase 2 (lecture seule), phase 2
+    mortelle à poids gelés. Garde EN TÊTE : un argument
     dégénéré ou un bras inconnu lève avant tout monde."""
     if arm not in ARMS or int(num_agents) <= 0 or int(ticks_learn) <= 0 or int(ticks_test) <= 0:
         raise ValueError(f"run_identity_cell : argument dégénéré (arm={arm!r}, num_agents={num_agents}, "
                          f"ticks_learn={ticks_learn}, ticks_test={ticks_test}) -- aucune mesure possible")
-    from tools.evo_runs.s2_bassin_fragility import compter_consensus
+    from tools.evo_runs.s2_bassin_fragility import compter_consensus, compter_reconstructions
     cfg = arm_config(arm)
     agents = _bassin_cohort(seed, num_agents)
     out = {"seed": int(seed), "arm": arm, "num_agents": int(num_agents), "ticks_learn": int(ticks_learn),
@@ -137,7 +139,9 @@ def run_identity_cell(seed, arm, num_agents=12, ticks_learn=2000, ticks_test=200
     with compter_consensus() as cons:
         out["learning"] = phase1_learn_immortal(agents, seed, ticks_learn, identity_audit=True, **cfg)
     out["consensus_phase1"] = dict(cons)
-    out["survival"] = phase2_survive_mortal(agents, seed, ticks_test)
+    with compter_consensus() as cons2, compter_reconstructions() as reco:          # revue v4, P8.a
+        out["survival"] = phase2_survive_mortal(agents, seed, ticks_test)
+    out["consensus_phase2"], out["reconstructions_phase2"] = dict(cons2), dict(reco)
     out["elapsed_s"], out["cpu_s"] = time.time() - t0, time.process_time() - c0
     return out
 
@@ -161,7 +165,8 @@ def _needs(row, label):
     for k, v in (("survival_median", srv.get("survival_median")), ("ticks_known", ident.get("ticks_known")),
                  ("ticks_unknown", ident.get("ticks_unknown")), ("slot_switches", ident.get("slot_switches")),
                  ("slot_ticks_misaligned", ident.get("slot_ticks_misaligned")),
-                 ("order_changes", ident.get("order_changes")), ("ticks_reordered", ident.get("ticks_reordered")),
+                 ("order_changes", ident.get("order_changes")),
+                 ("ticks_body_reordered", ident.get("ticks_body_reordered")),
                  ("td_updates", lrn.get("td_updates")), ("dW_abs_sum", lrn.get("dW_abs_sum"))):
         if not _finite(v):
             raise ValueError(f"{label} : `{k}` absent ou non fini ({v!r}) -- aucun verdict n'est fabriqué")
@@ -177,17 +182,19 @@ def _fausse_alarme_ex_aequo(on_value, band):
     return ((1.0 if vals.count(hi) == 1 else 0.0) + (1.0 if vals.count(lo) == 1 and lo != hi else 0.0)) / n
 
 
-def identity_cell_verdict(rows, witness, s_frozen, ticks_learn, band_publiee=None, floor=FLOOR, n_grille=N_GRILLE):
-    """Lecture de la règle scellée E34-IDENTITY-CELL v4, branches dans l'ORDRE IMPOSÉ. `rows` : {bras: ligne de
+def identity_cell_verdict(rows, witness, s_frozen, ticks_learn, band_publiee=None, floor=FLOOR, n_grille=N_GRILLE,
+                          refus_cout=None):
+    """Lecture de la règle scellée E34-IDENTITY-CELL v5, branches dans l'ORDRE IMPOSÉ. `rows` : {bras: ligne de
     `run_identity_cell` (avec `lieu` et `provenance`) ou None} sur les 15 bras ; `witness` : `witness_check` de la ligne
-    `off` LUE ; `s_frozen` : `published_frozen` ; `ticks_learn` : la durée scellée de la phase 1. Une valeur présente
-    mais non finie LÈVE ; un harnais qui ment (corps réordonnés ; réindexation qui commute ou part ailleurs qu'à t1 ;
-    réétiquetage d'un autre RNG ou hors de t1 ; coupe hors de t1 ou sans effet sur la dose ; témoin d'une autre
-    exécution) LÈVE."""
+    `off` LUE ; `s_frozen` : `published_frozen` ; `ticks_learn` : la durée scellée de la phase 1 ; `refus_cout` : le
+    refus persisté de la garde E13 s'il a eu lieu. Une valeur présente mais non finie LÈVE ; un harnais qui ment (corps
+    réordonnés, mesuré ; réindexation qui commute ou part ailleurs qu'à t1 ; réétiquetage d'un autre RNG ou hors de
+    t1 ; coupe hors de t1 ou sans effet sur la dose ; témoin d'une autre exécution) LÈVE."""
     if not _finite(s_frozen):
         raise ValueError("identity_cell_verdict : S_a non fini -- aucune lecture")
-    th = {"n_band": K_RELABS, "floor": float(floor), "n_grille": int(n_grille), "ticks_learn": int(ticks_learn)}
-    base = {"thresholds": th, "fausse_alarme_h0_borne": 2.0 / (K_RELABS + 1), "band_publiee": band_publiee}
+    th = {"n_band": K_RELABS + 1, "floor": float(floor), "n_grille": int(n_grille), "ticks_learn": int(ticks_learn)}
+    base = {"thresholds": th, "fausse_alarme_h0_borne": 2.0 / (K_RELABS + 2), "band_publiee": band_publiee,
+            "refus_cout": refus_cout}
     rows = {a: rows.get(a) for a in ARMS}
     off = rows["off"]
     if off is None or witness is None:
@@ -203,7 +210,9 @@ def identity_cell_verdict(rows, witness, s_frozen, ticks_learn, band_publiee=Non
                         "lecture ; défaut au registre, le dispositif ne se relance pas tel quel")
     manquants = [a for a, r in rows.items() if r is None]
     if manquants:
-        return dict(base, verdict="INCOMPLET", manquants=manquants, why="une cellule manque : reprise, aucune lecture")
+        cause = ("la garde de coût a refusé la phase B (refus persisté)" if refus_cout is not None
+                 else "une cellule manque")
+        return dict(base, verdict="INCOMPLET", manquants=manquants, why=f"{cause} : reprise, aucune lecture")
     lus = {a: _needs(r, a) for a, r in rows.items()}
     aveugles = [a for a, (_, ident) in lus.items()
                 if int(ident["ticks_known"]) != int(ticks_learn) or int(ident["ticks_unknown"]) != 0]
@@ -234,7 +243,10 @@ def identity_cell_verdict(rows, witness, s_frozen, ticks_learn, band_publiee=Non
                 "episode_updates": (rows[a].get("learning") or {}).get("episode_updates"),
                 "resurrections": (rows[a].get("learning") or {}).get("resurrections"),
                 "dW_abs_sum": (rows[a].get("learning") or {}).get("dW_abs_sum"),
-                "consensus_ticks_avec_reecriture": (rows[a].get("consensus_phase1") or {}).get("ticks_avec_reecriture")}
+                "consensus_ticks_avec_reecriture": (rows[a].get("consensus_phase1") or {}).get("ticks_avec_reecriture"),
+                "consensus_phase2_ticks": (rows[a].get("consensus_phase2") or {}).get("ticks_avec_reecriture"),
+                "reconstructions_phase2": (rows[a].get("reconstructions_phase2") or {}).get("constructions"),
+                "relabel_draws": ident.get("relabel_draws")}
             for a, (_, ident) in lus.items()}
     erosion = float(s_frozen) - s_off
     desc = {"S_off": s_off, "S_on": s_on, "S_pos": s_pos, "S_relabs": relabs, "S_a": float(s_frozen),
@@ -251,14 +263,15 @@ def identity_cell_verdict(rows, witness, s_frozen, ticks_learn, band_publiee=Non
             "git_sha": (off.get("provenance") or {}).get("git_sha")}
     desc["part_erosion_levee"] = (desc["dS"] / erosion) if erosion > 0 else None
     desc["relabs_dS"] = {a: v - s_off for a, v in relabs.items()}
+    desc["relabs_part_erosion"] = ({a: (v - s_off) / erosion for a, v in relabs.items()} if erosion > 0 else None)
     out = dict(base, **desc)
     if desc["switches_off"] == 0:
         return dict(out, verdict="SANS_OBJET",
                     why="aucune commutation dans la cellule publiée : le défaut n'a pas agi ici, elle ne tranche rien")
-    reordonnes = [a for a, (_, ident) in lus.items() if int(ident["ticks_reordered"]) != 0]
+    reordonnes = [a for a, (_, ident) in lus.items() if int(ident["ticks_body_reordered"]) != 0]
     if reordonnes:
-        raise ValueError(f"identity_cell_verdict : des CORPS ont été réordonnés hors de la recharge publiée ({reordonnes}) "
-                         "-- l'ordre de service n'est plus celui du bras éteint, aucune lecture")
+        raise ValueError(f"identity_cell_verdict : des CORPS ont été réordonnés hors de la recharge publiée ({reordonnes}, "
+                         "mesuré) -- l'ordre de service n'est plus celui du bras éteint, aucune lecture")
     if not (bool(id_on.get("slot_reindex")) and int(id_on["slot_switches"]) == 0
             and int(id_on["slot_ticks_misaligned"]) == 0 and id_on.get("first_reindex_tick") == t1):
         raise ValueError("identity_cell_verdict : la réindexation a commuté, gardé un désalignement, ou fait sa PREMIÈRE "
@@ -272,31 +285,28 @@ def identity_cell_verdict(rows, witness, s_frozen, ticks_learn, band_publiee=Non
     if id_pos.get("credit_cut_tick") != t1 or not (dose["pos"]["td_updates"] < dose["off"]["td_updates"]):
         raise ValueError(f"identity_cell_verdict : le contrôle positif n'a pas coupé le crédit à t1 ({t1}), ou sa dose TD "
                          "n'a pas baissé -- défaut du harnais, aucune lecture")
-    band = [relabs[a] for a in RELABS]
-    dw_distincts = len({dose[a]["dW_abs_sum"] for a in RELABS})
+    membres = ("off",) + RELABS                                        # revue v4, P4.a : S_off DANS la bande
+    band = [s_off] + [relabs[a] for a in RELABS]
+    dw_distincts = len({dose[a]["dW_abs_sum"] for a in membres})
     out.update(band_min=min(band), band_max=max(band), band_values=band, band_dW_distincts=dw_distincts,
-               fausse_alarme_h0_ex_aequo=_fausse_alarme_ex_aequo(s_on, band))
+               fausse_alarme_h0_ex_aequo=_fausse_alarme_ex_aequo(s_on, band),
+               switches_band={a: dose[a]["slot_switches"] for a in membres})
     if dw_distincts < 2:
         return dict(out, verdict="BANDE_INERTE",
-                    why="les douze réétiquetages témoins n'ont pas divergé (Σ|ΔW| tous égaux) : aucune bande, aucune lecture")
-    if cmp_grille(s_off, out["band_max"], 0.0, n_grille, sens=+1) or cmp_grille(s_off, out["band_min"], 0.0, n_grille,
-                                                                                 sens=-1):
-        return dict(out, verdict="BANDE_DEPLACEE",
-                    why=f"S_off {s_off} hors des douze réétiquetages [{out['band_min']}, {out['band_max']}] : la bande ne "
-                        "représente pas le bras éteint (revue v3, P5.d), aucune lecture")
+                    why="les treize membres de la bande n'ont pas divergé (Σ|ΔW| tous égaux) : aucune bande, aucune lecture")
     if cmp_grille(s_on, out["band_max"], 0.0, n_grille, sens=+1):
         return dict(out, verdict="MATERIEL_HAUSSE",
-                    why=f"S_on {s_on} au-dessus des douze réétiquetages [{out['band_min']}, {out['band_max']}] : plan n = 12 "
+                    why=f"S_on {s_on} au-dessus des treize trajectoires [{out['band_min']}, {out['band_max']}] : plan n = 12 "
                         "et bandeaux candidats ÉCRITS, pas posés")
     if cmp_grille(s_on, out["band_min"], 0.0, n_grille, sens=-1):
         return dict(out, verdict="MATERIEL_BAISSE",
-                    why=f"S_on {s_on} au-dessous des douze réétiquetages [{out['band_min']}, {out['band_max']}] : plan n = 12 "
+                    why=f"S_on {s_on} au-dessous des treize trajectoires [{out['band_min']}, {out['band_max']}] : plan n = 12 "
                         "et bandeaux candidats ÉCRITS, pas posés")
     if cmp_grille(s_pos, out["band_max"], 0.0, n_grille, sens=+1) and cmp_grille(s_pos, s_off, 0.0, n_grille, sens=+1):
         return dict(out, verdict="NON_MATERIEL",
-                    why=f"S_on {s_on} dans les douze réétiquetages [{out['band_min']}, {out['band_max']}] alors que le "
+                    why=f"S_on {s_on} dans les treize trajectoires [{out['band_min']}, {out['band_max']}] alors que le "
                         f"contrôle positif en sort par le haut (S_pos {s_pos} > S_off {s_off}) : aucun effet vers le HAUT de "
-                        f"l'ampleur de la variation entre réétiquetages sur CETTE cellule, à SA dose (défaut : "
+                        f"l'ampleur de la variation entre trajectoires sur CETTE cellule, à SA dose (défaut : "
                         f"{desc['switches_off']} commutations ; correctif : {desc['rows_reindexed_on']} lignes réindexées) "
                         "; vers le BAS, non éprouvé (plancher)")
     return dict(out, verdict="NON_TRANCHE",
@@ -357,7 +367,10 @@ def _lire(smoke=False):
         return json.load(open(p, encoding="utf-8"))["row"] if os.path.exists(p) else None
     rows = {a: _load(a) for a in ARMS}
     witness = witness_check(rows["off"], SEED) if rows["off"] is not None else None
-    verdict = identity_cell_verdict(rows, witness, published_frozen(SEED), ticks_learn, band_publiee=published_band())
+    p_refus = os.path.join(_cells_dir(smoke), "_refus_cout.json")
+    refus_cout = json.load(open(p_refus, encoding="utf-8")) if os.path.exists(p_refus) else None
+    verdict = identity_cell_verdict(rows, witness, published_frozen(SEED), ticks_learn, band_publiee=published_band(),
+                                    refus_cout=refus_cout)
     # Les fichiers de cellule vivent sous results/<OUT_DIR>/, IGNORÉ par git (.gitignore : results/* sauf results/*.json) :
     # c'est ce qui garde l'arbre propre pendant le run (provenance « dirty » de chaque cellule). L'ÉVIDENCE suivie est
     # CET agrégat : il embarque les quinze lignes, avec leur lieu, leur provenance et leur charge.
@@ -379,7 +392,7 @@ def _tout(args, rule, smoke, design):
     arrêt. Garde E13 AVANT la phase B (unité × vagues × marge ≤ budget) ; phase B : 14 cellules en `workers` processus
     sous un PLAFOND PENDANT (Pool.terminate au dépassement, coupe publiée avec sa charge)."""
     import multiprocessing as mp
-    from tools.cost_guard import project_cost
+    from tools.cost_guard import CostTooHighToStart, project_cost
     from tools.evo_runs.s2_bassin_fragility import _charge, _neutraliser_kuzu
     from tools.jobs.run import hold
     budget_s = float((rule or {}).get("budget_s") or 3600.0)
@@ -407,8 +420,14 @@ def _tout(args, rule, smoke, design):
         reste = [a for a in ARMS if a != "off"]
         vagues = math.ceil(len(reste) / int(args.workers))
         execution["unit_s_phase_A"] = unit
-        execution["projected_s"] = project_cost(unit, n_units=vagues, budget_s=budget_s,
-                                                label="e34-identity-cell (unité = la cellule éteinte seule, par vague)")
+        try:
+            execution["projected_s"] = project_cost(unit, n_units=vagues, budget_s=budget_s,
+                                                    label="e34-identity-cell (unité = la cellule éteinte seule, par vague)")
+        except CostTooHighToStart as exc:                               # revue v4, P10.d : le refus est PERSISTÉ
+            _save(os.path.join(d, "_refus_cout.json"), {"refus": str(exc), "unit_s_phase_A": unit, "vagues": vagues,
+                                                         "budget_s": budget_s, "charge": _charge()})
+            print(f"[e34] REFUS DE LA GARDE DE COÛT : {exc}", flush=True)
+            return None if smoke else _lire(smoke)
         pool = ctx.Pool(processes=int(args.workers), initializer=_neutraliser_kuzu)
         try:
             en_vol = {a: pool.apply_async(_tache, (SEED, a, agents, ticks_learn, ticks_test, smoke)) for a in reste}

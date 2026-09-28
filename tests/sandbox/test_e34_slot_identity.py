@@ -261,8 +261,11 @@ def test_reindex_fix_keeps_the_published_body_order_and_moves_the_brains():
     """RÉINDEXATION (revue v3, P1.a) : après une mort en tête, les corps restent dans l'ordre de la recharge PUBLIÉE (le
     mort en queue) et ce sont les lignes qui suivent : invariant tenu, zéro commutation, ordre de service inchangé."""
     from tools.evo_runs.s2_credit_retention import _identity_counters, immortal_after_step
-    e, _ = _torch_world(4)
+    e, torch = _torch_world(4)
     ident = _identity_counters()
+    np.random.seed(11)
+    ref_global = np.random.RandomState(11)
+    torch_state = torch.get_rng_state().clone()
     for t, pos in ((0, None), (1, 0), (2, None), (3, 2)):
         if pos is not None:
             e.kill(pos)
@@ -273,14 +276,16 @@ def test_reindex_fix_keeps_the_published_body_order_and_moves_the_brains():
         if attendu is not None:
             assert [a["id"] for a in e.agents] == attendu                 # ordre des CORPS = recharge publiée
         assert slot_identity_violations(e) == []
-    assert ident["slot_switches"] == 0 and ident["ticks_reordered"] == 0
+    assert ident["slot_switches"] == 0 and ident["ticks_body_reordered"] == 0
     assert ident["first_reindex_tick"] == 1 and ident["reindex_events"] == 2 and ident["order_changes"] == 2
+    assert np.random.random() == ref_global.random() and torch.equal(torch.get_rng_state(), torch_state)
 
 
 def test_relabel_sham_shuffles_only_the_moved_rows_with_its_private_rng():
-    """RÉÉTIQUETAGE (revue v3, P1.b/P5.d) : à chaque changement d'ordre, seules les lignes des positions DÉPLACÉES sont
-    permutées, par RandomState(k) ; l'ordre des corps reste celui de la recharge publiée ; RNG global et torch intacts ;
-    la dose est celle du bras éteint à une coïncidence près."""
+    """RÉÉTIQUETAGE (revues v3 P1.b/P5.d, v4 P4.b/P7.a) : à chaque changement d'ordre, seules les lignes des positions
+    DÉPLACÉES sont permutées, par RandomState(k), en DÉRANGEMENT relatif à la réindexation (aucune position déplacée ne
+    reçoit le cerveau de son corps : tirage par rejet) ; l'ordre des corps reste celui de la recharge publiée ; RNG
+    global et torch intacts."""
     from tools.evo_runs.s2_credit_retention import _identity_counters, immortal_after_step
     e, torch = _torch_world(5)
     ident = _identity_counters()
@@ -291,16 +296,52 @@ def test_relabel_sham_shuffles_only_the_moved_rows_with_its_private_rng():
     avant = list(e._torch_pop.agents)
     e.kill(1)                                                        # positions 1..4 déplacées
     immortal_after_step(e, identity=ident, tick=0, sham_relabel=3)
-    melange = prive.permutation(4)
     deplacees = [1, 2, 3, 4]
-    for i, j in enumerate(deplacees):
-        assert e._torch_pop.agents[j] is avant[deplacees[int(melange[i])]]
+    propre = {1: 2, 2: 3, 3: 4, 4: 1}                                # après recharge : corps a2, a3, a4, a1
+    tirages = 0
+    while True:                                                      # même rejet que le harnais
+        tirages += 1
+        melange = prive.permutation(4)
+        cible = {j: deplacees[int(melange[i])] for i, j in enumerate(deplacees)}
+        if all(cible[j] != propre[j] for j in deplacees):
+            break
+    for j in deplacees:
+        assert e._torch_pop.agents[j] is avant[cible[j]]
+        assert e._torch_pop.agents[j] is not e.agents[j]["model"]    # aucun cerveau déplacé sur son corps
+    assert ident["relabel_draws"] == tirages
     assert e._torch_pop.agents[0] is avant[0]                        # position non déplacée : ligne intacte
     assert [a["id"] for a in e.agents] == ["a0", "a2", "a3", "a4", "a1"]  # corps : recharge publiée
     assert ident["relabel_events"] == 1 and ident["first_relabel_tick"] == 0 and ident["sham_relabel"] == 3
-    assert ident["positions_moved"] == 4 and ident["ticks_reordered"] == 0
+    assert ident["positions_moved"] == 4 and ident["ticks_body_reordered"] == 0
     assert np.random.random() == ref_global.random() and torch.equal(torch.get_rng_state(), torch_state)
     assert 0 < ident["slot_switches"] <= 4
+
+
+def test_relabel_sham_at_two_moved_rows_can_only_keep_the_off_assignment():
+    """Revue v4, P4.b : à m = 2 lignes déplacées depuis un ordre aligné, la seule permutation non réparatrice est
+    celle du bras éteint -- le sham ne tire RIEN d'autre (et ne peut jamais appliquer la réindexation)."""
+    from tools.evo_runs.s2_credit_retention import _identity_counters, immortal_after_step
+    e, _ = _torch_world(4)
+    ident = _identity_counters()
+    avant = list(e._torch_pop.agents)
+    e.kill(2)                                                        # positions 2 et 3 déplacées
+    immortal_after_step(e, identity=ident, tick=0, sham_relabel=9)
+    assert [a["id"] for a in e.agents] == ["a0", "a1", "a3", "a2"]
+    assert all(e._torch_pop.agents[j] is avant[j] for j in range(4))  # lignes inchangées : l'affectation du bras éteint
+    assert slot_identity_violations(e) == [2, 3] and ident["rows_relabeled"] == 0
+
+
+def test_body_order_is_measured_and_only_the_body_fix_moves_it():
+    """Revue v4, P10.a : `ticks_body_reordered` est MESURÉ (ordre final contre ordre laissé par la recharge) : nul pour
+    les traitements qui ne touchent que les lignes, positif pour la remise en ordre des CORPS."""
+    from tools.evo_runs.s2_credit_retention import _identity_counters, immortal_after_step
+    for kw, attendu in (({"slot_reindex": True}, 0), ({"sham_relabel": 4}, 0), ({"cut_credit_at_t1": True}, 0),
+                        ({}, 0), ({"slot_order_fix": True}, 1)):
+        e, _ = _torch_world(4)
+        ident = _identity_counters()
+        e.kill(0)
+        immortal_after_step(e, identity=ident, tick=0, **kw)
+        assert ident["ticks_body_reordered"] == attendu, kw
 
 
 def test_positive_control_cuts_the_credit_at_the_first_order_change():
@@ -309,6 +350,8 @@ def test_positive_control_cuts_the_credit_at_the_first_order_change():
     from tools.evo_runs.s2_credit_retention import _identity_counters, immortal_after_step
     e = _World(4)
     ident = _identity_counters()
+    np.random.seed(5)
+    ref_global = np.random.RandomState(5)
     for t, pos in ((0, 3), (1, None), (2, 0), (3, 1)):
         if pos is not None:
             e.kill(pos)
@@ -317,6 +360,7 @@ def test_positive_control_cuts_the_credit_at_the_first_order_change():
             assert not hasattr(e._torch_pop, "learn")               # mort en queue : aucune coupe
     assert ident["credit_cut_tick"] == 2
     assert e._torch_pop.learn([1.0], [{}]) is None and e._torch_pop.learn_episode([], [], []) is None
+    assert np.random.random() == ref_global.random()                # aucun tirage du RNG global (revue v4, P10.c)
     assert ident["relabel_events"] == 0 and ident["reindex_events"] == 0 and ident["positions_reordered"] == 0
 
 
@@ -454,17 +498,20 @@ def test_without_death_the_fix_is_a_bit_exact_noop():
 
 
 def test_real_world_relabel_shams_diverge_from_off_and_from_each_other():
-    """Revue v2, P5.b : dans le MONDE réel, un réétiquetage change ce qui est appris (la bande ne peut pas être inerte par
-    construction), deux RNG privés donnent deux trajectoires, et l'ordre des CORPS n'est jamais touché."""
+    """Revue v2, P5.b : dans le MONDE réel, les réétiquetages changent ce qui est appris (la bande ne peut pas être inerte
+    par construction) et l'ordre des CORPS n'est jamais touché. En DÉRANGEMENT (revue v4), le nombre d'affectations
+    permises est petit sur une petite cohorte (2 pour 3 corps, 9 pour 4) : deux RNG peuvent tirer la même, et
+    l'affectation du bras éteint est elle-même permise -- on exige donc, sur trois RNG et 4 corps, au moins deux
+    trajectoires distinctes et au moins une distincte du bras éteint (mesuré : 3 corps et 2 RNG tiraient la même)."""
     from tools.evo_runs.s2_credit_retention import _identity_counters, immortal_after_step
-    ref = _trace(lambda e, t: _refill_reference_5d534d44(e))
-    outs = []
-    for k in (1, 2):
+    ref = _trace(lambda e, t: _refill_reference_5d534d44(e), n=4)
+    digests = []
+    for k in (1, 2, 3):
         ident = _identity_counters()
-        outs.append(_trace(lambda e, t, ident=ident, k=k: immortal_after_step(e, identity=ident, tick=t, sham_relabel=k)))
-        assert ident["first_relabel_tick"] == 2 and ident["relabel_events"] >= 2 and ident["ticks_reordered"] == 0
-    assert outs[0]["digest"] != ref["digest"] and outs[1]["digest"] != ref["digest"]
-    assert outs[0]["digest"] != outs[1]["digest"]
+        tr = _trace(lambda e, t, ident=ident, k=k: immortal_after_step(e, identity=ident, tick=t, sham_relabel=k), n=4)
+        digests.append(tr["digest"])
+        assert ident["first_relabel_tick"] == 2 and ident["relabel_events"] >= 2 and ident["ticks_body_reordered"] == 0
+    assert len(set(digests)) >= 2 and any(d != ref["digest"] for d in digests)
 
 
 def test_real_world_reindex_fix_holds_the_invariant_every_tick_and_keeps_the_body_order():
@@ -472,7 +519,7 @@ def test_real_world_reindex_fix_holds_the_invariant_every_tick_and_keeps_the_bod
     ident = _identity_counters()
     tr = _trace(lambda e, t: immortal_after_step(e, slot_reindex=True, identity=ident, tick=t))
     assert tr["res"] == 2 and all(v == [] for v in tr["per_tick"])
-    assert ident["slot_switches"] == 0 and ident["ticks_reordered"] == 0 and ident["first_reindex_tick"] == 2
+    assert ident["slot_switches"] == 0 and ident["ticks_body_reordered"] == 0 and ident["first_reindex_tick"] == 2
     assert tr["summary"]["td_updates"] == 15
 
 

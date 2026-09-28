@@ -132,9 +132,12 @@ def immortal_refill(e, refill_below=30.0, refill_to=80.0, hp_refill_below=50.0):
 # pour que la tranche j pilote le corps dont elle porte le modèle. L'ordre de service est donc IDENTIQUE au bras éteint.
 # SHAM DE RÉÉTIQUETAGE (`sham_relabel=k`) : à chaque tick où la recharge change l'ordre des corps, les lignes des
 # positions DÉPLACÉES par cet événement (et elles seules) sont permutées par un RNG PRIVÉ (`np.random.RandomState(k)` :
-# ni RNG global numpy, ni RNG torch), SANS réparer l'identité : même ordre de service et même dose de défaut que le bras
-# éteint (≈ une commutation par position déplacée) ; le correctif est, sous H0, une permutation particulière de ces
-# mêmes lignes — échangeable par construction avec les shams.
+# ni RNG global numpy, ni RNG torch), SANS réparer l'identité — revue v4 (P4.b, P7.a) : une permutation UNIFORME recollait
+# en espérance un cerveau à son corps par événement (et appliquait parfois la réindexation entière) ; le tirage est donc
+# un DÉRANGEMENT relatif à la réindexation (aucune position déplacée ne reçoit le cerveau de son propre corps), tiré par
+# rejet. Même ordre de service que le bras éteint ; à chaque événement, comme lui, aucun cerveau déplacé sur son corps.
+# ORDRE DES CORPS MESURÉ (revue v4, P10.a) : `ticks_body_reordered` compte les ticks où l'ordre final de `e.agents`
+# diffère de l'ordre laissé par la recharge publiée — nul pour tout traitement qui ne touche que les lignes.
 # CONTRÔLE POSITIF (`cut_credit_at_t1=True`) : au premier tick où la recharge change l'ordre (t1), le crédit de la
 # population est COUPÉ (learn / learn_episode neutralisés sur l'instance) — un effet de sens connu, au même régime.
 # DOSE : une COMMUTATION = un CERVEAU (modèle) dont le corps change d'un tick au suivant ; comptée dans tous les bras.
@@ -151,7 +154,7 @@ def _identity_counters():
             "ticks_reordered": 0, "positions_reordered": 0, "first_reorder_tick": None,
             "reindex_events": 0, "rows_reindexed": 0, "first_reindex_tick": None,
             "sham_relabel": 0, "relabel_events": 0, "rows_relabeled": 0, "first_relabel_tick": None,
-            "credit_cut_tick": None,
+            "relabel_draws": 0, "ticks_body_reordered": 0, "credit_cut_tick": None,
             "_order": None, "_pairing": None, "_relabel_rng": None}
 
 
@@ -189,6 +192,7 @@ def immortal_after_step(e, refill_below=30.0, refill_to=80.0, hp_refill_below=50
                                      slot_identity_violations)
     pop = getattr(e, "_torch_pop", None)
     connu = slot_identity_violations(e) is not None                # appariement défini au sortir de la recharge
+    ordre_recharge = [a["id"] for a in e.agents]                   # l'ordre des corps laissé par la recharge PUBLIÉE
     if identity is not None and connu:
         prev_order = identity["_order"]
         if prev_order is None:                                     # avant le 1er pas : ordre de construction
@@ -204,10 +208,19 @@ def immortal_after_step(e, refill_below=30.0, refill_to=80.0, hp_refill_below=50
             if sham_relabel:
                 if identity["_relabel_rng"] is None:
                     identity["_relabel_rng"] = np.random.RandomState(int(sham_relabel))  # PRIVÉ : ni numpy global, ni torch
-                perm = list(range(len(order)))
-                melange = identity["_relabel_rng"].permutation(len(moved))
-                for i, j in enumerate(moved):
-                    perm[j] = moved[int(melange[i])]
+                rang = {id(m): k for k, m in enumerate(pop.agents)}
+                propre = {j: rang[id(e.agents[j]["model"])] for j in moved}   # la ligne du cerveau de chaque corps déplacé
+                for essai in range(1, 10001):                      # DÉRANGEMENT relatif à la réindexation, par rejet
+                    melange = identity["_relabel_rng"].permutation(len(moved))
+                    perm = list(range(len(order)))
+                    for i, j in enumerate(moved):
+                        perm[j] = moved[int(melange[i])]
+                    if all(perm[j] != propre[j] for j in moved):
+                        break
+                else:
+                    raise SlotIdentityError(f"tick {tick} : aucun dérangement trouvé en 10000 tirages sur {len(moved)} "
+                                            "lignes -- le sham réparerait l'identité, refus")
+                identity["relabel_draws"] += essai
                 permute_population_rows(pop, perm)
                 identity["sham_relabel"] = int(sham_relabel)
                 identity["relabel_events"] += 1
@@ -234,6 +247,8 @@ def immortal_after_step(e, refill_below=30.0, refill_to=80.0, hp_refill_below=50
         identity["rows_reindexed"] += sum(1 for j, k in enumerate(perm) if j != k)
         if identity["first_reindex_tick"] is None:
             identity["first_reindex_tick"] = tick
+    if identity is not None and [a["id"] for a in e.agents] != ordre_recharge:
+        identity["ticks_body_reordered"] += 1
     v = slot_identity_violations(e)
     if (slot_order_fix or slot_reindex) and v != []:
         raise SlotIdentityError(f"tick {tick} : invariant slot W <-> corps NON vérifié après correctif "

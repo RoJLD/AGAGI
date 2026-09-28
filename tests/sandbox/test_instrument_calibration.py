@@ -1827,23 +1827,25 @@ CALIBRATED = {
     "tools/evo_runs/s2_credit_ablation_2.py::run_arm": ["guard-before-world", "variante:enveloppe-la-phase-1-seule",
                                                         "b_const:reward_const-1.0-b_tdonly:episode-off",
                                                         "gele:ni-variante-ni-phase-1"],
-    # E34 / P2.132 (2026-09-26) -- lecture de la regle scellee E34-IDENTITY-CELL v4 (une cellule = une sonde), branches
+    # E34 / P2.132 (2026-09-26) -- lecture de la regle scellee E34-IDENTITY-CELL v5 (une cellule = une sonde), branches
     # dans l'ORDRE impose : INCOMPLET (cellule eteinte ou temoin absent) -> temoin d'une autre execution LEVE (v1 P5.b)
     # -> TEMOIN_ROMPU lu AVANT l'absence des autres cellules (v2 P10.d) -> INCOMPLET (cellule absente ; audit AVEUGLE,
     # v1 P7.a) -> PROVENANCE_MIXTE (v2 P10.e) -> LIEU_MIXTE -> SANS_OBJET (0 COMMUTATION) -> harnais qui ment LEVE (dont
-    # des CORPS reordonnes, v3 P1.a) -> BANDE_INERTE (v2 P1.b) -> BANDE_DEPLACEE (S_off hors bande, v3 P5.d) -> bande = 12
-    # shams de REETIQUETAGE (meme ordre de service et meme dose que l'eteint), bords DANS la bande, grille 0,5 -> MATERIEL
-    # / NON_MATERIEL (vers le HAUT seulement) si le CONTROLE POSITIF sort au-dessus de la bande ET de S_off (v3 P6.a),
-    # sinon NON_TRANCHE ; fausse alarme avec ex-aequo ; doses par bras (commutations, vote social) ; plafond de famine.
+    # des CORPS reordonnes, MESURE, v4 P10.a) -> BANDE_INERTE -> bande = S_off + 12 shams de REETIQUETAGE en DERANGEMENT
+    # (13 valeurs : S_off n'est plus un second test, v4 P4.a), bords DANS la bande, grille 0,5 -> MATERIEL / NON_MATERIEL
+    # (vers le HAUT seulement) si le CONTROLE POSITIF sort au-dessus de la bande ET de S_off, sinon NON_TRANCHE ; refus de
+    # la garde de cout PERSISTE et nomme (v4 P10.d) ; fausse alarme <= 2/14 avec ex-aequo ; doses par bras (commutations,
+    # vote social des deux phases, reconstructions de phase 2) ; plafond de famine.
     # Cas : tests/sandbox/test_e34_identity_cell.py (lignes synthetiques, appels HORS de pytest.raises).
     "identity_cell_verdict": ["incomplet", "temoin-autre-execution:raises", "temoin_rompu:avant-les-absences",
                               "audit-aveugle:incomplet-jamais-sans_objet", "missing:raises", "provenance_mixte",
                               "lieu_mixte", "sans_objet:zero-commutation", "harnais-qui-ment:raises",
-                              "corps-reordonnes:raises", "bande_inerte", "bande_deplacee",
-                              "bande:reetiquetages-bords-dans-la-bande", "materiel_hausse", "materiel_baisse",
+                              "corps-reordonnes-mesure:raises", "bande_inerte",
+                              "bande:S_off-plus-reetiquetages-bords-dans-la-bande", "materiel_hausse", "materiel_baisse",
+                              "incomplet:refus-de-cout-persiste-et-nomme",
                               "non_tranche:controle-positif-non-vu-au-dessus-de-S_off",
                               "non_materiel:vers-le-haut-borne-cellule-et-doses", "fausse-alarme:ex-aequo-calculee",
-                              "doses-par-bras-et-vote-social", "plancher-levier-et-plafond-de-famine-publies",
+                              "doses-par-bras-vote-social-et-reconstructions", "plancher-levier-et-plafond-de-famine-publies",
                               "part-erosion:None-sans-erosion"],
     # E34 / P2.132 -- une cellule b_full seed 2026 sous le traitement de son bras (off / on / pos / relab_k) : garde en
     # tete (aucun monde), traitement TRANSMIS a la phase 1 (injection : slot_reindex, sham_relabel, cut_credit_at_t1,
@@ -1854,7 +1856,10 @@ CALIBRATED = {
     "run_identity_cell": ["guard-before-world", "traitement-transmis-a-la-phase-1", "appel-reel:audit-publie",
                           "vote-social-compte", "plafond-de-famine:reponse-connue", "drapeau-eteint:noop-exact-au-bit",
                           "mort-en-tete:contre-exemple", "reindexation:invariant-et-ordre-des-corps-inchange",
-                          "reetiquetage:rng-prive-lignes-deplacees-diverge", "controle-positif:credit-coupe-a-t1"],
+                          "reetiquetage:derangement-rng-prive-lignes-deplacees-diverge",
+                          "reetiquetage:m2-garde-l-affectation-eteinte", "ordre-des-corps:mesure",
+                          "rng-intacts:reetiquetage-reindexation-coupe", "controle-positif:credit-coupe-a-t1",
+                          "phase-2:vote-social-et-reconstructions-comptes"],
     # E34 / P2.132 (revue v3, P8.b) -- plafond de famine d'un corps qui ne mange pas : energie de depart / (metabolisme de
     # base x drain du phenotype) ; DESCRIPTIF (ne decide rien). Cas : tests/sandbox/test_e34_identity_cell.py -- reponse
     # connue (80 / (0,75 x 14,888)) et drain illisible (nan) -> None, jamais un nombre fabrique ; appels HORS de

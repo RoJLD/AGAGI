@@ -37,15 +37,18 @@ def _row(s, arm, switches=0, mis=0, known=TL, unknown=0, order_changes=12, first
          reindex_tick=None, relab=0, relab_tick=None, cut_tick=None, td=TL - 1, dw=12000.0, ages=None, lieu=LIEU, prov=PROV,
          reordered=0):
     ident = {"ticks_known": known, "ticks_unknown": unknown, "slot_switches": switches, "slot_ticks_misaligned": mis,
-             "order_changes": order_changes, "first_order_change_tick": first_order, "ticks_reordered": reordered,
+             "order_changes": order_changes, "first_order_change_tick": first_order, "ticks_body_reordered": reordered,
              "positions_moved": 40, "reindex_events": 12 if reindex else 0, "rows_reindexed": 30 if reindex else 0,
              "first_reindex_tick": reindex_tick, "sham_relabel": relab, "relabel_events": 12 if relab else 0,
              "rows_relabeled": 25 if relab else 0, "first_relabel_tick": relab_tick, "credit_cut_tick": cut_tick,
+             "relabel_draws": 30 if relab else 0,
              "slot_order_fix": False, "slot_reindex": reindex}
     return {"arm": arm, "num_agents": 12, "lieu": dict(lieu), "provenance": dict(prov),
             "learning": {"td_updates": td, "episode_updates": 250, "resurrections": 12, "dW_abs_sum": dw,
                          "slot_identity": ident},
             "consensus_phase1": {"ticks_avec_reecriture": 5, "lignes_reecrites": 9}, "plafond_famine_ticks": 7.2,
+            "consensus_phase2": {"ticks_avec_reecriture": 2, "lignes_reecrites": 3},
+            "reconstructions_phase2": {"constructions": 6, "B": [12, 11, 9, 7, 4, 1]},
             "survival": {"survival_median": s, "ages": list(ages or [int(s)] * 12)}}
 
 
@@ -143,8 +146,16 @@ def test_verdict_SANS_OBJET_only_when_no_brain_switched_body():
     assert v["verdict"] == "SANS_OBJET"
 
 
+def test_verdict_INCOMPLET_names_a_persisted_cost_refusal():
+    """Revue v4, P10.d : un refus de la garde de coût avant la phase B est PERSISTÉ et le verdict le nomme."""
+    rows = {a: None for a in R.ARMS}
+    rows["off"] = _rows()["off"]
+    v = R.identity_cell_verdict(rows, _witness(rows["off"]), 31.5, TL, refus_cout={"refus": "trop cher", "unit_s": 900})
+    assert v["verdict"] == "INCOMPLET" and "garde de coût" in v["why"] and v["refus_cout"]["unit_s"] == 900
+
+
 def test_verdict_refuses_a_harness_that_lies():
-    with pytest.raises(ValueError):                                     # des CORPS réordonnés (ordre de service changé)
+    with pytest.raises(ValueError):                                     # des CORPS réordonnés, MESURÉ
         _v(_rows(relab_02=_row(8.0, "relab_02", switches=38, relab=2, relab_tick=T1, reordered=3)))
     with pytest.raises(ValueError):                                     # réindexation qui commute
         _v(_rows(on=_row(8.0, "on", switches=3, reindex=True, reindex_tick=T1)))
@@ -160,28 +171,23 @@ def test_verdict_refuses_a_harness_that_lies():
         _v(_rows(pos=_row(20.0, "pos", switches=40, cut_tick=T1 + 2, td=T1 + 1)))
 
 
-def test_verdict_BANDE_INERTE_when_the_twelve_relabels_did_not_diverge():
+def test_verdict_BANDE_INERTE_when_the_thirteen_members_did_not_diverge():
     rows = _rows()
     for a in R.RELABS:
-        rows[a]["learning"]["dW_abs_sum"] = 11000.0
+        rows[a]["learning"]["dW_abs_sum"] = DW_OFF
     v = _v(rows)
     assert v["verdict"] == "BANDE_INERTE" and v["band_dW_distincts"] == 1
 
 
-def test_verdict_BANDE_DEPLACEE_when_the_off_arm_is_outside_the_band():
-    """Revue v3, P5.d : si S_off sort de la bande, les témoins ne représentent pas le bras éteint -- aucune lecture, même
-    quand S_on en sort aussi."""
-    v = _v(_rows(s_on=12.0, relab_s=(8.0, 8.5, 9.0, 8.0, 8.5, 9.0, 8.0, 8.5, 9.0, 8.0, 8.5, 9.0)))
-    assert v["verdict"] == "BANDE_DEPLACEE" and v["band_min"] == 8.0 and v["S_off"] == 7.0
-
-
-def test_verdict_band_is_the_relabels_and_its_edges_belong_to_it():
-    """Bande = les 12 réétiquetages [6,5 ; 8,5] ; S_off (7,0) n'en fait pas partie mais doit y tomber. Bords DANS la
-    bande."""
+def test_verdict_band_is_S_off_plus_the_relabels_and_its_edges_belong_to_it():
+    """Revue v4, P4.a : S_off n'est plus un second test contre la bande, il EN FAIT PARTIE -- treize valeurs ; un S_off
+    loin des réétiquetages élargit la bande au lieu de rendre un run illisible. Bords DANS la bande."""
     assert _v(s_on=8.5)["verdict"] == "NON_MATERIEL" and _v(s_on=6.5)["verdict"] == "NON_MATERIEL"
     assert _v(s_on=9.0)["verdict"] == "MATERIEL_HAUSSE" and _v(s_on=6.0)["verdict"] == "MATERIEL_BAISSE"
     v = _v()
-    assert (v["band_min"], v["band_max"]) == (6.5, 8.5) and len(v["band_values"]) == 12 and v["S_off"] == 7.0
+    assert (v["band_min"], v["band_max"]) == (6.5, 8.5) and len(v["band_values"]) == 13 and v["band_values"][0] == 7.0
+    v = _v(_rows(s_on=8.5, relab_s=(8.0, 8.5, 9.0) * 4))              # S_off 7,0 sous les réétiquetages : bande [7 ; 9]
+    assert v["band_min"] == 7.0 and v["verdict"] == "NON_MATERIEL"
 
 
 def test_verdict_NON_TRANCHE_when_the_positive_control_is_not_seen_above_the_band_and_S_off():
@@ -195,11 +201,11 @@ def test_verdict_NON_TRANCHE_when_the_positive_control_is_not_seen_above_the_ban
 def test_verdict_false_alarm_is_computed_with_ties():
     """Revue v2, P5.d : 2/13 est une BORNE ; sur les valeurs observées, les ex-aequo la réduisent."""
     v = _v(s_on=8.0)
-    assert v["fausse_alarme_h0_borne"] == pytest.approx(2.0 / 13.0)
-    assert v["fausse_alarme_h0_ex_aequo"] == pytest.approx(2.0 / 13.0)   # max 8,5 et min 6,5 uniques
+    assert v["fausse_alarme_h0_borne"] == pytest.approx(2.0 / 14.0)
+    assert v["fausse_alarme_h0_ex_aequo"] == pytest.approx(2.0 / 14.0)   # max 8,5 et min 6,5 uniques
     rows = _rows(relab_s=(7.0,) * 12)
     v = _v(rows)
-    assert v["fausse_alarme_h0_ex_aequo"] == pytest.approx(1.0 / 13.0)   # S_on 8,0 seul au max, min à 12 ex-aequo
+    assert v["fausse_alarme_h0_ex_aequo"] == pytest.approx(1.0 / 14.0)   # S_on 8,0 seul au max, min à 13 ex-aequo
 
 
 def test_verdict_publishes_doses_per_arm_the_positive_contrast_the_floor_and_the_starvation_ceiling():
@@ -210,6 +216,9 @@ def test_verdict_publishes_doses_per_arm_the_positive_contrast_the_floor_and_the
     assert set(v["dose"]) == set(R.ARMS) and v["dose"]["pos"]["td_updates"] == T1 + 1
     assert v["dose"]["relab_03"]["slot_switches"] == 38 and v["dose"]["on"]["slot_switches"] == 0
     assert v["dose"]["off"]["consensus_ticks_avec_reecriture"] == 5 and v["dose"]["on"]["rows_reindexed"] == 30
+    assert v["dose"]["off"]["consensus_phase2_ticks"] == 2 and v["dose"]["pos"]["reconstructions_phase2"] == 6
+    assert len(v["switches_band"]) == 13 and v["switches_band"]["off"] == 40 and v["switches_band"]["relab_01"] == 38
+    assert v["relabs_part_erosion"]["relab_11"] == pytest.approx(1.5 / 24.5)
     assert v["S_a"] == 31.5 and v["erosion_off"] == 24.5 and v["part_erosion_levee"] == pytest.approx(6.0 / 24.5)
     assert v["dS_pos"] == 13.0 and len(v["relabs_dS"]) == 12 and v["relabs_dS"]["relab_11"] == 1.5
     assert v["sous_plancher_off"] is True and v["thresholds"]["floor"] == 9.0 and v["plafond_famine_ticks"] == 7.2
@@ -316,6 +325,8 @@ def test_run_identity_cell_passes_the_arm_treatment_to_phase_1(monkeypatch):
     assert on["lr"] is None and on["num_agents"] == 3 and on["survival"]["survival_median"] == 4.0
     assert on["cpu_s"] >= 0.0 and on["elapsed_s"] >= 0.0
     assert on["consensus_phase1"] == {"ticks_avec_reecriture": 0, "lignes_reecrites": 0}   # aucun monde : aucun vote
+    assert on["consensus_phase2"] == {"ticks_avec_reecriture": 0, "lignes_reecrites": 0}
+    assert on["reconstructions_phase2"] == {"constructions": 0, "B": []}
     assert on["plafond_famine_ticks"] is None                           # cohorte factice : drain illisible -> None
 
 
