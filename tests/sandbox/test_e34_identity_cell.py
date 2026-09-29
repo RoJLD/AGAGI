@@ -10,6 +10,9 @@ réplique traitée, dose TD du contrôle positif différente de t1, phase 2 qui 
 ex-aequo ; doses par bras ; (2) S_a et la dispersion ENTRE seeds (descriptive) LUES dans le JSON suivi de P4.16 ; (3) le
 témoin du code contre la cellule publiée de P4.4 ; (4) `run_identity_cell` : garde en tête, traitement TRANSMIS (avec le
 recensement du RNG et la dose de phase 2), appel réel minuscule (monde, torch).
+v6.1 (revue v6, table docs/reviews/2026-09-29-E34-IDENTITY-CELL.v6.correctifs.md) : famille de DEUX tests déclarée et
+publiée (contre-exemple gelé d'E23 occ. 5, taux à réponse connue), dose et constructions de phase 1 contrôlées, corps du
+bassin contrôlé (`body_matches_bassin`, réponses connues), coupe au plafond nommée par INCOMPLET.
 """
 import json
 import os
@@ -40,7 +43,8 @@ _DEFAUT = object()
 
 def _row(s, arm, switches=0, mis=0, known=TL, unknown=0, order_changes=12, first_order=T1, reindex=False,
          reindex_tick=None, cut_tick=None, reseed=_DEFAUT, reseed_tick=_DEFAUT, td=TL - 1, dw=12000.0, ages=None,
-         lieu=LIEU, prov=PROV, reordered=0, repairings=0, p2_dw=0.0, dose_p2=True, relabel_events=0):
+         lieu=LIEU, prov=PROV, reordered=0, repairings=0, p2_dw=0.0, dose_p2=True, relabel_events=0, episodes=250,
+         reco1=1, corps1=True, corps2=True):
     reseed = R.reseed_seed(arm) if reseed is _DEFAUT and arm in R.RESEED_K else (None if reseed is _DEFAUT else reseed)
     reseed_tick = (T1 if reseed is not None else None) if reseed_tick is _DEFAUT else reseed_tick
     ident = {"ticks_known": known, "ticks_unknown": unknown, "slot_switches": switches, "slot_ticks_misaligned": mis,
@@ -48,18 +52,21 @@ def _row(s, arm, switches=0, mis=0, known=TL, unknown=0, order_changes=12, first
              "positions_moved": 40, "reindex_events": 12 if reindex else 0, "rows_reindexed": 30 if reindex else 0,
              "first_reindex_tick": reindex_tick, "sham_relabel": 0, "relabel_events": relabel_events,
              "credit_cut_tick": cut_tick, "reseed_seed": reseed, "reseed_tick": reseed_tick, "repairings": repairings,
-             "rng_census": {"marque": f"t1={T1}", "tirages_apres": 50000, "n_sites_apres": 9, "reensemencements_apres": 0,
+             "rng_census": {"marque": f"t1={T1}", "appels_apres": 50000, "n_sites_apres": 9, "reensemencements_apres": 0,
                             "sites_apres": {"src/worlds/world_1_stoneage.py:1233": 1900}},
              "slot_order_fix": False, "slot_reindex": reindex}
     survival = {"survival_median": s, "ages": list(ages or [int(s)] * 12)}
     if dose_p2:
-        survival["dose_phase2"] = {"td_updates": 0, "episode_updates": 0, "dW_abs_sum": p2_dw}
+        survival["dose_phase2"] = {"td_updates": 0, "episode_calls": 1, "episode_updates": 1, "dW_abs_sum": p2_dw}
     return {"arm": arm, "num_agents": 12, "lieu": dict(lieu), "provenance": dict(prov),
-            "learning": {"td_updates": td, "episode_updates": 250, "resurrections": 12, "dW_abs_sum": dw,
+            "learning": {"td_updates": td, "episode_updates": episodes, "resurrections": 12, "dW_abs_sum": dw,
                          "slot_identity": ident},
             "consensus_phase1": {"ticks_avec_reecriture": 5, "lignes_reecrites": 9}, "plafond_famine_ticks": 7.2,
             "consensus_phase2": {"ticks_avec_reecriture": 2, "lignes_reecrites": 3},
+            "reconstructions_phase1": {"constructions": reco1, "B": [12] * reco1},
             "reconstructions_phase2": {"constructions": 6, "B": [12, 11, 9, 7, 4, 1]},
+            "corps_apres_phase1": {"conforme": corps1, "n_ecarts": 0 if corps1 else None, "ecart_rel_max": 0.0},
+            "corps_apres_phase2": {"conforme": corps2, "n_ecarts": 0 if corps2 else None, "ecart_rel_max": 0.0},
             "survival": survival}
 
 
@@ -190,6 +197,13 @@ def test_verdict_INCOMPLET_names_a_persisted_cost_refusal():
     {"pos": dict(cut_tick=T1 + 2, td=T1 + 2)},                         # coupé hors de t1
     {"on": dict(p2_dw=0.5)},                                           # phase 2 qui APPREND (v5 P7.1)
     {"rep_05": dict(dose_p2=False)},                                   # phase 2 sans dose publiée
+    {"on": dict(td=TL - 2)},                                           # dose TD du correctif ≠ ticks_learn - 1 (v6 P7.1)
+    {"rep_03": dict(td=TL - 2)},                                       # dose TD d'une réplique ≠ ticks_learn - 1
+    {"rep_03": dict(episodes=249)},                                    # dose épisodique ≠ bras éteint
+    {"pos": dict(reco1=2)},                                            # population RECONSTRUITE en phase 1
+    {"off": dict(reco1=0)},                                            # aucune construction comptée : non mesuré
+    {"rep_04": dict(corps2=False)},                                    # corps ≠ bassin après la phase 2 (v6 P8.2, E26)
+    {"on": dict(corps1=None)},                                         # corps ILLISIBLE : jamais conforme
 ])
 def test_verdict_refuses_a_harness_that_lies(over):
     (arm, kw), = over.items()
@@ -263,7 +277,9 @@ def test_verdict_publishes_doses_per_arm_the_positive_contrast_the_floor_and_the
     assert v["dose"]["off"]["consensus_ticks_avec_reecriture"] == 5 and v["dose"]["on"]["rows_reindexed"] == 30
     assert v["dose"]["off"]["consensus_phase2_ticks"] == 2 and v["dose"]["pos"]["reconstructions_phase2"] == 6
     assert v["dose"]["rep_03"]["reseed_seed"] == 202603 and v["dose"]["off"]["reseed_seed"] is None
-    assert v["dose"]["on"]["phase2_dW_abs_sum"] == 0.0 and v["dose"]["off"]["rng_tirages_apres_t1"] == 50000
+    assert v["dose"]["on"]["phase2_dW_abs_sum"] == 0.0 and v["dose"]["off"]["rng_appels_apres_t1"] == 50000
+    assert v["dose"]["off"]["phase2_episode_calls"] == 1 and "phase2_episode_updates" not in v["dose"]["off"]
+    assert v["dose"]["pos"]["reconstructions_phase1"] == 1 and v["dose"]["rep_07"]["corps_apres_phase2"] is True
     assert v["dose"]["off"]["rng_sites_apres_t1"] == 9 and v["dose"]["off"]["rng_reensemencements_monde_apres_t1"] == 0
     assert v["rng_census_off"]["sites_apres"] == {"src/worlds/world_1_stoneage.py:1233": 1900}
     assert len(v["switches_band"]) == 13 and v["switches_band"]["off"] == 40 and v["switches_band"]["rep_01"] == 38
@@ -279,6 +295,59 @@ def test_verdict_NON_MATERIEL_is_upward_only_and_cites_the_cell_and_both_doses()
     v = _v(s_on=7.5, s_pos=20.0)
     assert v["verdict"] == "NON_MATERIEL" and "CETTE cellule" in v["why"] and "vers le HAUT" in v["why"]
     assert "40 commutations" in v["why"] and "30 lignes réindexées" in v["why"] and "vers le BAS, non éprouvé" in v["why"]
+
+
+def test_verdict_declares_and_publishes_the_family_of_two_tests():
+    """CONTRE-EXEMPLE GELÉ d'E23 (occ. 5), revue v6 P4.1 / P5.1 / P6.1 : le contrôle positif est un SECOND test de rang
+    contre la même bande. Déclaré et publié : MATERIEL à tort <= 2/14, contrôle positif passé par hasard <= 1/14,
+    NON_MATERIEL à tort sous double nul <= 12/210, et sa valeur sur les ex-aequo observés, citée dans le « why »."""
+    v = _v(s_on=7.5, s_pos=20.0)
+    f = v["famille"]
+    assert len(f["tests"]) == 2 and f["materiel_a_tort_h0_borne"] == pytest.approx(2 / 14)
+    assert f["controle_positif_passe_par_hasard_borne"] == pytest.approx(1 / 14)
+    assert f["non_materiel_a_tort_double_nul_borne"] == pytest.approx(12 / 210)
+    band = [7.0] + list(REP_S)
+    assert f["non_materiel_a_tort_double_nul_ex_aequo"] == R._non_materiel_a_tort_ex_aequo(7.5, 20.0, band)
+    assert v["verdict"] == "NON_MATERIEL" and "famille de DEUX tests" in v["why"] and "0.057" in v["why"]
+    assert _v(_rows(rep_s=(7.0,) * 12))["famille"]["non_materiel_a_tort_double_nul_borne"] == pytest.approx(12 / 210)
+
+
+def test_non_materiel_by_chance_rate_has_known_answers():
+    """Réponses CONNUES : 15 valeurs distinctes -> 12/210 exactement (le contrôle au sommet, le correctif ni au sommet
+    ni au fond des 14 autres) ; 14 valeurs égales et une plus haute -> 14/210 (les ex-aequo peuvent AUGMENTER le taux) ;
+    15 valeurs égales -> 0 (le contrôle ne dépasse jamais strictement)."""
+    distinct = [float(k) for k in range(13)]
+    assert R._non_materiel_a_tort_ex_aequo(20.0, 30.0, distinct) == pytest.approx(12 / 210)
+    assert R._non_materiel_a_tort_ex_aequo(7.0, 9.0, [7.0] * 13) == pytest.approx(14 / 210)
+    assert R._non_materiel_a_tort_ex_aequo(7.0, 7.0, [7.0] * 13) == 0.0
+
+
+def test_verdict_INCOMPLET_names_a_persisted_budget_cut():
+    """Revue v6, P10.1 (E13) : une coupe au plafond PENDANT la phase B entre dans l'évidence et le verdict la nomme,
+    avec son mur et sa charge -- jamais la cause générique « une cellule manque »."""
+    rows = _rows()
+    rows["rep_09"] = rows["rep_10"] = None
+    coupe = {"coupe": True, "mur_s": 10812.0, "charge": {"cpu_percent_1s": 97.0}, "non_terminees": ["rep_09", "rep_10"]}
+    v = R.identity_cell_verdict(rows, _witness(rows["off"]), 31.5, TL, coupe=coupe)
+    assert v["verdict"] == "INCOMPLET" and "COUPÉE au plafond" in v["why"] and "10812.0" in v["why"]
+    assert v["coupe"]["non_terminees"] == ["rep_09", "rep_10"]
+    assert "une cellule manque" in R.identity_cell_verdict(rows, _witness(rows["off"]), 31.5, TL)["why"]
+
+
+def test_body_matches_bassin_has_known_answers():
+    """Revue v6, P8.2 (E26) : corps identique -> conforme ; un bonus de PV écarté de 1 % -> non conforme, un écart
+    compté ; capacité d'inventaire différente -> non conforme ; attribut absent -> None (illisible, jamais conforme)."""
+    from types import SimpleNamespace as NS
+    want = {"hp_bonus": 688.827, "inv_capacity": 12, "energy_drain": 14.8883}
+
+    def ag(hp=688.827, inv=12, drain=14.8883):
+        return NS(phenotype_hp_bonus=hp, phenotype_inv_capacity=inv, phenotype_energy_drain=drain)
+    assert R.body_matches_bassin([ag(), ag()], want) == {"conforme": True, "n_ecarts": 0, "ecart_rel_max": 0.0}
+    r = R.body_matches_bassin([ag(), ag(hp=688.827 * 1.01)], want)
+    assert r["conforme"] is False and r["n_ecarts"] == 1 and r["ecart_rel_max"] == pytest.approx(0.01)
+    assert R.body_matches_bassin([ag(inv=11)], want)["conforme"] is False
+    assert R.body_matches_bassin([ag(), NS()], want)["conforme"] is None
+    assert R.body_matches_bassin([ag(drain=float("nan"))], want)["conforme"] is None
 
 
 def test_verdict_part_erosion_is_None_without_erosion():
@@ -361,6 +430,7 @@ def test_run_identity_cell_refuses_degenerate_args_before_any_world(monkeypatch)
 def test_run_identity_cell_passes_the_arm_treatment_the_census_and_the_phase2_dose(monkeypatch):
     seen, seen2 = [], []
     monkeypatch.setattr(R, "_bassin_cohort", lambda seed, n: ["cohorte", seed, n])
+    monkeypatch.setattr(R, "_corps_du_bassin", lambda: {"hp_bonus": 1.0, "inv_capacity": 3, "energy_drain": 1.0})
     monkeypatch.setattr(R, "phase1_learn_immortal",
                         lambda agents, seed, ticks, **kw: seen.append((agents, seed, ticks, kw)) or {"td_updates": 1})
     monkeypatch.setattr(R, "phase2_survive_mortal",
@@ -381,7 +451,9 @@ def test_run_identity_cell_passes_the_arm_treatment_the_census_and_the_phase2_do
     assert on["consensus_phase1"] == {"ticks_avec_reecriture": 0, "lignes_reecrites": 0}   # aucun monde : aucun vote
     assert on["consensus_phase2"] == {"ticks_avec_reecriture": 0, "lignes_reecrites": 0}
     assert on["reconstructions_phase2"] == {"constructions": 0, "B": []}
+    assert on["reconstructions_phase1"] == {"constructions": 0, "B": []}   # revue v6, P7.1 : compté en phase 1 aussi
     assert on["plafond_famine_ticks"] is None                           # cohorte factice : drain illisible -> None
+    assert on["corps_apres_phase1"]["conforme"] is None and on["corps_apres_phase2"]["conforme"] is None   # illisible
 
 
 def test_starvation_ceiling_is_start_energy_over_metabolic_drain():
@@ -407,6 +479,9 @@ def test_run_identity_cell_real_world_minimal_publishes_the_audit_the_census_and
     assert off["learning"]["slot_identity"]["slot_reindex"] is False
     ident = off["learning"]["slot_identity"]
     assert ident["ticks_known"] == 3 and not any(k.startswith("_") for k in ident)
-    assert ident["rng_census"]["tirages_avant"] > 0 and ident["reseed_seed"] is None
+    assert ident["rng_census"]["appels_avant"] > 0 and ident["reseed_seed"] is None
     assert off["survival"]["dose_phase2"]["dW_abs_sum"] == 0.0
+    for row in (on, off):                                               # revue v6, P7.1 et P8.2 : MESURÉS en monde réel
+        assert row["reconstructions_phase1"]["constructions"] == 1 and row["reconstructions_phase1"]["B"] == [2]
+        assert row["corps_apres_phase1"]["conforme"] is True and row["corps_apres_phase2"]["conforme"] is True
     assert np.isfinite(on["survival"]["survival_median"]) and len(on["survival"]["ages"]) == 2

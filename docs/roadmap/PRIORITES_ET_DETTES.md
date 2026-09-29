@@ -1537,7 +1537,14 @@ le correctif et le contrôle positif réensemencés de même (k = 13, 14), le br
 sous treize trajectoires distinctes (BANDE_DEGENEREE). **Règle d'arrêt (Master 2, 2026-09-29, déposée AVANT la revue
 v6)** : si la revue v6 confirme encore un défaut BLOQUANT de dispositif, pas de v7 sans décision de robla — la session
 s'arrête et envoie le défaut à Master 2 avec le coût déjà engagé (six revues d'E34, environ 2,5 M jetons chacune, sur un
-quota commun). 15 cellules sur la batcave : après le sceau v6. **La clause ci-dessous reste celle de l'entrée** : elle décrit la vraie clôture (le correctif devenu le
+quota commun). La revue v6 (`docs/reviews/2026-09-29-E34-IDENTITY-CELL.v6.md` : 34 critiques, 13 confirmées ; environ
+3,6 M jetons ; fenêtre muette de 02:36 à 09:07, veille probable, non établie) n'a rien confirmé de BLOQUANT (classement
+confirmé par Master 2 le 2026-09-29, règle d'arrêt NON déclenchée) : la v6.1 déclare et publie la famille de DEUX tests
+(MATERIEL à tort <= 2/14, NON_MATERIEL à tort sous double nul <= 12/210 — E23 occ. 5), contrôle l'égalité de dose et le
+corps du bassin, nomme la coupe au plafond, et ne change ni les bras, ni la bande, ni la décision MATERIEL ; table
+critique → changement → test : `docs/reviews/2026-09-29-E34-IDENTITY-CELL.v6.correctifs.md`, vérification ciblée par un
+agent avant le sceau. Témoins de la revue v6 INDISCRIMINANTS : lecture de Master 2, l'indiscrimination porte sur la
+SPÉCIFICITÉ, la sensibilité tient (3/3). 15 cellules sur la batcave : après le sceau v6.1. **La clause ci-dessous reste celle de l'entrée** : elle décrit la vraie clôture (le correctif devenu le
 DÉFAUT, après P4.18 et, si la sonde rend MATERIEL, le plan n = 12) ; la sonde ne ferme qu'un sous-item.
 **Addendum CALIB-LEARNER (2026-09-26, session E34, vu en lisant la recette)** : la MÊME recette vit dans
 `tools/cognitive_demand_inworld.py:575-587` (`run_learner_probe`, contrôle POSITIF de l'apprenant, EDR-CALIB-LEARNER
@@ -1751,6 +1758,17 @@ Preuve : `tools/check_io_overlap.py` examine `data/genomes/` et les Hall of Fame
 le bassin DAgger lui-même, `results/warm003_dagger_genome.npz` (I = 59, O = 108, N = 172, chevauchement 0), est lui aussi
 hors périmètre ; seule l'assertion de `load_bassin` le garde (`tools/evo_runs/s2_credit_retention.py:61`). Le périmètre à
 ajouter est donc `results/` entier, pas seulement `results/*_genomes/`.
+
+**P2.154 — rang 5 bis (Master 2, 2026-09-29 : juste après P2.146, même famille — les doses épisodiques publiées) — OUVERTE (2026-09-29, revue v6 de la pré-inscription E34-IDENTITY-CELL, P7.2,
+inscrite par la session E34) — `count_learning_events` compte des APPELS sous le nom « mises à jour » : `episode_updates`
+(et `td_updates`) s'incrémente dès que l'appel rend autre chose que None, que W ait bougé ou non.**
+Preuve : `tools/learning_events.py:16` annonce « ceux qui ont réellement mis à jour W » ; `:186` incrémente
+`episode_updates` sur `out is not None` sans regarder `_delta_W`, calculé juste après (même forme pour `td_updates` à
+`:172`). Mesuré le 2026-09-29 sur la cellule éteinte complète d'E34 rejouée sur la batcave : en phase 2, à pas nul,
+`episode_updates` = 1 pour une somme |ΔW| de 0,0. Instrument PARTAGÉ (les runners S2 et P4 publient cette dose) : le
+corriger change des comptes publiés, d'où le classement par Master 2 ; la sonde E34 publie `episode_calls` en phase 2 en
+attendant. Forme à trancher : n'incrémenter que si ΔW > 0 (avec un compteur à pas nul à part), ou renommer. *Coût : agent
+1 h, plus la revue des comptes publiés.* Sans clause `closes_when` (déclaré).
 
 **P2.133 — rang 6 — ✅ CLOSE le 2026-09-26 (ouverte le même jour, vue en passant par la session SCIENCE-HARNAIS pendant la revue v6 de
 S2-BASSIN-FRAGILITY) — Le Refutateur sort encore NUL sur une revue saine : le vérificateur a rendu `refus = "aucun"`, et

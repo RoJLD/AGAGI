@@ -17,7 +17,9 @@ sur le propre corps, par construction. Sous H0 (« l'identité ne compte pas »)
 valeurs {S_off, S_rep_1..12} — hypothèse DÉCLARÉE : l'échangeabilité après décorrélation (les quatorze trajectoires
 partagent le préfixe jusqu'à t1 et divergent à t1 ; le correctif y ajoute la réindexation). La garde BANDE_DEGENEREE
 refuse toute lecture si les treize Σ|ΔW| ne sont pas DISTINCTES (une copie ferait de 2/14 une fausse borne). La dose du
-défaut est le nombre de COMMUTATIONS (un cerveau change de corps).
+défaut est le nombre de COMMUTATIONS (un cerveau change de corps). v6.1 (revue v6) : la FAMILLE est de deux tests — S_on
+contre la bande (MATERIEL à tort <= 2/14) et le contrôle positif contre le max de la bande (NON_MATERIEL à tort sous
+double nul <= 12/210 = 0,057) — et les deux taux sont publiés ; l'égalité de dose et le corps du bassin sont CONTRÔLÉS.
 
 Règle SCELLÉE avant toute cellule : docs/preregistrations/E34-IDENTITY-CELL.json.
 
@@ -136,27 +138,58 @@ def starvation_ceiling(agent, base_metabolism=None):
 def run_identity_cell(seed, arm, num_agents=12, ticks_learn=2000, ticks_test=200):
     """Une cellule `b_full` du seed (bassin DAgger cloné ×num_agents, crédit publié) sous le traitement du bras
     (`arm_config`), l'audit de l'invariant et des commutations TOUJOURS allumé (lecture seule), les tirages du RNG
-    global recensés par site avant et après t1 (lecture seule), le vote social compté en phase 1 et en phase 2, les
-    reconstructions de la population comptées en phase 2 (lecture seule), phase 2 mortelle à poids gelés avec sa dose
-    publiée. Garde EN TÊTE : un argument dégénéré ou un bras inconnu lève avant tout monde."""
+    global recensés par site avant et après t1 (lecture seule), le vote social et les constructions de la population
+    torch comptés en phase 1 ET en phase 2 (lecture seule), le CORPS de chaque agent confronté au corps du bassin après
+    chaque phase (lecture seule), phase 2 mortelle à poids gelés avec sa dose publiée. Garde EN TÊTE : un argument
+    dégénéré ou un bras inconnu lève avant tout monde."""
     if arm not in ARMS or int(num_agents) <= 0 or int(ticks_learn) <= 0 or int(ticks_test) <= 0:
         raise ValueError(f"run_identity_cell : argument dégénéré (arm={arm!r}, num_agents={num_agents}, "
                          f"ticks_learn={ticks_learn}, ticks_test={ticks_test}) -- aucune mesure possible")
     from tools.evo_runs.s2_bassin_fragility import compter_consensus, compter_reconstructions
     cfg = arm_config(arm)
     agents = _bassin_cohort(seed, num_agents)
+    corps = _corps_du_bassin()
     out = {"seed": int(seed), "arm": arm, "num_agents": int(num_agents), "ticks_learn": int(ticks_learn),
            "ticks_test": int(ticks_test), "lr": None, "treatment": cfg,
            "plafond_famine_ticks": starvation_ceiling(agents[0])}
     t0, c0 = time.time(), time.process_time()
-    with compter_consensus() as cons:
+    with compter_consensus() as cons, compter_reconstructions() as reco1:          # revue v6, P7.1
         out["learning"] = phase1_learn_immortal(agents, seed, ticks_learn, identity_audit=True, rng_census=True, **cfg)
-    out["consensus_phase1"] = dict(cons)
+    out["consensus_phase1"], out["reconstructions_phase1"] = dict(cons), dict(reco1)
+    out["corps_apres_phase1"] = body_matches_bassin(agents, corps)                   # revue v6, P8.2 (E26)
     with compter_consensus() as cons2, compter_reconstructions() as reco:          # revue v4, P8.a
         out["survival"] = phase2_survive_mortal(agents, seed, ticks_test, publier_dose=True)   # revue v5, P7.1
     out["consensus_phase2"], out["reconstructions_phase2"] = dict(cons2), dict(reco)
+    out["corps_apres_phase2"] = body_matches_bassin(agents, corps)
     out["elapsed_s"], out["cpu_s"] = time.time() - t0, time.process_time() - c0
     return out
+
+
+def _corps_du_bassin():
+    """Le corps de RÉFÉRENCE : `phenotype_of` sur le génome du bassin, calculé indépendamment des agents."""
+    from tools.evo_runs.s2_credit_retention import load_bassin
+    from tools.experiment_preflight import phenotype_of
+    return phenotype_of(load_bassin())
+
+
+def body_matches_bassin(agents, want, rel_tol=1e-6):
+    """Revue v6, P8.2 (E26) : le corps que le monde lit (`phenotype_*` de chaque agent) est-il encore celui du bassin ?
+    Même tolérance que `s2_bassin_fragility._assert_body_is_bassin` (1e-6 relatif : l'agent somme W en float32,
+    `phenotype_of` en float64 ; un recalcul sur un W appris s'en écarte de plusieurs ordres de grandeur). Rend
+    {"conforme": bool | None, "n_ecarts": int, "ecart_rel_max": float | None} ; None si un attribut manque ou n'est pas
+    fini (illisible n'est JAMAIS conforme : le verdict lève)."""
+    ecarts, pire = 0, 0.0
+    for a in agents:
+        vals = [getattr(a, k, None) for k in ("phenotype_hp_bonus", "phenotype_inv_capacity", "phenotype_energy_drain")]
+        if not all(_finite(v) for v in vals):
+            return {"conforme": None, "n_ecarts": None, "ecart_rel_max": None}
+        hp, inv, drain = (float(v) for v in vals)
+        r = max(abs(hp - float(want["hp_bonus"])) / max(abs(float(want["hp_bonus"])), 1e-12),
+                abs(drain - float(want["energy_drain"])) / max(abs(float(want["energy_drain"])), 1e-12))
+        pire = max(pire, r)
+        if r > rel_tol or int(inv) != int(want["inv_capacity"]):
+            ecarts += 1
+    return {"conforme": ecarts == 0, "n_ecarts": ecarts, "ecart_rel_max": pire}
 
 
 def witness_check(row, seed=SEED):
@@ -198,21 +231,49 @@ def _fausse_alarme_ex_aequo(on_value, band):
     return ((1.0 if vals.count(hi) == 1 else 0.0) + (1.0 if vals.count(lo) == 1 and lo != hi else 0.0)) / n
 
 
+def _non_materiel_a_tort_ex_aequo(on_value, pos_value, band):
+    """Revue v6, P4.1 / P5.1 / P6.1 (E23) : le contrôle positif est un SECOND test de rang contre la même bande. Sous
+    DOUBLE nul (ni la réindexation ni la coupe n'agissent), les 15 valeurs {S_on, S_pos} ∪ bande sont échangeables :
+    sur les 15 × 14 = 210 affectations ordonnées (pos, on) des valeurs OBSERVÉES, la part qui écrit NON_MATERIEL (S_on
+    dans [min, max] des 13 autres, S_pos STRICTEMENT au-dessus de leur max). 12/210 sans ex-aequo ; les ex-aequo de
+    survie la réduisent. Même condition que `_fausse_alarme_ex_aequo` : trajectoires distinctes (BANDE_DEGENEREE avant)."""
+    vals = list(band) + [on_value, pos_value]
+    n, favorables = len(vals), 0
+    for i in range(n):                                  # i : la valeur tirée par le contrôle positif
+        for j in range(n):                              # j : celle tirée par le correctif
+            if i == j:
+                continue
+            reste = [v for k, v in enumerate(vals) if k not in (i, j)]
+            if min(reste) <= vals[j] <= max(reste) and vals[i] > max(reste):
+                favorables += 1
+    return favorables / (n * (n - 1))
+
+
 def identity_cell_verdict(rows, witness, s_frozen, ticks_learn, band_publiee=None, floor=FLOOR, n_grille=N_GRILLE,
-                          refus_cout=None):
-    """Lecture de la règle scellée E34-IDENTITY-CELL v6, branches dans l'ORDRE IMPOSÉ. `rows` : {bras: ligne de
+                          refus_cout=None, coupe=None):
+    """Lecture de la règle scellée E34-IDENTITY-CELL v6.1, branches dans l'ORDRE IMPOSÉ. `rows` : {bras: ligne de
     `run_identity_cell` (avec `lieu` et `provenance`) ou None} sur les 15 bras ; `witness` : `witness_check` de la ligne
     `off` LUE ; `s_frozen` : `published_frozen` ; `ticks_learn` : la durée scellée de la phase 1 ; `refus_cout` : le
-    refus persisté de la garde E13 s'il a eu lieu. Une valeur présente mais non finie LÈVE ; un harnais qui ment (corps
-    réordonnés, mesuré ; réindexation qui commute ou part ailleurs qu'à t1 ; réensemencement absent, d'une autre graine
-    ou hors de t1, ou bras éteint réensemencé ; coupe hors de t1 ou dose TD différente de t1 ; phase 2 qui apprend ou
-    ne publie pas sa dose ; témoin d'une autre exécution) LÈVE."""
+    refus persisté de la garde E13 s'il a eu lieu ; `coupe` : la coupe persistée au plafond PENDANT la phase B (revue
+    v6, P10.1). Une valeur présente mais non finie LÈVE ; un harnais qui ment (corps réordonnés, mesuré ; réindexation
+    qui commute ou part ailleurs qu'à t1 ; réensemencement absent, d'une autre graine ou hors de t1, ou bras éteint
+    réensemencé ; coupe hors de t1 ou dose TD différente de t1 ; dose TD d'un autre bras différente de ticks_learn - 1,
+    dose épisodique du correctif ou d'une réplique différente du bras éteint, population reconstruite en phase 1 ;
+    corps d'un agent qui n'est plus celui du bassin ; phase 2 qui apprend ou ne publie pas sa dose ; témoin d'une autre
+    exécution) LÈVE. La FAMILLE est de DEUX tests (revue v6, E23) : S_on bilatéral contre la bande (MATERIEL, <= 2/14
+    sous H0) et S_pos unilatéral au-dessus de la bande (qualifie NON_MATERIEL) ; NON_MATERIEL à tort sous double nul
+    <= 12/210, publié avec sa valeur sur les ex-aequo observés."""
     if not _finite(s_frozen):
         raise ValueError("identity_cell_verdict : S_a non fini -- aucune lecture")
     th = {"n_band": K_REPS + 1, "floor": float(floor), "n_grille": int(n_grille), "ticks_learn": int(ticks_learn)}
     base = {"thresholds": th, "fausse_alarme_h0_borne": 2.0 / (K_REPS + 2),
             "fausse_alarme_h0_borne_condition": "treize trajectoires DISTINCTES dans la bande (sinon BANDE_DEGENEREE)",
-            "band_publiee": band_publiee, "refus_cout": refus_cout}
+            "famille": {"tests": ["S_on bilatéral contre la bande de 13 (MATERIEL si hors de [min, max])",
+                                  "S_pos unilatéral au-dessus du max de la bande (qualifie NON_MATERIEL)"],
+                        "materiel_a_tort_h0_borne": 2.0 / (K_REPS + 2),
+                        "controle_positif_passe_par_hasard_borne": 1.0 / (K_REPS + 2),
+                        "non_materiel_a_tort_double_nul_borne": K_REPS / ((K_REPS + 3) * (K_REPS + 2))},  # 12/210
+            "band_publiee": band_publiee, "refus_cout": refus_cout, "coupe": coupe}
     rows = {a: rows.get(a) for a in ARMS}
     off = rows["off"]
     if off is None or witness is None:
@@ -229,7 +290,8 @@ def identity_cell_verdict(rows, witness, s_frozen, ticks_learn, band_publiee=Non
     manquants = [a for a, r in rows.items() if r is None]
     if manquants:
         cause = ("la garde de coût a refusé la phase B (refus persisté)" if refus_cout is not None
-                 else "une cellule manque")
+                 else f"la phase B a été COUPÉE au plafond ({coupe.get('mur_s')} s de mur, charge {coupe.get('charge')})"
+                 if isinstance(coupe, dict) else "une cellule manque")
         return dict(base, verdict="INCOMPLET", manquants=manquants, why=f"{cause} : reprise, aucune lecture")
     lus = {a: _needs(r, a) for a, r in rows.items()}
     aveugles = [a for a, (_, ident) in lus.items()
@@ -246,7 +308,8 @@ def identity_cell_verdict(rows, witness, s_frozen, ticks_learn, band_publiee=Non
     lieux = {json.dumps(r.get("lieu"), sort_keys=True) for r in rows.values()}
     if len(lieux) != 1 or off.get("lieu") is None:
         return dict(base, verdict="LIEU_MIXTE", lieux=sorted(lieux),
-                    why="les cellules ne viennent pas d'UN seul lieu (plateforme, torch, threads) : aucune lecture")
+                    why="les cellules ne viennent pas d'UN seul lieu (les six clés de `lieu` : plateforme, python, torch, "
+                        "threads torch, AGAGI_CPU_LIMIT, AGAGI_IMAGE) : aucune lecture")
     s_off, id_off = lus["off"]
     s_on, id_on = lus["on"]
     s_pos, id_pos = lus["pos"]
@@ -268,9 +331,12 @@ def identity_cell_verdict(rows, witness, s_frozen, ticks_learn, band_publiee=Non
                 "episode_updates": (rows[a].get("learning") or {}).get("episode_updates"),
                 "resurrections": (rows[a].get("learning") or {}).get("resurrections"),
                 "dW_abs_sum": (rows[a].get("learning") or {}).get("dW_abs_sum"),
-                "phase2_td_updates": _p2(a, "td_updates"), "phase2_episode_updates": _p2(a, "episode_updates"),
-                "phase2_dW_abs_sum": _p2(a, "dW_abs_sum"),
-                "rng_tirages_apres_t1": _rng(a, "tirages_apres"), "rng_sites_apres_t1": _rng(a, "n_sites_apres"),
+                "phase2_td_updates": _p2(a, "td_updates"), "phase2_episode_calls": _p2(a, "episode_calls"),
+                "phase2_dW_abs_sum": _p2(a, "dW_abs_sum"),   # revue v6, P7.2 : APPELS épisodiques (P2.154), jamais « mises à jour »
+                "reconstructions_phase1": (rows[a].get("reconstructions_phase1") or {}).get("constructions"),
+                "corps_apres_phase1": (rows[a].get("corps_apres_phase1") or {}).get("conforme"),
+                "corps_apres_phase2": (rows[a].get("corps_apres_phase2") or {}).get("conforme"),
+                "rng_appels_apres_t1": _rng(a, "appels_apres"), "rng_sites_apres_t1": _rng(a, "n_sites_apres"),
                 "rng_reensemencements_monde_apres_t1": _rng(a, "reensemencements_apres"),
                 "consensus_ticks_avec_reecriture": (rows[a].get("consensus_phase1") or {}).get("ticks_avec_reecriture"),
                 "consensus_phase2_ticks": (rows[a].get("consensus_phase2") or {}).get("ticks_avec_reecriture"),
@@ -325,6 +391,20 @@ def identity_cell_verdict(rows, witness, s_frozen, ticks_learn, band_publiee=Non
     if id_pos.get("credit_cut_tick") != t1 or dose["pos"]["td_updates"] != t1:          # revue v5, P7.4 : EXACT
         raise ValueError(f"identity_cell_verdict : le contrôle positif n'a pas coupé le crédit à t1 ({t1}), ou sa dose TD "
                          f"({dose['pos']['td_updates']}) n'est pas exactement t1 -- défaut du harnais, aucune lecture")
+    # Revue v6, P7.1 (E8) : l'égalité de DOSE qui porte l'échangeabilité se CONTRÔLE -- une seule construction de la
+    # population en phase 1 dans les quinze bras (une reconstruction remet `_prev` à None et fait disparaître une mise à
+    # jour TD en silence), ticks_learn - 1 mises à jour TD hors contrôle positif, et la dose épisodique du bras éteint
+    # pour le correctif et chaque réplique.
+    dose_fausse = [a for a in ARMS if dose[a]["reconstructions_phase1"] != 1
+                   or (a != "pos" and dose[a]["td_updates"] != int(ticks_learn) - 1)
+                   or (a in ("on",) + REPS and dose[a]["episode_updates"] != dose["off"]["episode_updates"])]
+    if dose_fausse:
+        raise ValueError(f"identity_cell_verdict : dose d'apprentissage différente de celle du bras éteint ou population "
+                         f"reconstruite en phase 1 ({dose_fausse}) -- l'égalité de dose n'est pas tenue, aucune lecture")
+    corps_faux = [a for a in ARMS if dose[a]["corps_apres_phase1"] is not True or dose[a]["corps_apres_phase2"] is not True]
+    if corps_faux:                                                                  # revue v6, P8.2 (E26)
+        raise ValueError(f"identity_cell_verdict : le corps d'un agent n'est plus celui du bassin, ou n'a pas été lu "
+                         f"({corps_faux}) -- les bras ne diffèrent plus par le seul traitement, aucune lecture")
     membres = ("off",) + REPS                                          # revue v4, P4.a : S_off DANS la bande
     band = [s_off] + [reps[a] for a in REPS]
     dw_distincts = len({dose[a]["dW_abs_sum"] for a in membres})
@@ -336,6 +416,8 @@ def identity_cell_verdict(rows, witness, s_frozen, ticks_learn, band_publiee=Non
                     why=f"{dw_distincts} trajectoires distinctes sur {len(membres)} (Σ|ΔW|) : une copie dans la bande fait "
                         "de 2/14 une fausse borne, aucune lecture")
     out["fausse_alarme_h0_ex_aequo"] = _fausse_alarme_ex_aequo(s_on, band)
+    out["famille"] = dict(out["famille"], non_materiel_a_tort_double_nul_ex_aequo=_non_materiel_a_tort_ex_aequo(
+        s_on, s_pos, band))                                            # revue v6, P4.1 / P5.1 / P6.1 (E23)
     if cmp_grille(s_on, out["band_max"], 0.0, n_grille, sens=+1):
         return dict(out, verdict="MATERIEL_HAUSSE",
                     why=f"S_on {s_on} au-dessus des treize trajectoires [{out['band_min']}, {out['band_max']}] : plan n = 12 "
@@ -350,7 +432,9 @@ def identity_cell_verdict(rows, witness, s_frozen, ticks_learn, band_publiee=Non
                         f"contrôle positif en sort par le haut (S_pos {s_pos}) : aucun effet vers le HAUT de "
                         f"l'ampleur de la variation entre trajectoires sur CETTE cellule, à SA dose (défaut : "
                         f"{desc['switches_off']} commutations ; correctif : {desc['rows_reindexed_on']} lignes réindexées) "
-                        "; vers le BAS, non éprouvé (plancher)")
+                        "; vers le BAS, non éprouvé (plancher) ; famille de DEUX tests : NON_MATERIEL à tort sous double "
+                        f"nul <= {out['famille']['non_materiel_a_tort_double_nul_borne']:.3f} (12/210), "
+                        f"{out['famille']['non_materiel_a_tort_double_nul_ex_aequo']:.3f} sur les ex-aequo observés")
     return dict(out, verdict="NON_TRANCHE",
                 why=f"S_on {s_on} dans la bande, mais le contrôle positif n'en sort pas par le haut (S_pos {s_pos}, "
                     f"bande max {out['band_max']}) : l'instrument ne voit pas un effet fort à t1 = {t1} ; aucune note de "
@@ -412,8 +496,10 @@ def _lire(smoke=False):
     witness = witness_check(rows["off"], SEED) if rows["off"] is not None else None
     p_refus = os.path.join(_cells_dir(smoke), "_refus_cout.json")
     refus_cout = json.load(open(p_refus, encoding="utf-8")) if os.path.exists(p_refus) else None
+    p_coupe = os.path.join(_cells_dir(smoke), "_coupe.json")                     # revue v6, P10.1 : dans l'ÉVIDENCE
+    coupe = json.load(open(p_coupe, encoding="utf-8")) if os.path.exists(p_coupe) else None
     verdict = identity_cell_verdict(rows, witness, published_frozen(SEED), ticks_learn, band_publiee=published_band(),
-                                    refus_cout=refus_cout)
+                                    refus_cout=refus_cout, coupe=coupe)
     # Les fichiers de cellule vivent sous results/<OUT_DIR>/, IGNORÉ par git (.gitignore : results/* sauf results/*.json) :
     # c'est ce qui garde l'arbre propre pendant le run (provenance « dirty » de chaque cellule). L'ÉVIDENCE suivie est
     # CET agrégat : il embarque les quinze lignes, avec leur lieu, leur provenance et leur charge.
@@ -524,9 +610,10 @@ def main(argv=None):
                          % agents,
         n_independent=1,
         links={"invariant_slot_corps": "measured", "commutations": "measured", "remises_propre_corps": "measured",
-               "bande_repliques_reensemencees": "measured", "tirages_rng_global_apres_t1": "measured",
+               "bande_repliques_reensemencees": "measured", "appels_rng_global_apres_t1": "measured",
                "controle_positif_credit_coupe": "measured", "survie_mortelle_poids_geles": "measured",
-               "dose_phase2": "measured", "temoin_cellule_publiee": "measured"},
+               "dose_phase2": "measured", "temoin_cellule_publiee": "measured",
+               "reconstructions_phase1": "measured", "corps_du_bassin": "measured"},
         cost_estimate=(rule or {}).get("budget_s"))
     if args.cmd == "tout":
         _tout(args, rule, smoke, design)

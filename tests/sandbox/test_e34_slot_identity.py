@@ -619,6 +619,9 @@ def test_with_a_head_death_the_reindex_fix_changes_what_is_learned():
     ident = _identity_counters()
     fix = _trace(lambda e, t: immortal_after_step(e, slot_reindex=True, identity=ident, tick=t))
     assert fix["digest"] != ref["digest"]
+    # revue v6, P7.1 : le correctif change ce qui est appris, pas la DOSE (TD et épisodes du bras éteint)
+    assert fix["summary"]["td_updates"] == ref["summary"]["td_updates"]
+    assert fix["summary"]["episode_updates"] == ref["summary"]["episode_updates"]
 
 
 def test_real_world_positive_control_stops_the_credit_at_t1():
@@ -682,7 +685,7 @@ def test_real_world_rng_census_is_a_bit_exact_noop_and_measures_the_draws_after_
     aud = _trace(lambda e, t: immortal_after_step(e, identity=ident, tick=t), recensement=rec)
     r = rec.resume()
     assert aud["digest"] == ref["digest"]
-    assert r["marque"] == "t1=2" and r["tirages_apres"] > 0 and r["n_sites_apres"] >= 1
+    assert r["marque"] == "t1=2" and r["appels_apres"] > 0 and r["n_sites_apres"] >= 1
     assert r["reensemencements_apres"] == 0
     assert all(s.startswith("src/") or s.startswith("tools/") for s in r["sites_apres"])
 
@@ -698,6 +701,9 @@ def test_real_world_reseeded_replicas_diverge_from_off_and_from_each_other():
         tr = _trace(lambda e, t, ident=ident, k=k: immortal_after_step(e, identity=ident, tick=t,
                                                                       reseed_at_t1=202600 + k), n=4)
         assert ident["reseed_tick"] == 2 and ident["ticks_body_reordered"] == 0 and ident["reindex_events"] == 0
+        # revue v6, P7.1 : même DOSE que le bras éteint (TD et épisodes), la trajectoire seule diverge
+        assert tr["summary"]["td_updates"] == ref["summary"]["td_updates"]
+        assert tr["summary"]["episode_updates"] == ref["summary"]["episode_updates"] > 0
         dws.append(tr["summary"]["dW_abs_sum"])
         digests.append(tr["digest"])
     assert len(set(dws)) == 3 and ref["summary"]["dW_abs_sum"] not in dws
@@ -727,9 +733,9 @@ def test_phase1_defaults_publish_no_new_key_and_the_flags_publish_slot_identity(
     cen = phase1_learn_immortal(_bassin_cohort(2026, 2), 2026, 3, identity_audit=True, rng_census=True)
     assert {k: v for k, v in cen.items() if k != "slot_identity"} == base               # le recensement ne change rien
     rc = cen["slot_identity"]["rng_census"]
-    assert rc["tirages_avant"] > 0 and rc["perimetre"]["tirages"]
+    assert rc["appels_avant"] > 0 and rc["perimetre"]["tirages"]
     if cen["slot_identity"]["first_order_change_tick"] is None:     # aucun t1 : « après » NON MESURÉ, jamais 0
-        assert rc["marque"] is None and rc["tirages_apres"] is None and rc["n_sites_apres"] is None
+        assert rc["marque"] is None and rc["appels_apres"] is None and rc["n_sites_apres"] is None
     assert "_census" not in cen["slot_identity"] and "_own" not in cen["slot_identity"]
 
 

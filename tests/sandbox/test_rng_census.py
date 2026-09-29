@@ -31,11 +31,20 @@ def test_known_dose_is_counted_per_site_and_per_window():
         for _ in range(4):
             np.random.randint(0, 5)                            # site C
     r = rec.resume()
-    assert r["tirages_avant"] == 5 and r["n_sites_avant"] == 2
-    assert r["tirages_apres"] == 4 and r["n_sites_apres"] == 1
+    assert r["appels_avant"] == 5 and r["n_sites_avant"] == 2
+    assert r["appels_apres"] == 4 and r["n_sites_apres"] == 1
     (site, n), = r["sites_apres"].items()
     assert n == 4 and site.startswith("tests/sandbox/test_rng_census.py:")
     assert r["marque"] == "t1=0" and r["reensemencements_avant"] == 0 and r["reensemencements_apres"] == 0
+
+
+def test_the_unit_is_the_CALL_not_the_drawn_value():
+    """Revue E34 v6, P10.2 : un appel qui tire plusieurs valeurs compte 1 -- d'où les clés `appels_*`."""
+    with RecensementTirages() as rec:
+        rec.marquer("m")
+        np.random.uniform(0, 1, size=4)                        # 1 appel, 4 valeurs
+        np.random.randint(0, 10, 2)                            # 1 appel, 2 valeurs
+    assert rec.resume()["appels_apres"] == 2
 
 
 def test_the_census_is_a_bit_exact_noop_on_the_draw_sequence():
@@ -49,7 +58,7 @@ def test_the_census_is_a_bit_exact_noop_on_the_draw_sequence():
     sans = suite()
     with RecensementTirages() as rec:
         avec = suite()
-    assert avec == sans and rec.resume()["tirages_avant"] == 8
+    assert avec == sans and rec.resume()["appels_avant"] == 8
 
 
 def test_private_generators_are_outside_the_declared_perimeter_and_an_unopened_window_is_None():
@@ -57,8 +66,8 @@ def test_private_generators_are_outside_the_declared_perimeter_and_an_unopened_w
         np.random.RandomState(1).rand()                        # PRIVÉ : non vu, et c'est déclaré
         np.random.default_rng(1).random()
     r = rec.resume()
-    assert r["tirages_avant"] == 0
-    assert r["marque"] is None and r["tirages_apres"] is None and r["n_sites_apres"] is None
+    assert r["appels_avant"] == 0
+    assert r["marque"] is None and r["appels_apres"] is None and r["n_sites_apres"] is None
     assert r["sites_apres"] is None and r["reensemencements_apres"] is None and r["torch_rng_change_apres"] is None
 
 
@@ -69,7 +78,7 @@ def test_reseeds_are_counted_apart_and_per_window():
         np.random.seed(5)
         np.random.set_state(np.random.get_state())
     r = rec.resume()
-    assert r["reensemencements_avant"] == 1 and r["reensemencements_apres"] == 2 and r["tirages_apres"] == 0
+    assert r["reensemencements_avant"] == 1 and r["reensemencements_apres"] == 2 and r["appels_apres"] == 0
 
 
 def test_torch_rng_is_compared_by_state_after_the_mark():

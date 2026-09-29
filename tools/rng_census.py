@@ -7,7 +7,9 @@ monde ne tirait rien après t1, ou se réensemençait lui-même, le réensemence
 
 `RecensementTirages` enveloppe, le temps d'un bloc `with`, chaque fonction de module `numpy.random` qui tire dans le
 générateur GLOBAL (celui de `np.random.seed`) : l'appel est compté sous le site appelant (`fichier:ligne`, relatif à la
-racine du dépôt) puis délégué TEL QUEL — mêmes tirages, même ordre (no-op au bit, testé). `marquer(etiquette)` ouvre
+racine du dépôt) puis délégué TEL QUEL — mêmes tirages, même ordre (no-op au bit, testé). ⚠️ L'unité est l'APPEL, pas
+la valeur tirée (revue E34 v6, P10.2) : `np.random.uniform(0, 1, size=4)` compte 1 et tire 4 valeurs. D'où les clés
+`appels_avant` / `appels_apres` ; la décorrélation que ce module sert à établir n'exige qu'un appel non nul. `marquer(etiquette)` ouvre
 la fenêtre « après » ; ce qui précède est compté à part. Les RÉENSEMENCEMENTS (`seed`, `set_state`,
 `set_bit_generator`) sont comptés à part, par fenêtre : un monde qui se réensemence après t1 annulerait le
 réensemencement de la bande, et doit se voir.
@@ -134,8 +136,8 @@ class RecensementTirages:
     def resume(self):
         """Ce qui se publie : comptes par fenêtre, sites de la fenêtre « après » (triés), périmètre enveloppé."""
         return {"marque": self.marque,
-                "tirages_avant": int(sum(self.avant.values())), "n_sites_avant": len(self.avant),
-                "tirages_apres": (int(sum(self.apres.values())) if self.marque is not None else None),
+                "appels_avant": int(sum(self.avant.values())), "n_sites_avant": len(self.avant),
+                "appels_apres": (int(sum(self.apres.values())) if self.marque is not None else None),
                 "n_sites_apres": (len(self.apres) if self.marque is not None else None),
                 "sites_apres": ({k: self.apres[k] for k in sorted(self.apres)} if self.marque is not None else None),
                 "reensemencements_avant": int(self.reensemencements["avant"]),

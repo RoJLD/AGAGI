@@ -1853,7 +1853,15 @@ CALIBRATED = {
                               "non_materiel:vers-le-haut-borne-cellule-et-doses",
                               "fausse-alarme:ex-aequo-sur-trajectoires-distinctes",
                               "doses-par-bras-remises-graines-rng-vote-social-et-phase-2",
-                              "plancher-levier-et-plafond-de-famine-publies", "part-erosion:None-sans-erosion"],
+                              "plancher-levier-et-plafond-de-famine-publies", "part-erosion:None-sans-erosion",
+                              # v6.1 (revue v6) : famille de DEUX tests declaree et publiee (E23 occ. 5 ; 12/210 exact
+                              # sur 15 valeurs distinctes, 14/210 et 0 sur ex-aequo connus) ; dose TD / episodique et
+                              # constructions de phase 1 CONTROLEES (P7.1) ; corps du bassin CONTROLE (P8.2, E26) ;
+                              # coupe au plafond nommee par INCOMPLET (P10.1, E13)
+                              "famille-de-deux-tests:taux-declares-et-publies",
+                              "non-materiel-a-tort:12-sur-210-et-ex-aequo-connus",
+                              "dose-et-reconstructions-phase-1:raises", "corps-non-conforme-ou-illisible:raises",
+                              "incomplet:coupe-au-plafond-nommee"],
     # E34 / P2.132 -- une cellule b_full seed 2026 sous le traitement de son bras (off / on / pos / rep_k) : garde en
     # tete (aucun monde), traitement TRANSMIS a la phase 1 (injection : slot_reindex, cut_credit_at_t1, reseed_at_t1,
     # identity_audit et rng_census toujours vrais) et dose de phase 2 demandee, vote social compte, plafond de famine
@@ -1870,7 +1878,12 @@ CALIBRATED = {
                           "permutation-identite:noop-exact", "recensement-rng:noop-exact-et-mesure-apres-t1",
                           "ordre-des-corps:mesure", "rng-intacts:reindexation-coupe-numpy-et-torch",
                           "controle-positif:credit-coupe-a-t1-td-egal-t1",
-                          "phase-2:vote-social-reconstructions-et-dose-publiee"],
+                          "phase-2:vote-social-reconstructions-et-dose-publiee",
+                          # v6.1 (revue v6) : constructions de phase 1 comptees (1 en monde reel), corps lu apres
+                          # chaque phase (conforme en monde reel, None sur une cohorte factice), dose TD et episodique
+                          # du correctif et des repliques EGALE a celle du bras eteint en monde reel
+                          "reconstructions-phase-1:comptees", "corps-du-bassin:conforme-reel-None-factice",
+                          "dose-egale-au-bras-eteint:reel"],
     # E34 / P2.132 (revue v3, P8.b) -- plafond de famine d'un corps qui ne mange pas : energie de depart / (metabolisme de
     # base x drain du phenotype) ; DESCRIPTIF (ne decide rien). Cas : tests/sandbox/test_e34_identity_cell.py -- reponse
     # connue (80 / (0,75 x 14,888)) et drain illisible (nan) -> None, jamais un nombre fabrique ; appels HORS de
