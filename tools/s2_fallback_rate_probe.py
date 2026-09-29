@@ -88,7 +88,13 @@ import time
 
 import numpy as np
 
-_DEFAULT_ROOT = r"c:/Users/robla/VScode_Project/AGAGI"
+# P2.142 (2026-09-29) — l'ÉCRIVAIN INITIAL du faux vert de worktree. La racine par défaut était ÉCRITE EN DUR :
+# r"c:/Users/robla/VScode_Project/AGAGI", l'arbre PRINCIPAL. Importé depuis un worktree (le témoin de calibration le
+# fait), ce module mettait l'arbre principal EN TÊTE de sys.path ; tools et src étant des paquets-espaces-de-noms, les
+# imports suivants y prenaient le code de d1 (E35), et chaque module ainsi chargé réinsérait la racine de son __file__
+# dans l'autre graphie (PROPAGATEUR : cognitive_demand_world_probe.py:31, mesuré). La racine par défaut est désormais
+# celle de l'arbre de CE fichier ; AGAGI_ROOT reste une dérogation explicite (la garde des arbres la refuse en test).
+_DEFAULT_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 _ROOT = os.environ.get("AGAGI_ROOT", _DEFAULT_ROOT)
 if _ROOT not in sys.path:
     sys.path.insert(0, _ROOT)

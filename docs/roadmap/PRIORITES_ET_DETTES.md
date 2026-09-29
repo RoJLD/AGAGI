@@ -1596,7 +1596,7 @@ un bail factice vivant fait refuser, un bail expiré ou le nôtre non ; et le cr
 tué ne laisse pas d'orphelin). Touche `tools/hooks/` : copie déployée et porte 22 à la clé. *Coût : agent 1-2 h.*
 Attribution : Master 2.
 
-**P2.140 — rang 5 — OUVERTE (2026-09-26, promotion d'E12 DÉCIDÉE par Master 2 ; inscrite par agagi-32, teneur du
+**P2.140 — rang 3 (rang fixé par Master 2 le 2026-09-28 ; était 5) — OUVERTE (2026-09-26, promotion d'E12 DÉCIDÉE par Master 2 ; inscrite par agagi-32, teneur du
 registre) — La condition de CALME devient une garde : `project_cost` refuse une unité de coût mesurée hors calme, sauf
 déclaration « unité sous charge » publiée avec la charge.**
 Preuve : E12 (le chiffre pris dans un régime non déclaré) compte sept occurrences inscrites, toutes `documenté`, quand la
@@ -1618,6 +1618,21 @@ sous un run scellé qui la rejoue. À la livraison, E12 passe exécutable. *Coû
 `closes_when` (déclaré) : le nom de la fonction de calme n'est pas fixé, à poser par l'implémenteur.
 ⚠️ **Défaut à NE PAS reporter dans la fonction de calme** (mesuré par Master 2 le 2026-09-28 sur le lanceur de la reprise de P4.18, hors git) : il comptait une synchro pour tout processus dont la ligne de commande CONTIENT le nom du script de synchro — une sonde qui CITE ce nom s'est comptée elle-même (7 annoncées pour 4). Sens conservateur (le départ attend plus, jamais sous charge), mais un grep lancé par une session retarde un run. Exiger un exécutable node dont le chemin de script SE TERMINE par le nom du fichier de synchro. Et le seuil du lanceur (CPU < 15 %) était SOUS le plancher d'une machine au repos (4,9-6,9 cœurs sur 22) : relevé à 30 % en cours de reprise — le seuil de la fonction de calme se dérive de `COEURS_EXTERIEURS_LIBRE_MAX`, pas d'un chiffre rond.
 
+**P2.153 — rang 3 bis (rang fixé par Master 2 le 2026-09-28 : juste après P2.140, famille « ce qui charge la machine
+sous un run ») — OUVERTE (2026-09-28, extension de la garde P2.136 ACCORDÉE par Master 2 ; inscrite par agagi-32,
+teneur du registre) — La garde E21 du hook Bash ne voit pas le SECOND shell caché de wsl.exe.**
+Preuve : E21 occ. 4 (session E34, 2026-09-28 ~22:34) — `wsl -d Ubuntu -- bash -lc '… for f in A B; do … pytest -q
+"$f" …; done'` : sans `-e`/`--exec`, wsl.exe relaie la ligne au shell PAR DÉFAUT de la distribution, qui développe
+`$f` (vide chez lui) avant `bash -lc` ; pytest a reçu `""` et collecté toute la suite — ~12 min de charge sur la
+batcave, qu'un run de nuit n'aurait pas survécu —, et 33 tests SAUTÉS par la garde de bail pouvaient se lire comme un
+vert. `tools/pm/bash_hook.py::mutilation_possible` ne reconnaît que trois formes (heredoc porteur d'échappements,
+backtick nu entre guillemets doubles, `-m` porteur de \n).
+**Forme** (décision Master 2) : une quatrième raison, « wsl » — une commande `wsl` ou `wsl.exe` SANS `-e`/`--exec`
+dont la ligne porte un dollar ou un backtick —, SIGNAL SEUL (PostToolUse, le hook existant, sans toucher à
+`.claude/settings.json`). Contre-exemple gelé : la commande EXACTE d'E34 ; un témoin qui ROUGIT sans la nouvelle raison ;
+spécificité : la même commande avec `--exec` (ou `-e`) reste MUETTE, comme un wsl sans dollar ni backtick. *Coût :
+agent 30 min.* Sans clause `closes_when` (déclaré) : le nom du motif n'est pas fixé, à poser par l'implémenteur.
+
 **P2.141 — rang 6 — OUVERTE (2026-09-26, promotion PARTIELLE de la règle du grep DÉCIDÉE par Master 2 ; inscrite par
 agagi-32) — Le Réfutateur n'affirme plus une ABSENCE sans contrôle positif.**
 Preuve : la revue /refutateur de la règle E34-IDENTITY-CELL v1 (critique P8.b) a rendu « 0 ligne au registre et au
@@ -1634,7 +1649,7 @@ NE correspond PAS -> INCOHERENT ; spécificité : une absence au contrôle posit
 reprise de P4.18 (2026-09-27, 10 h). *Coût : agent 1 h.*
 <!-- closes_when:grep_present=.claude/workflows/refutateur.js::controle_positif -->
 
-**P2.142 — rang à fixer par Master 2 — OUVERTE (2026-09-28, vue en passant par la session E34 en testant sa v4) — Dans
+**P2.142 — rang 1 (rang fixé par Master 2 le 2026-09-28) — ✅ CLOSE le 2026-09-29 (ouverte le 2026-09-28, vue en passant par la session E34 en testant sa v4) — Dans
 un WORKTREE, une session pytest qui lance `tests/sandbox/test_instrument_calibration.py` puis un autre fichier finit avec
 la racine de l'arbre PRINCIPAL en tête de `sys.path` ; `tools` étant un paquet-espace-de-noms (le répertoire des outils n'a pas de fichier d'initialisation de paquet),
 tout import PARESSEUX d'un sous-module `tools.*` y prend alors la version de l'arbre principal — un test de worktree peut
@@ -1650,23 +1665,87 @@ principal ; rien de tel au démontage des tests précédents, et l'entrée n'est
 de calibration sous l'espion), puis une garde de conftest qui REFUSE toute entrée de `sys.path` pointant vers un AUTRE
 arbre du même dépôt (même `git-common-dir`). Le gel méthodo tranche son rang. *Coût : agent 1-2 h (bissection ~6 min par
 pas).*
+✅ **FERMÉE le 2026-09-29 (agagi-32, worker Dette, sur la file de Master 2)** — ÉCRIVAIN TROUVÉ, sans bissection :
+la garde, lancée sur la paire dans un worktree neuf à `edafbb66`, a REFUSÉ (code 4) à la fin de
+`test_the_BARE_VERB_instruments_REFUSE_a_degenerate_argument[tools.s2_fallback_rate_probe-measured_floor-kw19]`, après
+465 tests verts, en nommant l'entrée étrangère `c:/Users/robla/VScode_Project/AGAGI` et les modules CONSOMMÉS depuis
+l'arbre principal (`src`, `src.agents`, `src.environments`, `src.graph_rag`…). Rejoué SEUL sous l'espion (plugin de
+diagnostic à cinq détecteurs, calibré d'abord sur sept cas à réponse connue, dans le scratchpad) : (1) ÉCRIVAIN =
+`tools/s2_fallback_rate_probe.py:91-94`, qui portait depuis `1144a978` (2026-09-07) `_DEFAULT_ROOT =
+r"c:/Users/robla/VScode_Project/AGAGI"` — la racine PRINCIPALE écrite en dur — et l'insérait en tête de `sys.path` à
+l'import ; (2) CONSOMMATION de `tools.cognitive_demand_world_probe` depuis l'arbre principal ; (3) PROPAGATEUR = cette
+copie principale, `tools/cognitive_demand_world_probe.py:31`, qui réinsère la racine de son `__file__` en antislashs
+(`if _ROOT not in sys.path` compare des CHAÎNES) : les deux graphies relevées par E34, dans son ordre. **Correctifs** :
+(a) la racine par défaut de `s2_fallback_rate_probe.py` est celle de l'arbre du fichier (`AGAGI_ROOT` reste une
+dérogation explicite) — le seul chemin de racine écrit en dur des `.py` du dépôt (motif validé sur ce cas) ; (b) la
+GARDE DES ARBRES (`tests/garde_arbres.py`, chargée par CHEMIN depuis `tests/conftest.py`) REFUSE, au départ, à la fin
+de la collecte, avant et après chaque test, toute entrée de `sys.path` et tout module `tools.*`/`src.*` d'un AUTRE
+arbre du dépôt — propriétaire = racine la plus LONGUE (les worktrees vivent sous la racine principale), après
+normcase + realpath ; '' et chemins relatifs suivent le cwd ; racines par `git worktree list`, `GIT_*` retirés. Elle
+vise l'ENTRÉE, quel que soit son écrivain. La paire complète repasse ensuite sous la garde : 563 passés, 3 sautés, 1 xfail, aucun refus (8 min 27 s). **Portée** :
+sessions pytest LOCALES, dans un worktree, sous Windows, qui importent ce module, du 2026-09-07 au 2026-09-29 ; ni
+l'arbre principal (même arbre), ni le crochet (la porte 15 ne collecte aucun de ces fichiers), ni la CI (c:/… y est un chemin RELATIF qui n'existe pas — vérifié sous WSL : isdir faux, module chargé depuis la copie) ;
+la liste des verts locaux à revoir n'est PAS établie (git ne garde pas les sessions locales). **Couverture par le
+crochet VÉRIFIÉE** par un commit d'essai sur un dépôt jetable : son pre-commit lance pytest depuis le worktree et la
+garde le refuse (`test_P2_142_COUVERTURE_…`) — le mécanisme, pas le crochet réel du dépôt. Témoins :
+`tests/sandbox/test_garde_arbres.py` — Windows 30 verts (les 12 témoins, plus les 18 des gardes de bail et de l'environnement git), Linux (WSL) 28 verts ; les 2 rouges de test_lease_skip_guard.py (HoF absent, backend non copié) sont IDENTIQUES sur la copie de d1 sans ces changements — des artefacts du banc ; mutations à la main 6/6 tuées. Écarté
+(Master 2) : rendre `tools` régulier par un fichier d'initialisation — le premier arbre trouvé gagnerait tout. La
+parade d'E34 (`tools.slot_identity` épinglé dans `test_e34_identity_cell.py`) devient inutile, laissée à son
+propriétaire. Registre : E35. Porte 12 aveugle à ce chemin : P2.155 (gelée).
+<!-- closes_when:grep_present=tests/conftest.py::_charger_garde_arbres -->
 
-**P2.143 — rang à fixer par Master 2 — OUVERTE (2026-09-28, extension exécutable d'E8 DÉCIDÉE par Master 2 ; inscrite par la session SCIENCE-HARNAIS) — Un nombre de PROSE qui porte une unité ou un compte, dans un record, DÉCLARE sa source ; une porte la vérifie.**
+**P2.155 — rang 6, GELÉE jusqu'à la levée du gel de méthode (une porte, qui ne bloque aucun run ; rang fixé par Master 2
+le 2026-09-29) — OUVERTE (2026-09-29, vue par agagi-32 en fermant P2.142) — La porte 12 ne voit pas une racine de CODE
+absolue écrite en dur.**
+Preuve : `tools/s2_fallback_rate_probe.py:91` portait `_DEFAULT_ROOT = r"c:/Users/robla/VScode_Project/AGAGI"` depuis
+`1144a978` (2026-09-07) — l'écrivain initial de P2.142 — et `tools/check_data_paths.py` ne l'a jamais signalé : son
+motif (`_EST_DONNEE`) ne retient que les littéraux qui COMMENCENT par une racine de DONNÉES (`data/`, `results/`,
+`/app/data/`) ; une racine de CODE absolue n'en est pas une — motif, pas périmètre. **Forme** : étendre la porte aux
+littéraux de chemin ABSOLU vers un arbre de la machine (lettre de lecteur, `/home/`, `/Users/`, `/mnt/`), baseline
+gelée, contre-exemple = la ligne d'avant P2.142. *Coût : agent 30 min.* Sans clause `closes_when` (déclaré).
+
+**P2.152 — rang 1 bis (décidé par Master 2 le 2026-09-29 : dans le commit de P2.142) — ✅ CLOSE le 2026-09-29
+(ouverte et fermée le même jour ; trouvée en passant par agagi-32 en préparant la garde de P2.142) — Les délais @slow
+de `tests/conftest.py` étaient MORTS depuis le 2026-09-01 : un second `pytest_collection_modifyitems` remplaçait le
+premier sans un mot.**
+Preuve : `tests/conftest.py` définissait deux fois `pytest_collection_modifyitems` — l. 58 (P1.1, 2026-07-22,
+`7f2cd1d6` : 600 s aux tests `@slow`) et l. 130 (la garde de bail, 2026-09-01, `789a454a`, « noqa: F811 — complète le
+hook ci-dessus »). Python ne complète pas une fonction, il la REBINDE : mesuré en chargeant le module à `edafbb66`, le
+crochet exposé est celui de la l. 130, celui des délais était mort depuis quatre semaines. Conséquence : un test
+`@slow` lancé sans `--timeout` explicite était coupé au délai global du pytest.ini (120 s), pas à 600 s — un rouge de
+délai sur un test lent était peut-être un FAUX rouge. Cherché dans le backlog, le registre et CLAUDE.md (motif validé
+sur un cas connu) : aucun rouge de délai de test lent n'y est consigné ; le seul « +++ Timeout +++ » récent connu est la
+première tentative d'E34 sous WSL (2026-09-28, suite entière au délai par défaut), dont le test coupé n'est pas nommé.
+La CI n'était pas touchée : ses jobs passent un `--timeout` explicite (300, 600, 900).
+✅ **FERMÉE le 2026-09-29 (agagi-32)** — UN SEUL `pytest_collection_modifyitems`, qui appelle trois fonctions
+NOMMÉES, chacune testable seule : `_delais_slow` (ressuscitée), `_garde_de_bail` (inchangée), et le contrôle de collecte
+de la garde des arbres (P2.142) ; un commentaire interdit toute redéfinition du nom. ⚠️ **Ressuscitée BORNÉE, pour ne
+rien réduire** : un marqueur `timeout` l'emporte sur `--timeout`, donc relancer la logique telle quelle aurait COUPÉ à
+600 s les tests lents de la CI « suite complète » (`--timeout=900`) et la voie documentée `pytest -m slow --timeout=0`
+(illimité). `_delais_slow` ne relève que le délai PAR DÉFAUT (sous 600 s) ; un délai explicite plus long, ou
+l'illimité, restent tels quels. Témoins (`tests/sandbox/test_garde_arbres.py`) :
+`test_P2_152_les_delais_slow_RESSUSCITES_relevent_le_defaut_sans_jamais_REDUIRE` et
+`test_P2_152_TROIS_EFFETS_sur_une_collecte_REELLE_delais_slow_garde_de_bail_garde_des_arbres` — le VRAI conftest dans
+un dépôt jetable : délai 600 sur le test lent, saut par la garde de bail sous un bail SIMULÉ (jamais un vrai : le
+répertoire des bails est commun à la flotte), refus de la garde des arbres pendant la même collecte. Registre : E32.
+<!-- closes_when:grep_present=tests/conftest.py::def _delais_slow -->
+
+**P2.143 — rang 6, GELÉE jusqu'à la levée du gel de méthode (une porte, qui ne bloque aucun run) (rang fixé par Master 2 le 2026-09-28) — OUVERTE (2026-09-28, extension exécutable d'E8 DÉCIDÉE par Master 2 ; inscrite par la session SCIENCE-HARNAIS) — Un nombre de PROSE qui porte une unité ou un compte, dans un record, DÉCLARE sa source ; une porte la vérifie.**
 Preuve : E8, occurrence du 2026-09-28 — six valeurs recopiées au lieu d'être relues en un jour (0,82 d'un rapport de chemin cité comme un rapport net ; 3 processus pour 6 ; 4e-7 pour 2,1e-5 ; « 24 à 718 », chiffre de conception cité comme mesure ; dose 1,0 pour ≈ 0,66 active ; heures de build estimées), toutes attrapées avant publication par une relecture contre la source — donc par un humain ou une revue, jamais par une porte : la porte 19 ne lit que « nom = valeur » d'un paramètre de régime (revue du record [[EDR-S2-BASSIN-FRAGILITY]], P2.b : elle rend SANS_PARAMETRE sur ce record, qui écrit « phase 2 à 200 ticks »). **Forme** : une balise DÉCLARÉE par l'auteur à côté du nombre — chemin `results/*.json` SUIVI, pointeur JSON, valeur et tolérance — sur le modèle des balises de compte de la porte 8 ; la porte relit le fichier et compare ; une valeur recalculée (médiane, rapport) déclare sa fonction et ses clés d'entrée. Ce qui est porteur est DÉCLARÉ, jamais deviné : la porte ne cherche pas les nombres NON balisés (elle les COMPTE et les rapporte, comme la porte 4 rapporte les entrées sans clause). Contre-exemples gelés : les cinq valeurs de cette occurrence qui ont une source JSON. À la livraison, la forme passe exécutable. *Coût : agent 3-4 h.* Sans clause `closes_when` (déclaré) : le nom de la porte n'est pas fixé.
 
-**P2.144 — rang à fixer par Master 2 — OUVERTE (2026-09-28, mesurée par Master 2 pendant l'attente de la reprise de P4.18) — Un run gouverné sous Windows ne tient aucune requête d'ÉVEIL : la machine s'endort en plein calcul.**
+**P2.144 — rang 2 (rang fixé par Master 2 le 2026-09-28) — OUVERTE (2026-09-28, mesurée par Master 2 pendant l'attente de la reprise de P4.18) — Un run gouverné sous Windows ne tient aucune requête d'ÉVEIL : la machine s'endort en plein calcul.**
 Preuve : le mode d'alimentation de la batcave met la machine en veille après 3600 s sans activité sur secteur (powercfg, « Veille après » = 0xe10), et un calcul en cours ne l'empêche pas ; la reprise de P4.18 (6470 s de mur) n'a été protégée que par une consigne donnée à robla. **Forme** : `tools/jobs/run.py` (et le parent de tout run gouverné) pose `SetThreadExecutionState(ES_CONTINUOUS | ES_SYSTEM_REQUIRED)` pendant toute la durée du run et le relâche à la fin, publié dans le JSON du run ; no-op hors Windows, dit. Contre-exemple : un run factice qui lit `powercfg /requests` et y voit sa propre requête. *Coût : agent 1 h.* Sans clause `closes_when` (déclaré).
 
-**P2.145 — rang à fixer par Master 2 — OUVERTE (2026-09-28, vue en écrivant [[EDR-S2-BASSIN-FRAGILITY]]) — `provenance()` déclare SALE tout run qui écrit son propre agrégat en cours de route.**
+**P2.145 — rang 4 (rang fixé par Master 2 le 2026-09-28) — OUVERTE (2026-09-28, vue en écrivant [[EDR-S2-BASSIN-FRAGILITY]]) — `provenance()` déclare SALE tout run qui écrit son propre agrégat en cours de route.**
 Preuve : `tools/preregister.py` (fonction `provenance`) pose `dirty` = « `git status --porcelain` non vide », fichiers NON SUIVIS compris ; le JSON de P4.18 publie `dirty = true` alors que l'arbre suivi était propre au départ et l'est resté (`--untracked-files=no` vide) — la saleté venait de `results/s2_bassin_fragility.json`, écrit par le run lui-même après son premier seed. Un tampon qui dit « sale » pour tout run reprenable ne distingue plus un code modifié d'un résultat en cours : c'est un signal mort. **Forme** : publier `dirty_suivi` (modifications de fichiers SUIVIS) et `non_suivis` (liste), jamais un booléen qui fond les deux. *Coût : agent 1 h.* Sans clause `closes_when` (déclaré).
 
-**P2.146 — rang à fixer par Master 2 — OUVERTE (2026-09-28, revue du record [[EDR-S2-BASSIN-FRAGILITY]], P7.c) — Les bras d'apprentissage ÉPISODIQUE seul ne publient pas leur pas effectif par agent.**
+**P2.146 — rang 5 (rang fixé par Master 2 le 2026-09-28) — OUVERTE (2026-09-28, revue du record [[EDR-S2-BASSIN-FRAGILITY]], P7.c) — Les bras d'apprentissage ÉPISODIQUE seul ne publient pas leur pas effectif par agent.**
 Preuve : dans `results/s2_bassin_fragility.json`, `lr_effective_per_agent` vaut None sur 12/12 seeds pour b_eplr et b_tdoff (voie épisodique seule), alors que la mise à jour épisodique passe par le même SGD à perte moyennée sur B : le pas réel par agent est lr/B (0,00033 et 0,0033). Le compteur de `tools/learning_events.py` ne le calcule que sur la voie TD. **Forme** : le publier pour TOUTE voie qui écrit W, avec son unité. *Coût : agent 30 min.* Sans clause `closes_when` (déclaré).
 
-**P2.147 — rang à fixer par Master 2 — OUVERTE (2026-09-28, revue du record [[EDR-S2-BASSIN-FRAGILITY]], P2.b) — La porte 19 est aveugle aux paramètres écrits « nombre puis nom ».**
+**P2.147 — rang 6, GELÉE jusqu'à la levée du gel de méthode (une porte, qui ne bloque aucun run) (rang fixé par Master 2 le 2026-09-28) — OUVERTE (2026-09-28, revue du record [[EDR-S2-BASSIN-FRAGILITY]], P2.b) — La porte 19 est aveugle aux paramètres écrits « nombre puis nom ».**
 Preuve : `tools/check_regime_claims.py` (motif des paramètres suivi de `\s*=\s*` et d'un nombre) ; ce record écrit « 2000 ticks », « phase 2 mortelle (200 ticks) », « 12 clones » et sort SANS_PARAMETRE — un record sans « = » ne cite, pour la porte, aucun paramètre. Recoupe P2.143 (qui la rend en partie inutile si elle livre des balises déclarées) ; à trancher ensemble. *Coût : agent 1 h.* Sans clause `closes_when` (déclaré).
 
-**P2.148 — rang à fixer par Master 2 — OUVERTE (2026-09-28, revue du record [[EDR-S2-BASSIN-FRAGILITY]], P8.b) — La porte 17 (chevauchement entrée/sortie des génomes persistés) ne balaie pas les génomes des runs.**
+**P2.148 — rang 6, GELÉE jusqu'à la levée du gel de méthode (une porte, qui ne bloque aucun run) (rang fixé par Master 2 le 2026-09-28) — OUVERTE (2026-09-28, revue du record [[EDR-S2-BASSIN-FRAGILITY]], P8.b) — La porte 17 (chevauchement entrée/sortie des génomes persistés) ne balaie pas les génomes des runs.**
 Preuve : `tools/check_io_overlap.py` examine `data/genomes/` et les Hall of Fame (358 sujets), jamais `results/*_genomes/` ; les 72 génomes de P4.18 ont été vérifiés À LA MAIN par la revue (chevauchement −5 partout). Une porte dont le périmètre ne contient pas les génomes que les runs persistent ne protège pas les runs (E32). *Coût : agent 30 min.* Sans clause `closes_when` (déclaré).
 *Seconde occurrence du même trou (2026-09-28, revue v5 de la pré-inscription E34-IDENTITY-CELL, P8.1, session E34) :*
 le bassin DAgger lui-même, `results/warm003_dagger_genome.npz` (I = 59, O = 108, N = 172, chevauchement 0), est lui aussi
