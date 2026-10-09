@@ -36,11 +36,11 @@ def test_world_2_demands_intelligence_over_randomness():
     world.granary["reserves"] = 40.0
 
     # Agent A (Compétent / Adaptatif) : positionné au grenier (x=5, y=5)
-    model_adapt = MambaAgent(num_inputs=cfg.agent.num_inputs, num_outputs=cfg.agent.num_outputs)
+    model_adapt = MambaAgent(num_inputs=cfg.agent.num_inputs, num_outputs=cfg.agent.num_outputs, isocaloric=True)
     ag_adapt = world.add_agent(model_adapt, x=5, y=5, energy=50.0)
 
     # Agent B (Dummy / Isolé) : placé loin dans la lande glaciale (x=0, y=0)
-    model_dummy = MambaAgent(num_inputs=cfg.agent.num_inputs, num_outputs=cfg.agent.num_outputs)
+    model_dummy = MambaAgent(num_inputs=cfg.agent.num_inputs, num_outputs=cfg.agent.num_outputs, isocaloric=True)
     ag_dummy = world.add_agent(model_dummy, x=0, y=0, energy=50.0)
 
     # Exécution de 2 pas de temps sous blizzard hivernal : l'agent compétent maintient son repli stratégique

@@ -1847,6 +1847,27 @@ class Biosphere3D(BaseWorld):
             batch_model.compute_policy_gradient(rewards, actions_batch)
                 
         self.agents = survivors
+
+        # ARC 6 / EXP-11 : Enregistrement dans le buffer de replay et consolidation nocturne
+        for idx, surv in enumerate(self.agents):
+            m = surv.get("model")
+            if m is not None and getattr(m, "replay_buffer", None) is not None:
+                o_idx = batch_obs[idx] if idx < len(batch_obs) else np.zeros(m.genome.num_inputs, dtype=np.float32)
+                r_idx = float(rewards[idx]) if idx < len(rewards) else 0.0
+                a_idx = int(surv.get("last_action", 0))
+                c_idx = max(0.0, float(old_energies[idx] - new_energies[idx])) if idx < len(old_energies) else 0.0
+                s_idx = bool(new_energies[idx] > old_energies[idx]) if idx < len(old_energies) else False
+                m.replay_buffer.push(
+                    state=o_idx,
+                    action=a_idx,
+                    reward=r_idx,
+                    next_state=o_idx,
+                    energy_spent=c_idx,
+                    success=s_idx
+                )
+                if getattr(self, "is_night", False) and getattr(m, "night_consolidator", None) is not None:
+                    sm = getattr(m, "self_model", None)
+                    m.night_consolidator.consolidate_agent(str(surv["id"]), m.replay_buffer, sm)
         
         seeds_to_remove = []
         for item in self.items:

@@ -61,6 +61,9 @@ class EpisodicMemoryBuffer:
         return len(self.buffer)
 
 
+EpisodicReplayBuffer = EpisodicMemoryBuffer
+
+
 class NightConsolidator:
     """
     Moteur de consolidation offline pendant le sommeil / rassemblement au feu.

@@ -35,3 +35,5 @@ def test_sociologist_rsi_closed_loop():
     assert ok is True, f"La proposition du catalogue template doit être validée en sandbox : {reason}"
     assert len(loop.history) == 1
     assert loop.history[0]["proposal_name"] == proposal.name
+    assert "article_id" in loop.history[0]
+    assert loop.history[0]["article_id"].startswith("art_rsi_")

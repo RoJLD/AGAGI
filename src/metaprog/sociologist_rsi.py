@@ -71,18 +71,37 @@ class SociologistRSILoop:
         )
 
         outcome_record = {
-            "proposal_name": proposal.name,
-            "kind": proposal.kind,
+            "proposal_name": proposal.name if proposal else "none",
+            "kind": proposal.kind if proposal else "none",
             "ok": ok,
             "reason": reason,
             "trend": trend["direction"],
             "delta": trend["delta"]
         }
+
+        if ok and proposal is not None:
+            # Commandement 16 : Journalisation Scientifique (Articles) dans KuzuDB
+            article_id = f"art_rsi_{proposal.name}_{len(self.history)}"
+            title = f"RSI Innovation : {proposal.name} ({proposal.kind})"
+            content = (
+                f"Validation de l'intervention RSI suite à une tendance '{trend['direction']}' "
+                f"(delta = {trend['delta']:.3f}).\n\n"
+                f"Détail de la proposition : {proposal.rationale}\n"
+                f"Statut : Validé avec succès sous sandbox de test.\n"
+                f"Amélioration attendue : Rupture de plateau et stabilisation de la transmission culturelle."
+            )
+            logger.emit("PUBLISH_ARTICLE", {
+                "id": article_id,
+                "title": title,
+                "content": content
+            })
+            outcome_record["article_id"] = article_id
+
         self.history.append(outcome_record)
 
         logger.emit("SOCIOLOGIST_RSI_INTERVENTION", {
-            "proposal": proposal.name,
-            "kind": proposal.kind,
+            "proposal": proposal.name if proposal else "none",
+            "kind": proposal.kind if proposal else "none",
             "validated": ok,
             "reason": reason,
             "direction": trend["direction"]

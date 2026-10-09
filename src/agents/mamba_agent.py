@@ -48,7 +48,7 @@ class MambaAgent(BaseAgent):
     Implémentation de l'Agent utilisant le moteur Liquid Mamba (Genome V13).
     """
     
-    def __init__(self, num_inputs=59, num_outputs=108, num_nodes=172):
+    def __init__(self, num_inputs=59, num_outputs=108, num_nodes=172, isocaloric: bool = False):
         # Initialiser le génome sous-jacent
         W = np.random.randn(num_nodes, num_nodes).astype(np.float32) * 0.1
         self.genome = Genome(W, num_inputs, num_outputs)
@@ -74,12 +74,37 @@ class MambaAgent(BaseAgent):
 
         self.reset_state()
         
-        self.phenotype_hp_bonus = float(np.sum(np.abs(np.nan_to_num(self.genome.W[0:5]))) * 10.0)
-        self.phenotype_inv_capacity = max(3, int(np.sum(np.abs(np.nan_to_num(self.genome.W[5:10])))))  # min 3 : pouvoir tenir rock+stick (gate craft, EDR 017) ; nan_to_num : robustesse longs épisodes (EDR 086)
-        mcts_drain = 0.5 if (self.genome.organ_genes is not None and self.genome.organ_genes[0]) else 0.0
-        self.phenotype_energy_drain = 1.0 + (self.phenotype_hp_bonus / 100.0) + (self.phenotype_inv_capacity * 0.1) + mcts_drain
+        # Dé-confounding Métabolique (Fait Neuf 2 / P1 / Science) :
+        # En mode isocalorique, le métabolisme reste fixe et indépendant des lignes 0-9 de W.
+        self.isocaloric = isocaloric
+        self.replay_buffer = None
+        self.self_model = None
+        self.night_consolidator = None
+
+        if self.isocaloric:
+            self.phenotype_hp_bonus = 0.0
+            self.phenotype_inv_capacity = 3
+            self.phenotype_energy_drain = 1.3
+        else:
+            self.phenotype_hp_bonus = float(np.sum(np.abs(np.nan_to_num(self.genome.W[0:5]))) * 10.0)
+            self.phenotype_inv_capacity = max(3, int(np.sum(np.abs(np.nan_to_num(self.genome.W[5:10])))))  # min 3 : pouvoir tenir rock+stick (gate craft, EDR 017) ; nan_to_num : robustesse longs épisodes (EDR 086)
+            mcts_drain = 0.5 if (self.genome.organ_genes is not None and self.genome.organ_genes[0]) else 0.0
+            self.phenotype_energy_drain = 1.0 + (self.phenotype_hp_bonus / 100.0) + (self.phenotype_inv_capacity * 0.1) + mcts_drain
         
+    def enable_episodic_dreaming(self, buffer_capacity: int = 100, learning_rate: float = 0.01):
+        """Active le buffer de replay et la consolidation nocturne (Arc 6 / EXP-11)."""
+        from src.agents.dream_replay import EpisodicReplayBuffer, NightConsolidator
+        from src.agents.self_model import SelfModel, SelfModelConfig
+        self.replay_buffer = EpisodicReplayBuffer(capacity=buffer_capacity)
+        self.night_consolidator = NightConsolidator(replay_batch_size=16)
+        self.self_model = SelfModel(state_dim=self.genome.num_inputs, config=SelfModelConfig(learning_rate=learning_rate))
+
     def update_phenotype(self):
+        if getattr(self, "isocaloric", False):
+            self.phenotype_hp_bonus = 0.0
+            self.phenotype_inv_capacity = 3
+            self.phenotype_energy_drain = 1.3
+            return
         self.phenotype_hp_bonus = float(np.sum(np.abs(np.nan_to_num(self.genome.W[0:5]))) * 10.0)
         self.phenotype_inv_capacity = max(3, int(np.sum(np.abs(np.nan_to_num(self.genome.W[5:10])))))  # min 3 : pouvoir tenir rock+stick (gate craft, EDR 017) ; nan_to_num : robustesse longs épisodes (EDR 086)
         
@@ -199,7 +224,8 @@ class MambaAgent(BaseAgent):
         new_agent = MambaAgent(
             num_inputs=self.genome.num_inputs, 
             num_outputs=self.genome.num_outputs,
-            num_nodes=self.genome.num_nodes
+            num_nodes=self.genome.num_nodes,
+            isocaloric=getattr(self, "isocaloric", False)
         )
         new_agent.genome = copy.deepcopy(self.genome)
         new_agent.attention_mask = self.attention_mask.copy() if self.attention_mask is not None else None
@@ -209,6 +235,8 @@ class MambaAgent(BaseAgent):
         new_agent.lu_proj = self.lu_proj.copy() if self.lu_proj is not None else None
         new_agent.lu_latent = self.lu_latent.copy() if self.lu_latent is not None else None
         new_agent.lu_incoming_latent = self.lu_incoming_latent.copy() if self.lu_incoming_latent is not None else None
+        if getattr(self, "replay_buffer", None) is not None:
+            new_agent.enable_episodic_dreaming(buffer_capacity=self.replay_buffer.capacity)
         return new_agent
 
     def from_genome(self, genome: Genome, preserve_dims: bool = True):
