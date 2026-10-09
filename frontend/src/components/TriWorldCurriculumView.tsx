@@ -28,7 +28,9 @@ export function TriWorldCurriculumView() {
   const [ticks, setTicks] = useState(10);
   const [mutationRate, setMutationRate] = useState(0.02);
   const [isocaloric, setIsocaloric] = useState(true);
+  const [enableSociologist, setEnableSociologist] = useState(true);
   const [selectedRunId, setSelectedRunId] = useState<string | null>(null);
+  const [lastDiagnostics, setLastDiagnostics] = useState<any[]>([]);
 
   const historyQuery = useQuery({
     queryKey: ["curriculum", "history"],
@@ -47,10 +49,14 @@ export function TriWorldCurriculumView() {
           ticks: ticks,
           mutation_rate: mutationRate,
           isocaloric: isocaloric,
+          enable_rsi_sociologist: enableSociologist,
         }),
       }),
     onSuccess: (data: any) => {
       queryClient.invalidateQueries({ queryKey: ["curriculum", "history"] });
+      if (data.sociologist_diagnostics) {
+        setLastDiagnostics(data.sociologist_diagnostics);
+      }
       notify(`Curriculum ${data.run_id || "achevé"} exécuté avec succès ! Ratio: ${data.transfer_ratio?.toFixed(2)}`, "success");
       if (data.run_id) setSelectedRunId(data.run_id);
     },
@@ -139,8 +145,49 @@ export function TriWorldCurriculumView() {
               <span style={{ fontSize: "0.85rem", fontWeight: 500 }}>Isocalorique (P1)</span>
             </label>
           </Field>
+          <Field label="Observatoire RSI">
+            <label style={{ display: "flex", alignItems: "center", gap: "6px", cursor: "pointer", height: "36px" }}>
+              <input
+                type="checkbox"
+                checked={enableSociologist}
+                onChange={(e) => setEnableSociologist(e.target.checked)}
+                disabled={runMutation.isPending}
+              />
+              <span style={{ fontSize: "0.85rem", fontWeight: 500 }}>Sociologue RSI (EXP-12)</span>
+            </label>
+          </Field>
         </div>
       </Panel>
+
+      {lastDiagnostics.length > 0 && (
+        <Panel className="mb-4">
+          <div style={{ borderLeft: "4px solid #8b5cf6", padding: "1rem" }}>
+            <h4 style={{ margin: "0 0 8px 0", fontSize: "0.95rem", color: "#a78bfa" }}>
+              🔭 Observatoire Sociologique &amp; Diagnostics RSI (Loi du Sociologue)
+            </h4>
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: "10px" }}>
+              {lastDiagnostics.map((d, idx) => {
+                const dir = d.trend?.direction || "INCONNU";
+                const badgeVariant = dir === "PROGRESSION" ? "success" : dir === "STAGNATION" ? "warning" : "danger";
+                return (
+                  <div key={idx} style={{ background: "rgba(139, 92, 246, 0.08)", border: "1px solid rgba(139, 92, 246, 0.25)", borderRadius: "6px", padding: "8px 12px" }}>
+                    <div style={{ fontWeight: 600, fontSize: "0.85rem", marginBottom: "4px" }}>{d.stage_name}</div>
+                    <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
+                      <Badge variant={badgeVariant}>{dir}</Badge>
+                      <span className="text-dim" style={{ fontSize: "0.78rem" }}>&Delta;: {d.trend?.delta?.toFixed(2) ?? "0.00"}</span>
+                    </div>
+                    {d.intervention && (
+                      <div style={{ fontSize: "0.75rem", marginTop: "4px", color: d.intervention.success ? "#4ade80" : "#f87171" }}>
+                        Auto-RSI: {d.intervention.proposal || "N/A"} ({d.intervention.success ? "Sandbox OK" : "Rejet"})
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        </Panel>
+      )}
 
       {activeRun && (
         <Panel className="mb-4">
@@ -154,6 +201,7 @@ export function TriWorldCurriculumView() {
               <div style={{ display: "flex", gap: "6px", marginTop: "4px" }}>
                 <Badge variant="success">Isocalorique Immunisé</Badge>
                 <Badge variant="purple">Rêve Nocturne Activé</Badge>
+                <Badge variant="teal">Sociologue RSI Connecté</Badge>
               </div>
             </div>
             <div style={{ display: "flex", gap: "8px", alignItems: "center" }}>

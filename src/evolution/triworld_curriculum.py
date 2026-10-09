@@ -35,6 +35,7 @@ class TriWorldCurriculumConfig:
     initial_energy: float = 50.0
     seed: int = 42
     isocaloric: bool = False
+    enable_rsi_sociologist: bool = False
 
 
 class TriWorldCurriculum:
@@ -45,6 +46,10 @@ class TriWorldCurriculum:
         np.random.seed(self.config.seed)
         self.mutation_cfg = MutationConfig(weight_mutate_rate=self.config.mutation_rate)
         self.history: List[Dict[str, Any]] = []
+        self.sociologist = None
+        if self.config.enable_rsi_sociologist:
+            from src.metaprog.sociologist_rsi import SociologistRSILoop
+            self.sociologist = SociologistRSILoop()
 
     def _init_population(self, num_inputs: int, num_outputs: int) -> List[MambaAgent]:
         """Initialise une population de départ."""
@@ -156,6 +161,26 @@ class TriWorldCurriculum:
         scores = [stage_1["best_final_score"], stage_2["best_final_score"], stage_3["best_final_score"]]
         transfer_ratio = float(scores[2] / (scores[0] + 1e-6))
 
+        sociologist_diagnostics = []
+        if self.sociologist is not None:
+            for stage in [stage_1, stage_2, stage_3]:
+                era_scores = [e["mean_score"] for e in stage["eras"]]
+                trend = self.sociologist.analyze_campaign_trend(era_scores)
+                diag = {
+                    "stage_name": stage["stage_name"],
+                    "trend": trend,
+                    "intervention": None
+                }
+                if trend.get("needs_intervention", False):
+                    prop, ok, reason = self.sociologist.trigger_auto_improvement(era_scores, use_llm=False)
+                    diag["intervention"] = {
+                        "proposal": prop.name if prop else None,
+                        "kind": prop.kind if prop else None,
+                        "success": ok,
+                        "reason": reason
+                    }
+                sociologist_diagnostics.append(diag)
+
         curriculum_report = {
             "stages": [stage_1, stage_2, stage_3],
             "champions": {
@@ -165,6 +190,7 @@ class TriWorldCurriculum:
             },
             "scores_progression": scores,
             "transfer_ratio": transfer_ratio,
+            "sociologist_diagnostics": sociologist_diagnostics,
             "status": "completed"
         }
         self.history.append(curriculum_report)

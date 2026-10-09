@@ -380,6 +380,14 @@ Transition écologique majeure de la prédation opportuniste vers la production 
 - **Greniers Communautaires (`Granary`)** : Stockage centralisé des surplus durant l'abondance automnale et redistribution calorique vitale face à la rigueur de l'hiver (-0.2 E/tick sans abri).
 - **Coordination Agricole par Gigatokens LU** : Amplification de $+50\%$ du rendement des cultures (`lu_agricultural_synergy = 1.5`) lorsque les semailles et récoltes sont coordonnées collectivement par signaux latents continus.
 
+## 🌙 Arc 6 & EXP-11 : Métacognition Épisodique & Rêve Collectif (Article 010)
+
+Séparation neurobiologique du temps d'action (jour) et du temps de consolidation mnésique (nuit) :
+- **Modèle de Soi Métacognitif (`SelfModel`)** : Prédiction anticipée du coût énergétique $\hat{c}(s, a)$ et du succès $\hat{p}(s, a)$, générant un signal d'erreur de prédiction (surprise) modulant l'attention.
+- **Consolidation Collective Vectorisée (`BatchNightConsolidator`)** : Vectorisation matricielle pure en NumPy entraînant simultanément toute la population sur les épisodes saillants.
+- **Débiaisement Métabolique Isocalorique** : Phénotype `isocaloric=True` éliminant tout artefact corporel de la norme des poids synaptiques $W$ pour mesurer une intelligence pure.
+- **Clôture & Journalisation** : Validé empiriquement par les bancs de tests unitaires et consigné dans KuzuDB sous l'identifiant `art_010_arc6_reve_episodique_metacognition` (Article 010).
+
 ## Comment lire les preuves
 
 Chaque affirmation ci-dessus pointe vers son EDR (`docs/EDR/NNN_*.md`), qui contient le protocole, les

@@ -62,3 +62,25 @@ def test_triworld_curriculum_kuzudb_persistence(tmp_path):
     assert runs[0]["status"] == "completed"
     assert isinstance(runs[0]["transfer_ratio"], float)
 
+
+def test_triworld_curriculum_sociologist_integration():
+    """Valide l'activation et le diagnostic du Sociologue RSI dans le curriculum."""
+    cfg = TriWorldCurriculumConfig(
+        pop_size=3,
+        eras_per_world=2,
+        max_ticks_per_era=5,
+        enable_rsi_sociologist=True,
+        seed=42
+    )
+    curriculum = TriWorldCurriculum(cfg)
+    report = curriculum.run_full_curriculum()
+
+    assert "sociologist_diagnostics" in report
+    diags = report["sociologist_diagnostics"]
+    assert len(diags) == 3
+    for d in diags:
+        assert "stage_name" in d
+        assert "trend" in d
+        assert "direction" in d["trend"]
+
+

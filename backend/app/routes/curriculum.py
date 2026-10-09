@@ -29,6 +29,7 @@ class RunCurriculumRequest(BaseModel):
     ticks: int = Field(default=10, ge=5, le=100, description="Ticks max par ère")
     mutation_rate: float = Field(default=0.02, ge=0.001, le=0.5, description="Taux de mutation")
     isocaloric: bool = Field(default=True, description="Active le métabolisme isocalorique contrôlé")
+    enable_rsi_sociologist: bool = Field(default=True, description="Active le diagnostic et l'intervention du Sociologue RSI")
 
 
 class PhylogeneticRunSummary(BaseModel):
@@ -81,6 +82,7 @@ def trigger_curriculum_run(req: RunCurriculumRequest) -> Dict[str, Any]:
             max_ticks_per_era=req.ticks,
             mutation_rate=req.mutation_rate,
             isocaloric=req.isocaloric,
+            enable_rsi_sociologist=req.enable_rsi_sociologist,
         )
         curriculum = TriWorldCurriculum(cfg)
         report = curriculum.run_full_curriculum()
@@ -92,6 +94,7 @@ def trigger_curriculum_run(req: RunCurriculumRequest) -> Dict[str, Any]:
             "run_id": run_id,
             "transfer_ratio": report["transfer_ratio"],
             "scores_progression": report["scores_progression"],
+            "sociologist_diagnostics": report.get("sociologist_diagnostics", []),
             "stages": [
                 {
                     "stage_name": s["stage_name"],
