@@ -69,13 +69,14 @@ def test_inworld_night_consolidation_execution():
     from src.environments.config import WorldConfig
     from src.worlds.world_1_stoneage import Biosphere3D
 
+    np.random.seed(42)
     cfg = WorldConfig(size=12, num_altars=1, prey_mode="none")
     world = Biosphere3D(cfg)
     world.night_enabled = True
 
     model = MambaAgent(num_inputs=cfg.agent.num_inputs, num_outputs=cfg.agent.num_outputs, isocaloric=True)
     model.enable_episodic_dreaming(buffer_capacity=30)
-    world.add_agent(model, x=6, y=6, energy=80.0)
+    world.add_agent(model, x=6, y=6, energy=100.0)
 
     # Faire 5 pas de simulation de jour pour accumuler des mémoires
     world.is_night = False

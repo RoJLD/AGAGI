@@ -27,6 +27,7 @@ export function TriWorldCurriculumView() {
   const [eras, setEras] = useState(1);
   const [ticks, setTicks] = useState(10);
   const [mutationRate, setMutationRate] = useState(0.02);
+  const [isocaloric, setIsocaloric] = useState(true);
   const [selectedRunId, setSelectedRunId] = useState<string | null>(null);
 
   const historyQuery = useQuery({
@@ -45,6 +46,7 @@ export function TriWorldCurriculumView() {
           eras: eras,
           ticks: ticks,
           mutation_rate: mutationRate,
+          isocaloric: isocaloric,
         }),
       }),
     onSuccess: (data: any) => {
@@ -126,6 +128,17 @@ export function TriWorldCurriculumView() {
               disabled={runMutation.isPending}
             />
           </Field>
+          <Field label="Régime Métabolique">
+            <label style={{ display: "flex", alignItems: "center", gap: "6px", cursor: "pointer", height: "36px" }}>
+              <input
+                type="checkbox"
+                checked={isocaloric}
+                onChange={(e) => setIsocaloric(e.target.checked)}
+                disabled={runMutation.isPending}
+              />
+              <span style={{ fontSize: "0.85rem", fontWeight: 500 }}>Isocalorique (P1)</span>
+            </label>
+          </Field>
         </div>
       </Panel>
 
@@ -133,10 +146,16 @@ export function TriWorldCurriculumView() {
         <Panel className="mb-4">
           <div style={{ borderLeft: "4px solid #38bdf8", padding: "1.2rem" }}>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "1rem" }}>
-            <h4 style={{ margin: 0, fontSize: "1rem", display: "flex", alignItems: "center", gap: "8px" }}>
-              <Award size={18} color="#38bdf8" />
-              Lignée Phylogénétique Active : <code>{activeRun.id}</code>
-            </h4>
+            <div>
+              <h4 style={{ margin: 0, fontSize: "1rem", display: "flex", alignItems: "center", gap: "8px" }}>
+                <Award size={18} color="#38bdf8" />
+                Lignée Phylogénétique Active : <code>{activeRun.id}</code>
+              </h4>
+              <div style={{ display: "flex", gap: "6px", marginTop: "4px" }}>
+                <Badge variant="success">Isocalorique Immunisé</Badge>
+                <Badge variant="purple">Rêve Nocturne Activé</Badge>
+              </div>
+            </div>
             <div style={{ display: "flex", gap: "8px", alignItems: "center" }}>
               <span className="text-dim" style={{ fontSize: "0.85rem" }}>Efficacité de Transfert :</span>
               <Badge variant={activeRun.transfer_ratio >= 1.0 ? "success" : "warning"}>

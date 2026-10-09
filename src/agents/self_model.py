@@ -106,6 +106,43 @@ class SelfModel:
 
         self.cumulative_prediction_error += abs(err_cost)
 
+    def learn_batch(self, S: np.ndarray, actual_costs: np.ndarray, task_successes: np.ndarray):
+        """
+        Mise à jour entièrement vectorisée sur un lot de transitions (Commandement 3).
+        Pas de boucle Python : calcul matriciel NumPy à haute vitesse.
+        """
+        if len(S) == 0:
+            return
+        S = np.asarray(S, dtype=np.float32)
+        if S.shape[1] != self.state_dim:
+            if S.shape[1] < self.state_dim:
+                S = np.pad(S, ((0, 0), (0, self.state_dim - S.shape[1])))
+            else:
+                S = S[:, :self.state_dim]
+        
+        lr = self.config.learning_rate
+        actual_costs = np.asarray(actual_costs, dtype=np.float32)
+        task_successes = np.asarray(task_successes, dtype=np.float32)
+
+        # 1. Coût énergétique vectorisé
+        preds_cost = np.dot(S, self.W_cost) + self.b_cost
+        errs_cost = preds_cost - actual_costs
+        grad_W_cost = np.clip(np.mean(errs_cost[:, None] * S, axis=0), -5.0, 5.0)
+        grad_b_cost = np.clip(np.mean(errs_cost), -5.0, 5.0)
+        self.W_cost -= lr * grad_W_cost
+        self.b_cost -= lr * grad_b_cost
+
+        # 2. Confiance vectorisée
+        raw_confs = np.dot(S, self.W_conf) + self.b_conf
+        prob_confs = 1.0 / (1.0 + np.exp(-np.clip(raw_confs, -10.0, 10.0)))
+        errs_conf = prob_confs - task_successes
+        grad_W_conf = np.clip(np.mean(errs_conf[:, None] * S, axis=0), -5.0, 5.0)
+        grad_b_conf = np.clip(np.mean(errs_conf), -5.0, 5.0)
+        self.W_conf -= lr * grad_W_conf
+        self.b_conf -= lr * grad_b_conf
+
+        self.cumulative_prediction_error += float(np.sum(np.abs(errs_cost)))
+
     def get_ttc_budget_adjustment(self, confidence: float) -> int:
         """
         Calcule l'ajustement du budget de recherche MCTS.

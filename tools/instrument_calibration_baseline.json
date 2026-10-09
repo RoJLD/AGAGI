@@ -1,6 +1,7 @@
 {
   "uncalibrated": [
     "learn",
+    "learn_batch",
     "learn_episode_bptt",
     "learn_step",
     "run_coordination_episode",

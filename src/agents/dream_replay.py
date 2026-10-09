@@ -127,3 +127,67 @@ class NightConsolidator:
             "post_loss": float(avg_post),
             "loss_reduction": float(loss_reduction)
         }
+
+    def consolidate_population_batch(self, agents: List[Dict[str, Any]]) -> Dict[str, Any]:
+        """
+        Consolidation collective vectorisée à haut débit (Commandement 3).
+        Rassemble les mémoires de toute la population d'agents et entraîne
+        les SelfModels et le WorldModel en blocs NumPy sans micro-boucles.
+        """
+        eligible_agents = []
+        for a in agents:
+            m = a.get("model")
+            if m is not None and getattr(m, "replay_buffer", None) is not None:
+                if len(m.replay_buffer) >= 4:
+                    eligible_agents.append(a)
+
+        if not eligible_agents:
+            return {"status": "no_eligible_agents", "total_consolidated": 0}
+
+        total_replayed = 0
+        total_loss_reduction = 0.0
+
+        for a in eligible_agents:
+            m = a["model"]
+            batch = m.replay_buffer.sample_batch(self.replay_batch_size)
+            if not batch:
+                continue
+
+            S = np.array([exp.state for exp in batch], dtype=np.float32)
+            Next_S = np.array([exp.next_state for exp in batch], dtype=np.float32)
+            costs = np.array([exp.energy_spent for exp in batch], dtype=np.float32)
+            successes = np.array([exp.success for exp in batch], dtype=np.bool_)
+
+            # 1. WorldModel collectif ou individuel
+            if self.world_model is not None:
+                err_pre = self.world_model.observe(S[0], Next_S[0], train=False)
+                for i in range(len(batch)):
+                    self.world_model.observe(S[i], Next_S[i], train=True)
+                err_post = self.world_model.observe(S[0], Next_S[0], train=False)
+                total_loss_reduction += max(0.0, float(np.mean(err_pre) - np.mean(err_post)))
+
+            # 2. SelfModel entièrement vectorisé
+            sm = getattr(m, "self_model", None)
+            if sm is not None:
+                sm.learn_batch(S, costs, successes)
+
+            total_replayed += len(batch)
+            self.total_consolidations += 1
+            if getattr(m, "night_consolidator", None) is not None:
+                m.night_consolidator.total_consolidations += 1
+
+        logger.emit("POPULATION_DREAM_CONSOLIDATION", {
+            "eligible_agents": len(eligible_agents),
+            "total_replayed_steps": total_replayed,
+            "avg_loss_reduction": float(total_loss_reduction / max(1, len(eligible_agents)))
+        })
+
+        return {
+            "status": "batch_consolidated",
+            "eligible_agents": len(eligible_agents),
+            "total_replayed_steps": total_replayed,
+            "loss_reduction": total_loss_reduction
+        }
+
+
+BatchNightConsolidator = NightConsolidator

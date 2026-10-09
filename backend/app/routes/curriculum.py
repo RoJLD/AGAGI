@@ -28,6 +28,7 @@ class RunCurriculumRequest(BaseModel):
     eras: int = Field(default=1, ge=1, le=10, description="Nombre d'ères par monde")
     ticks: int = Field(default=10, ge=5, le=100, description="Ticks max par ère")
     mutation_rate: float = Field(default=0.02, ge=0.001, le=0.5, description="Taux de mutation")
+    isocaloric: bool = Field(default=True, description="Active le métabolisme isocalorique contrôlé")
 
 
 class PhylogeneticRunSummary(BaseModel):
@@ -79,6 +80,7 @@ def trigger_curriculum_run(req: RunCurriculumRequest) -> Dict[str, Any]:
             eras_per_world=req.eras,
             max_ticks_per_era=req.ticks,
             mutation_rate=req.mutation_rate,
+            isocaloric=req.isocaloric,
         )
         curriculum = TriWorldCurriculum(cfg)
         report = curriculum.run_full_curriculum()

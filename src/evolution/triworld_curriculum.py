@@ -34,6 +34,7 @@ class TriWorldCurriculumConfig:
     mutation_rate: float = 0.05
     initial_energy: float = 50.0
     seed: int = 42
+    isocaloric: bool = False
 
 
 class TriWorldCurriculum:
@@ -49,7 +50,7 @@ class TriWorldCurriculum:
         """Initialise une population de départ."""
         pop = []
         for _ in range(self.config.pop_size):
-            agent = MambaAgent(num_inputs=num_inputs, num_outputs=num_outputs)
+            agent = MambaAgent(num_inputs=num_inputs, num_outputs=num_outputs, isocaloric=self.config.isocaloric)
             pop.append(agent)
         return pop
 

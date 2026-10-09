@@ -1865,9 +1865,13 @@ class Biosphere3D(BaseWorld):
                     energy_spent=c_idx,
                     success=s_idx
                 )
-                if getattr(self, "is_night", False) and getattr(m, "night_consolidator", None) is not None:
-                    sm = getattr(m, "self_model", None)
-                    m.night_consolidator.consolidate_agent(str(surv["id"]), m.replay_buffer, sm)
+        
+        # Consolidation nocturne vectorisée collective (Commandement 3)
+        if getattr(self, "is_night", False):
+            if not hasattr(self, "_batch_consolidator"):
+                from src.agents.dream_replay import BatchNightConsolidator
+                self._batch_consolidator = BatchNightConsolidator(world_model=getattr(self, "world_model", None))
+            self._batch_consolidator.consolidate_population_batch(self.agents)
         
         seeds_to_remove = []
         for item in self.items:
