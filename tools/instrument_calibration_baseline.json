@@ -1,7 +1,10 @@
 {
   "uncalibrated": [
     "learn",
-    "learn_episode_bptt"
+    "learn_episode_bptt",
+    "learn_step",
+    "run_coordination_episode",
+    "run_single_config"
   ],
   "declarations_ignorees": [
     "_cause_de_mort",

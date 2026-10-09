@@ -1644,7 +1644,7 @@ class Biosphere3D(BaseWorld):
 
             # 6. Grab (Inventory mechanics)
             if do_grab > 0:
-                nearby_items = [i for i in self.items if i["x"] == agent["x"] and i["y"] == agent["y"]]
+                nearby_items = [i for i in self.items if i["x"] == agent["x"] and i["y"] == agent["y"] and i.get("type") != "Fire"]
                 if nearby_items:
                     item = nearby_items[0]
                     if len(agent["inventory"]) < agent["inv_capacity"]:

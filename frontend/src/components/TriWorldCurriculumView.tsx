@@ -27,6 +27,7 @@ export function TriWorldCurriculumView() {
   const [eras, setEras] = useState(1);
   const [ticks, setTicks] = useState(10);
   const [mutationRate, setMutationRate] = useState(0.02);
+  const [selectedRunId, setSelectedRunId] = useState<string | null>(null);
 
   const historyQuery = useQuery({
     queryKey: ["curriculum", "history"],
@@ -49,6 +50,7 @@ export function TriWorldCurriculumView() {
     onSuccess: (data: any) => {
       queryClient.invalidateQueries({ queryKey: ["curriculum", "history"] });
       notify(`Curriculum ${data.run_id || "achevé"} exécuté avec succès ! Ratio: ${data.transfer_ratio?.toFixed(2)}`, "success");
+      if (data.run_id) setSelectedRunId(data.run_id);
     },
     onError: (err: any) => {
       notify(`Erreur lors du run : ${err.message || err}`, "error");
@@ -56,6 +58,7 @@ export function TriWorldCurriculumView() {
   });
 
   const runs = historyQuery.data || [];
+  const activeRun = runs.find((r) => r.id === selectedRunId) || runs[0] || null;
 
   return (
     <div className="curriculum-container" style={{ marginBottom: "2rem" }}>
@@ -126,6 +129,49 @@ export function TriWorldCurriculumView() {
         </div>
       </Panel>
 
+      {activeRun && (
+        <Panel className="mb-4">
+          <div style={{ borderLeft: "4px solid #38bdf8", padding: "1.2rem" }}>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "1rem" }}>
+            <h4 style={{ margin: 0, fontSize: "1rem", display: "flex", alignItems: "center", gap: "8px" }}>
+              <Award size={18} color="#38bdf8" />
+              Lignée Phylogénétique Active : <code>{activeRun.id}</code>
+            </h4>
+            <div style={{ display: "flex", gap: "8px", alignItems: "center" }}>
+              <span className="text-dim" style={{ fontSize: "0.85rem" }}>Efficacité de Transfert :</span>
+              <Badge variant={activeRun.transfer_ratio >= 1.0 ? "success" : "warning"}>
+                &times;{activeRun.transfer_ratio.toFixed(2)} {activeRun.transfer_ratio >= 1.0 ? " (Transfert Positif)" : " (Résiduel)"}
+              </Badge>
+            </div>
+          </div>
+
+          <div style={{ display: "grid", gridTemplateColumns: "1fr auto 1fr auto 1fr", gap: "10px", alignItems: "center" }}>
+            <div style={{ background: "rgba(245, 158, 11, 0.08)", border: "1px solid rgba(245, 158, 11, 0.3)", borderRadius: "8px", padding: "10px" }}>
+              <div style={{ fontSize: "0.8rem", color: "#f59e0b", fontWeight: 700, textTransform: "uppercase" }}>Étape 1 &bull; Âge de Pierre</div>
+              <div style={{ fontSize: "1.2rem", fontWeight: 700, margin: "4px 0" }}>{activeRun.stone_score.toFixed(1)} <span style={{ fontSize: "0.8rem", fontWeight: 400 }} className="text-dim">pts</span></div>
+              <div style={{ fontSize: "0.75rem" }} className="text-dim">Feux, friction, chasse &amp; osmose HGT</div>
+            </div>
+
+            <div style={{ color: "#38bdf8", fontWeight: 800, fontSize: "1.4rem" }}>&rarr;</div>
+
+            <div style={{ background: "rgba(34, 197, 94, 0.08)", border: "1px solid rgba(34, 197, 94, 0.3)", borderRadius: "8px", padding: "10px" }}>
+              <div style={{ fontSize: "0.8rem", color: "#22c55e", fontWeight: 700, textTransform: "uppercase" }}>Étape 2 &bull; Âge Agricole</div>
+              <div style={{ fontSize: "1.2rem", fontWeight: 700, margin: "4px 0" }}>{activeRun.agri_score.toFixed(1)} <span style={{ fontSize: "0.8rem", fontWeight: 400 }} className="text-dim">pts</span></div>
+              <div style={{ fontSize: "0.75rem" }} className="text-dim">Semis, moulin, farine &amp; grenier anti-famine</div>
+            </div>
+
+            <div style={{ color: "#38bdf8", fontWeight: 800, fontSize: "1.4rem" }}>&rarr;</div>
+
+            <div style={{ background: "rgba(6, 182, 212, 0.08)", border: "1px solid rgba(6, 182, 212, 0.3)", borderRadius: "8px", padding: "10px" }}>
+              <div style={{ fontSize: "0.8rem", color: "#06b6d4", fontWeight: 700, textTransform: "uppercase" }}>Étape 3 &bull; Âge Industriel</div>
+              <div style={{ fontSize: "1.2rem", fontWeight: 700, margin: "4px 0" }}>{activeRun.indus_score.toFixed(1)} <span style={{ fontSize: "0.8rem", fontWeight: 400 }} className="text-dim">pts</span></div>
+              <div style={{ fontSize: "0.75rem" }} className="text-dim">Haut-fourneau, lingots &amp; métallurgie lourde</div>
+            </div>
+          </div>
+        </div>
+      </Panel>
+      )}
+
       <Panel>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "0.8rem" }}>
           <h4 style={{ margin: 0, fontSize: "0.95rem" }}>Historique des Runs Phylogénétiques (KuzuDB)</h4>
@@ -157,8 +203,17 @@ export function TriWorldCurriculumView() {
               <tbody>
                 {runs.map((r) => {
                   const isPositiveTransfer = r.transfer_ratio >= 1.0;
+                  const isSelected = activeRun?.id === r.id;
                   return (
-                    <tr key={r.id}>
+                    <tr
+                      key={r.id}
+                      onClick={() => setSelectedRunId(r.id)}
+                      style={{
+                        cursor: "pointer",
+                        background: isSelected ? "rgba(56, 189, 248, 0.12)" : undefined,
+                        borderLeft: isSelected ? "3px solid #38bdf8" : undefined,
+                      }}
+                    >
                       <td>
                         <code>{r.id}</code>
                       </td>

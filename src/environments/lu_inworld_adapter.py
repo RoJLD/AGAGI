@@ -548,7 +548,7 @@ class LUInWorldAdapter:
                 grassmann_dist = float(np.sqrt(np.sum(thetas ** 2)))
                 distances.append(grassmann_dist)
 
-        mean_dist = float(np.mean(distances)) if distances else 0.0
+        mean_dist = float(np.mean(distances)) if distances else float('nan')
         return {
             "dialect_divergence": mean_dist,
             "tribe_count": len(tribe_subspaces),

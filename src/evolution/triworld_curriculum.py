@@ -169,18 +169,20 @@ class TriWorldCurriculum:
         self.history.append(curriculum_report)
         return curriculum_report
 
-    def persist_to_kuzudb(self, report: Dict[str, Any], db_path: str = "data/kuzu_graph.db", run_id: Optional[str] = None) -> str:
+    def persist_to_kuzudb(self, report: Dict[str, Any], db_path: Optional[str] = None, run_id: Optional[str] = None) -> str:
         """Persiste le run de curriculum dans KuzuDB (Commandement 5: Transparent & Auditable)."""
         import uuid
+        from src.paths import kuzu_graph
         from src.graph_rag.experiment_tracker import ExperimentGraph
         from src.graph_rag.async_logger import logger as async_logger
 
+        effective_db_path = db_path or kuzu_graph()
         actual_run_id = run_id or f"run_triworld_{uuid.uuid4().hex[:8]}"
         shared_db = async_logger.get_db()
-        if shared_db is not None and (db_path == "data/kuzu_graph.db" or getattr(async_logger, "db_path", "") == db_path):
+        if shared_db is not None and (db_path is None or getattr(async_logger, "db_path", "") == effective_db_path):
             graph = ExperimentGraph(db=shared_db)
         else:
-            graph = ExperimentGraph(db_path=db_path)
+            graph = ExperimentGraph(db_path=effective_db_path)
         graph.log_phylogenetic_run(actual_run_id, report)
         return actual_run_id
 

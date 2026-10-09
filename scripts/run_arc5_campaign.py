@@ -21,10 +21,12 @@ ROOT_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
 if ROOT_DIR not in sys.path:
     sys.path.insert(0, ROOT_DIR)
 
+from src.paths import data_file
 from src.evolution.triworld_curriculum import TriWorldCurriculum, TriWorldCurriculumConfig
 from src.evolution.tribal_dialect import TribalDialectAnalyzer, TribalDialectConfig
 
-def run_campaign(eras_per_world: int = 10, pop_size: int = 8, ticks_per_era: int = 30, output_file: str = "data/campaign_arc5_results.json"):
+def run_campaign(eras_per_world: int = 10, pop_size: int = 8, ticks_per_era: int = 30, output_file: str = None):
+    output_file = output_file or data_file("campaign_arc5_results.json")
     total_eras = eras_per_world * 3
     print("=" * 70)
     print(f"🚀 DÉMARRAGE DE LA CAMPAGNE MULTIVERS ({total_eras} ÈRES AU TOTAL)")
@@ -106,7 +108,7 @@ if __name__ == "__main__":
     parser.add_argument("--eras-per-world", type=int, default=10, help="Nombre d'ères par monde (défaut 10 -> total 30)")
     parser.add_argument("--pop-size", type=int, default=8, help="Taille de la population")
     parser.add_argument("--ticks", type=int, default=30, help="Nombre de ticks par ère")
-    parser.add_argument("--output", type=str, default="data/campaign_arc5_results.json", help="Chemin du fichier de sortie")
+    parser.add_argument("--output", type=str, default=None, help="Chemin du fichier de sortie")
     args = parser.parse_args()
     
     run_campaign(eras_per_world=args.eras_per_world, pop_size=args.pop_size, ticks_per_era=args.ticks, output_file=args.output)

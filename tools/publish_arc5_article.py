@@ -10,6 +10,7 @@ import datetime
 
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
+from src.paths import kuzu_graph
 from src.graph_rag.experiment_tracker import ExperimentGraph
 from src.graph_rag.async_logger import logger as async_logger
 
@@ -19,7 +20,7 @@ def publish_article():
     if shared_db is not None:
         graph = ExperimentGraph(db=shared_db)
     else:
-        graph = ExperimentGraph(db_path="data/kuzu_graph.db")
+        graph = ExperimentGraph(db_path=kuzu_graph())
 
     article_id = "ART-ARC5-MULTIVERSE-001"
     title = "Arc 5 : Rôles Tribaux, Dialectes de Meute et Curriculum Phylogénétique Tri-Mondes"

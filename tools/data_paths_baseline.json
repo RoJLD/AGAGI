@@ -2,8 +2,7 @@
  "_comment": "Chemins de donnees ECRITS EN DUR, geles comme dette legataire. Aucun NOUVEAU (tools/check_data_paths.py). Migrer un site vers src/paths.py ne declenche RIEN : c'est le but.",
  "fichiers": {
   "backend/app/services/data_service.py": [
-   "/app/data/kuzu_graph.db",
-   "data/kuzu_graph.db"
+   "/app/data/kuzu_graph.db"
   ],
   "src/graph_rag/async_logger.py": [
    "data/kuzu_graph.db",

@@ -12,6 +12,7 @@ import os
 # Assurer l'accès au path racine
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
+from src.paths import kuzu_graph
 from src.evolution.triworld_curriculum import TriWorldCurriculum, TriWorldCurriculumConfig
 from src.graph_rag.experiment_tracker import ExperimentGraph
 
@@ -22,7 +23,7 @@ def main():
     parser.add_argument("--eras", type=int, default=2, help="Nombre d'ères par monde")
     parser.add_argument("--ticks", type=int, default=20, help="Ticks max par ère")
     parser.add_argument("--mutation-rate", type=float, default=0.03, help="Taux de mutation")
-    parser.add_argument("--db-path", type=str, default="data/kuzu_graph.db", help="Chemin vers la base KuzuDB")
+    parser.add_argument("--db-path", type=str, default=None, help="Chemin vers la base KuzuDB")
     parser.add_argument("--run-id", type=str, default=None, help="ID optionnel du run")
     args = parser.parse_args()
 
@@ -48,7 +49,7 @@ def main():
     if shared_db is not None:
         graph = ExperimentGraph(db=shared_db)
     else:
-        graph = ExperimentGraph(db_path=args.db_path)
+        graph = ExperimentGraph(db_path=args.db_path or kuzu_graph())
     runs = graph.get_phylogenetic_runs()
     print(f"[Curriculum CLI] Nombre total de runs phylogénétiques dans KuzuDB: {len(runs)}")
 

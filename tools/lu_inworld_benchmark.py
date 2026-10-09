@@ -152,11 +152,14 @@ def run_single_config(
     }
 
 
-def persist_to_kuzudb(summary: Dict[str, Any], db_path: str = "./data/kuzudb/kuzu.db"):
+from src.paths import kuzu_graph, data_file
+
+def persist_to_kuzudb(summary: Dict[str, Any], db_path: Optional[str] = None):
     """Persiste le rapport et l'événement dans KuzuDB (Commandement 16)."""
     try:
-        os.makedirs(os.path.dirname(db_path), exist_ok=True)
-        db = KuzuDatabase(DatabaseConfig(db_path=db_path))
+        effective_db_path = db_path or kuzu_graph()
+        os.makedirs(os.path.dirname(effective_db_path), exist_ok=True)
+        db = KuzuDatabase(DatabaseConfig(db_path=effective_db_path))
         
         # Idempotent table creation
         for q in [
@@ -206,8 +209,9 @@ def main():
     parser.add_argument("--ticks", type=int, default=300, help="Nombre de ticks par épisode")
     parser.add_argument("--grid-sweep", action="store_true", help="Balayage exhaustif dimensions et bruits")
     parser.add_argument("--save-kuzu", action="store_true", help="Persister dans KuzuDB")
-    parser.add_argument("--output", type=str, default="data/lu_m5_scaled_results.json", help="Sortie JSON")
+    parser.add_argument("--output", type=str, default=None, help="Sortie JSON")
     args = parser.parse_args()
+    output_path = args.output or data_file("lu_m5_scaled_results.json")
 
     dims = [16, 32, 64] if args.grid_sweep else [32]
     noises = [0.02, 0.08, 0.15] if args.grid_sweep else [0.08]
@@ -233,7 +237,7 @@ def main():
     all_median_lu = np.median([r["median_lu"] for r in sweep_results])
     all_median_disc = np.median([r["median_discrete"] for r in sweep_results])
     global_ratio = float(all_median_lu / max(1.0, all_median_disc))
-    severe_noise_cka = float(np.mean(severe_ckas)) if severe_ckas else 0.0
+    severe_noise_cka = float(np.mean(severe_ckas)) if severe_ckas else float('nan')
     valide_count = sum(1 for r in sweep_results if r["verdict"] == "VALIDE")
     is_globally_valid = (valide_count >= 7) and (severe_noise_cka >= 0.80) and (global_ratio > 1.0)
 
@@ -262,10 +266,10 @@ def main():
     print(f"VERDICT FINAL PIU               : *** {summary['global_verdict']} ***")
     print("--------------------------------------------------------------------------\n")
 
-    os.makedirs(os.path.dirname(args.output), exist_ok=True)
-    with open(args.output, "w", encoding="utf-8") as f:
+    os.makedirs(os.path.dirname(output_path), exist_ok=True)
+    with open(output_path, "w", encoding="utf-8") as f:
         json.dump(summary, f, indent=2)
-    print(f"Rapport sauvegardé dans {args.output}")
+    print(f"Rapport sauvegardé dans {output_path}")
 
     if args.save_kuzu:
         persist_to_kuzudb(summary)
