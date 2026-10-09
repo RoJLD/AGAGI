@@ -1,7 +1,7 @@
 {
   "name": "lewis_reach_oracle",
   "seed": 88114,
-  "commit": "a1a3dd2",
+  "commit": "3cf5568",
   "git_dirty": true,
   "data": {
     "knob": "reach_oracle x prey_speed_scale",

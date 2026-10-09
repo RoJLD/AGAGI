@@ -25,6 +25,22 @@ interface SandboxStatus {
   available_scripts: string[];
 }
 
+interface RsiResult {
+  status: string;
+  proposal?: {
+    name: string;
+    kind: string;
+    code: string;
+    rationale: string;
+    params?: Record<string, unknown>;
+  };
+  validation?: {
+    ok: boolean;
+    reason: string;
+  };
+  message?: string;
+}
+
 export function SandboxView() {
   const queryClient = useQueryClient();
 
@@ -43,6 +59,7 @@ export function SandboxView() {
   const [runMetacognition, setRunMetacognition] = useState<boolean>(false);
   const [runDreamAnalyzer, setRunDreamAnalyzer] = useState<boolean>(false);
   const [message, setMessage] = useState<string | null>(null);
+  const [rsiResult, setRsiResult] = useState<RsiResult | null>(null);
 
   const statusQuery = useQuery({
     queryKey: queryKeys.sandbox.status,
@@ -98,7 +115,27 @@ export function SandboxView() {
     onError: (err) => setMessage(`Erreur: ${err instanceof Error ? err.message : String(err)}`),
   });
 
-  const busy = startMutation.isPending || stopMutation.isPending;
+  const [useLlmRsi, setUseLlmRsi] = useState<boolean>(false);
+
+  const rsiMutation = useMutation({
+    mutationFn: () =>
+      apiFetch<RsiResult>("/api/sandbox/iterate_rsi", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ use_llm: useLlmRsi }),
+      }),
+    onSuccess: (data) => {
+      setRsiResult(data);
+      if (data.status === "success" && data.proposal) {
+        setMessage(`Mutation validée : ${data.proposal.name} (${data.proposal.kind})`);
+      } else {
+        setMessage(data.message || "Erreur lors du pas RSI");
+      }
+    },
+    onError: (err) => setMessage(`Erreur RSI: ${err instanceof Error ? err.message : String(err)}`),
+  });
+
+  const busy = startMutation.isPending || stopMutation.isPending || rsiMutation.isPending;
 
   if (statusQuery.isLoading) return <Loading label="Chargement du statut Sandbox…" />;
   if (statusQuery.error) return <ErrorState error={statusQuery.error} onRetry={() => statusQuery.refetch()} />;
@@ -140,7 +177,9 @@ export function SandboxView() {
 
             <Field label="Type de Monde">
               <select value={worldType} onChange={(e) => setWorldType(e.target.value)} disabled={running}>
-                <option value="stoneage">Stone Age (Défaut)</option>
+                <option value="stoneage">Monde 1 : Âge de Pierre (Défaut)</option>
+                <option value="agricultural">Monde 2 : Âge Agricole (Greniers, Saisons)</option>
+                <option value="industrial">Monde 3 : Âge Industriel (Fourneaux, Métal)</option>
                 <option value="waterworld">Waterworld</option>
                 <option value="3d_world">Monde 3D</option>
               </select>
@@ -250,6 +289,68 @@ export function SandboxView() {
           )}
         </div>
         {message && <p className="text-right mt-4" style={{ fontWeight: "bold", color: "var(--color-accent)" }}>{message}</p>}
+      </Panel>
+
+      <Panel className="mt-5">
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+          <div>
+            <h3 style={{ margin: 0 }}>🧬 Méta-Programmation &amp; Auto-Amélioration Récursive (RSI #8)</h3>
+            <p style={{ margin: "4px 0 0 0", color: "var(--color-text-muted)", fontSize: "0.9rem" }}>
+              Cycle DÉTECTER &rarr; PROPOSER &rarr; VALIDER (Sandbox AST isolée) &rarr; MESURER &rarr; ENREGISTRER (KuzuDB).
+            </p>
+          </div>
+          <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+            <label style={{ fontSize: "0.85rem", display: "flex", alignItems: "center", gap: 6, cursor: "pointer" }}>
+              <input
+                type="checkbox"
+                checked={useLlmRsi}
+                onChange={(e) => setUseLlmRsi(e.target.checked)}
+                disabled={rsiMutation.isPending}
+              />
+              Armer avec LLM Ollama
+            </label>
+            <Button
+              variant="ghost"
+              onClick={() => rsiMutation.mutate()}
+              disabled={rsiMutation.isPending}
+            >
+              {rsiMutation.isPending ? "Évaluation Sandbox en cours…" : "Exécuter un pas RSI (#8)"}
+            </Button>
+          </div>
+        </div>
+
+        {rsiResult && rsiResult.proposal && (
+          <div className="mt-4" style={{ background: "rgba(255, 255, 255, 0.03)", padding: "16px", borderRadius: "8px", border: "1px solid var(--color-border)" }}>
+            <div style={{ display: "flex", alignItems: "center", gap: "12px", marginBottom: "8px" }}>
+              <strong>Proposition :</strong>
+              <code style={{ fontSize: "1rem", color: "var(--color-accent)" }}>{rsiResult.proposal.name}</code>
+              <Badge variant="purple">{rsiResult.proposal.kind}</Badge>
+              {rsiResult.validation?.ok ? (
+                <Badge variant="success">SANDBOX VALIDÉE (AST PASSED)</Badge>
+              ) : (
+                <Badge variant="danger">REJETÉ ({rsiResult.validation?.reason})</Badge>
+              )}
+            </div>
+            <p style={{ margin: "4px 0", fontSize: "0.85rem", color: "var(--color-text-muted)" }}>
+              <strong>Rationale :</strong> {rsiResult.proposal.rationale}
+            </p>
+            {rsiResult.proposal.code && (
+              <pre
+                style={{
+                  background: "#111",
+                  padding: "12px",
+                  borderRadius: "6px",
+                  fontSize: "0.85rem",
+                  overflowX: "auto",
+                  marginTop: "8px",
+                  border: "1px solid rgba(255, 255, 255, 0.1)",
+                }}
+              >
+                <code>{rsiResult.proposal.code}</code>
+              </pre>
+            )}
+          </div>
+        )}
       </Panel>
 
       {running && <LiveDashboard />}

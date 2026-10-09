@@ -22,6 +22,8 @@ from .routes.flatland import router as flatland_router
 from .routes.runs import router as runs_router
 from .routes.health import router as health_router
 from .routes.pm import router as pm_router
+from .routes.lu import router as lu_router
+from .routes.curriculum import router as curriculum_router
 from .services.data_service import ExperimentDataService
 from .services.live_progress_service import LiveProgressTail
 from .services import sandbox_service as sandbox_service_module
@@ -88,6 +90,8 @@ app.include_router(flatland_router, prefix="/api/flatland", tags=["Flatland"])
 app.include_router(runs_router, prefix="/api", tags=["runs"])
 app.include_router(health_router, prefix="/api", tags=["health"])
 app.include_router(pm_router, prefix="/api/pm", tags=["pm"])
+app.include_router(lu_router, prefix="/api", tags=["lu"])
+app.include_router(curriculum_router, prefix="/api/curriculum", tags=["Curriculum"])
 
 
 @app.get("/health")
@@ -141,3 +145,18 @@ async def websocket_evolution(websocket: WebSocket) -> None:
             await asyncio.sleep(0.25)
     except WebSocketDisconnect:
         pass
+
+
+@app.websocket("/ws/lu")
+async def websocket_lu_stream(websocket: WebSocket) -> None:
+    """Stream WebSocket en direct des Gigatokens et pensées décompilées de la biosphère."""
+    await websocket.accept()
+    from .routes.lu import get_lu_live_sample
+    try:
+        while True:
+            sample = get_lu_live_sample()
+            await websocket.send_json(sample)
+            await asyncio.sleep(1.5)
+    except WebSocketDisconnect:
+        pass
+

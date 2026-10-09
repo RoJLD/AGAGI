@@ -9,5 +9,6 @@
 | 🧬 NAS (moteur évolutif, génotype→phénotype) | [`docs/roadmap/NAS.md`](docs/roadmap/NAS.md) |
 | ⚙️ Backend (FastAPI, observabilité, sécurité) | [`docs/roadmap/BACKEND.md`](docs/roadmap/BACKEND.md) |
 | 🖥️ Frontend (dashboard React) | [`docs/roadmap/FRONTEND.md`](docs/roadmap/FRONTEND.md) |
+| 🌐 Langage Ultime & DSL (Espaces Latents, Gigatokens, Bridge M2M) | [`docs/roadmap/LANGAGE_ULTIME.md`](docs/roadmap/LANGAGE_ULTIME.md) |
 | 💤 Someday / aspirationnel | [`docs/BACKLOG.md`](docs/BACKLOG.md) |
 | 📜 Historique (preuves) | [`docs/FIL_CONDUCTEUR.md`](docs/FIL_CONDUCTEUR.md) · [`docs/EDR/`](docs/EDR/) |

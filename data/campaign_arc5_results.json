@@ -1,0 +1,40 @@
+{
+  "campaign_name": "ARC5_ARC6_MULTIVERSE_CAMPAIGN",
+  "total_eras": 30,
+  "total_duration_s": 1.51,
+  "scores_progression": [
+    5.0,
+    5.0,
+    5.0
+  ],
+  "transfer_ratio": 0.99999980000004,
+  "dialect_summary": {
+    "specialization_index": 0.0,
+    "intra_cohesion": {
+      "SCOUT": 0.9999998211860657,
+      "HUNTER": 0.9999998211860657,
+      "CRAFTER": 0.9999998211860657,
+      "STANDARD": 0.0
+    }
+  },
+  "stages": [
+    {
+      "stage_name": "StoneAge_World1",
+      "best_final_score": 5.0,
+      "mean_final_score": 0.83,
+      "eras_count": 10
+    },
+    {
+      "stage_name": "Agricultural_World2",
+      "best_final_score": 5.0,
+      "mean_final_score": 1.67,
+      "eras_count": 10
+    },
+    {
+      "stage_name": "Industrial_World3",
+      "best_final_score": 5.0,
+      "mean_final_score": 2.5,
+      "eras_count": 10
+    }
+  ]
+}

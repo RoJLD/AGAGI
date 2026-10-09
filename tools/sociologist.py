@@ -151,6 +151,23 @@ def report():
     else:
         print("  Aucune donnée Lifespan.")
 
+    # 10. Curriculum Tri-Mondes (Arc 5)
+    print("\n--- 10. CURRICULUM TRI-MONDES & TRANSFERT PHYLOGENETIQUE (Arc 5) ---")
+    rows = safe_query(conn, "MATCH (p:PhylogeneticRun) RETURN p.id, p.transfer_ratio, p.stone_score, p.agri_score, p.indus_score, p.status ORDER BY p.timestamp DESC", "PhylogeneticRuns")
+    if rows:
+        print(f"  {'Run ID':<22} {'Transfert':>10} {'W1 Pierre':>10} {'W2 Agri':>10} {'W3 Forge':>10} {'Statut':>10}")
+        print(f"  {'-'*22} {'-'*10} {'-'*10} {'-'*10} {'-'*10} {'-'*10}")
+        for r in rows:
+            rid = str(r[0])[:22]
+            ratio = f"x{r[1]:.2f}" if r[1] is not None else "N/A"
+            w1 = f"{r[2]:.1f}" if r[2] is not None else "N/A"
+            w2 = f"{r[3]:.1f}" if r[3] is not None else "N/A"
+            w3 = f"{r[4]:.1f}" if r[4] is not None else "N/A"
+            st = str(r[5])
+            print(f"  {rid:<22} {ratio:>10} {w1:>10} {w2:>10} {w3:>10} {st:>10}")
+    else:
+        print("  Aucun run phylogénétique tri-mondes enregistré.")
+
     print("\n" + "=" * 60)
     print("=" * 60)
     

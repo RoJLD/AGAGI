@@ -129,7 +129,9 @@ export function RunLauncher({ onLaunch }: { onLaunch?: (config: RunConfig) => vo
         </Field>
         <Field label="Type de monde">
           <select value={config.world_type} onChange={(e) => set("world_type", e.target.value)}>
-            <option value="stoneage">Stone Age</option>
+            <option value="stoneage">Monde 1 : Âge de Pierre (Paléolithique)</option>
+            <option value="agricultural">Monde 2 : Âge Agricole (Néolithique)</option>
+            <option value="industrial">Monde 3 : Âge Industriel (Métallurgie)</option>
             <option value="waterworld">Waterworld</option>
             <option value="3d_world">Monde 3D</option>
           </select>

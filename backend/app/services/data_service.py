@@ -481,7 +481,13 @@ class ExperimentDataService:
         import kuzu
         from src.graph_rag.async_logger import logger as async_logger
         
-        db_path = "/app/data/kuzu_graph.db" if Path("/app/data/kuzu_graph.db").exists() else "data/kuzu_graph.db"
+        possible_paths = [
+            Path("/app/data/kuzu_graph.db"),
+            Path(__file__).resolve().parents[3] / "data" / "kuzudb" / "kuzu.db",
+            Path("data/kuzudb/kuzu.db"),
+            Path("data/kuzu_graph.db"),
+        ]
+        db_path = str(next((p for p in possible_paths if p.exists()), Path("data/kuzudb/kuzu.db")))
         
         try:
             # Tente de récupérer la DB partagée si le serveur Flatland tourne

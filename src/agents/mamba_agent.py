@@ -41,7 +41,7 @@ from src.seed_ai.rl_evolution import recurrent_forward
 from src.metaprog.ntm_compiler import NTMProgramCompiler
 from src.agents.world_model import WorldModel
 from src.seed_ai.policy_gradient import reinforce_action_update, td_error
-from src.agents.planner import plan_rollout, normalize_q, update_transition
+from src.agents.planner import plan_rollout, normalize_q, update_transition, mcts_instrumental_search
 
 class MambaAgent(BaseAgent):
     """
@@ -103,13 +103,23 @@ class MambaAgent(BaseAgent):
         self.last_obs = None  # World Model : observation du tick précédent (Vague 0)
         self.world_model_Wp = None  # World Model PAR AGENT : prédicteur appris (EDR 015)
         self._td = None  # Actor-Critic TD : transition (s,a,r,V) différée d'un tick (EDR 023)
+        self.lu_latent = None  # Gigatoken continu exporté (variété R^D)
+        self.lu_incoming_latent = None  # Gigatoken reçu des pairs
+        self.lu_proj = None  # Matrice de projection H -> S^(D-1)
 
     def forward(self, obs: np.ndarray) -> np.ndarray:
         # Obs doit être un vecteur (1, I)
         if len(obs.shape) == 1:
             obs = obs.reshape(1, -1)
         
-        x = obs * self.attention_mask[:obs.shape[1]]
+        # Modulation contextuelle directe par Gigatoken reçu d'un pair (communication continue)
+        if self.lu_incoming_latent is not None:
+            mod_len = min(len(self.lu_incoming_latent), obs.shape[1])
+            obs_modulated = obs.copy()
+            obs_modulated[:, :mod_len] += self.lu_incoming_latent[:mod_len] * 0.05
+            x = obs_modulated * self.attention_mask[:obs.shape[1]]
+        else:
+            x = obs * self.attention_mask[:obs.shape[1]]
         
         preds, self.H_prev, self.H_history, self.H_potentials, self.surprise = recurrent_forward(
             self.genome, x, self.H_prev, self.H_history, self.H_potentials
@@ -123,6 +133,40 @@ class MambaAgent(BaseAgent):
         self.attention_mask = 1.0 / (1.0 + np.exp(-attention_logits))
         
         return logits
+
+    def export_gigatoken(self, latent_dim: int = 16) -> np.ndarray:
+        """
+        Extrait un Gigatoken continu unitaire directement depuis l'état récurrent H_prev (Liquid Mamba).
+        Projette la variété neuronale interne sur l'hypersphère unité S^(D-1).
+        """
+        N = self.genome.num_nodes
+        if self.lu_proj is None or self.lu_proj.shape != (N, latent_dim):
+            rng = np.random.RandomState(abs(hash(id(self))) % (2**31 - 1))
+            raw = rng.randn(N, latent_dim).astype(np.float32)
+            u, _, vt = np.linalg.svd(raw, full_matrices=False)
+            proj = (u @ vt[:min(N, latent_dim), :latent_dim]).astype(np.float32)
+            if proj.shape != (N, latent_dim):
+                proj = (raw / np.sqrt(N)).astype(np.float32)
+            self.lu_proj = proj
+
+        h = self.H_prev[0] if self.H_prev is not None else np.zeros(N, dtype=np.float32)
+        z = h @ self.lu_proj
+        norm = np.linalg.norm(z)
+        if norm > 1e-7:
+            z = (z / norm).astype(np.float32)
+        else:
+            z = np.zeros(latent_dim, dtype=np.float32)
+            z[0] = 1.0
+
+        self.lu_latent = z
+        return z
+
+    def receive_gigatoken(self, incoming_gigatoken: np.ndarray):
+        """
+        Injecte un Gigatoken reçu d'un pair dans le buffer récepteur de l'agent.
+        """
+        if incoming_gigatoken is not None:
+            self.lu_incoming_latent = np.asarray(incoming_gigatoken, dtype=np.float32).copy()
         
     def get_size(self) -> int:
         return self.genome.num_nodes
@@ -162,6 +206,9 @@ class MambaAgent(BaseAgent):
         new_agent.explicit_memory = self.explicit_memory.copy() if self.explicit_memory is not None else None
         new_agent.goal_vector = self.goal_vector.copy() if self.goal_vector is not None else None
         new_agent.predictor_head = self.predictor_head.copy() if self.predictor_head is not None else None
+        new_agent.lu_proj = self.lu_proj.copy() if self.lu_proj is not None else None
+        new_agent.lu_latent = self.lu_latent.copy() if self.lu_latent is not None else None
+        new_agent.lu_incoming_latent = self.lu_incoming_latent.copy() if self.lu_incoming_latent is not None else None
         return new_agent
 
     def from_genome(self, genome: Genome, preserve_dims: bool = True):
@@ -509,6 +556,13 @@ class MambaBatchModel:
                       # = comportement historique ; relevé (0.99/0.999) étend l'horizon craft->apex.
     PLAN_A = 8        # nombre d'actions planifiées (= logits de déplacement 0..7)
 
+    # EXP-10 : MCTS Instrumental Adaptatif & Test-Time Compute (TTC)
+    ENABLE_INSTRUMENTAL_MCTS = False  # Activé sur demande ou via config
+    MCTS_DEPTH = 3                    # Profondeur de projection contrefactuelle
+    MCTS_ROLLOUTS = 2                 # Nombre d'explorations par branche
+    MCTS_DISCOUNT = 0.9               # Gamma d'escompte
+    MCTS_EXPLORATION_C = 1.0          # Exploration UCB
+
     def __init__(self, agents: list[MambaAgent], world_model=None):
         self.agents = agents
         self.B = len(agents)
@@ -845,7 +899,31 @@ class MambaBatchModel:
             preds[i, :O_i] = H[i, map_idx[N_i - O_i : N_i]]
 
         # Biais du planificateur sur les logits d'action (mutuellement exclusif avec le rêve aléatoire)
-        if PLANNER_ON:
+        if type(self).ENABLE_INSTRUMENTAL_MCTS:
+            value_pos = np.array([
+                self.mappings[i][self.agents[i].genome.num_nodes
+                                 - self.agents[i].genome.num_outputs + 28]
+                for i in range(self.B)
+            ])
+            active_mcts_mask = has_mcts_batch & is_dreaming
+            Q_mcts, mcts_spent = mcts_instrumental_search(
+                self.H_rec_batch,
+                self.G_batch,
+                value_pos,
+                active_mask=active_mcts_mask,
+                depth=type(self).MCTS_DEPTH,
+                num_rollouts=type(self).MCTS_ROLLOUTS,
+                discount=type(self).MCTS_DISCOUNT,
+                exploration_c=type(self).MCTS_EXPLORATION_C,
+                world_model=self.world_model,
+                obs_batch=inputs,
+            )
+            compute_spent += mcts_spent
+            bias = normalize_q(Q_mcts)
+            A = MambaBatchModel.PLAN_A
+            for i in np.where(active_mcts_mask)[0]:
+                preds[i, :A] += bias[i]
+        elif PLANNER_ON:
             value_pos = np.array([
                 self.mappings[i][self.agents[i].genome.num_nodes
                                  - self.agents[i].genome.num_outputs + 28]

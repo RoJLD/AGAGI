@@ -10,6 +10,8 @@ from src.environments.config import WorldConfig
 from src.swarm.consensus import WeightedConsensus
 from src.swarm.hgt import HorizontalGeneTransfer, HGTConfig
 from src.worlds.world_1_stoneage import Biosphere3D
+from src.worlds.world_2_agricultural import AgriculturalWorld, AgriculturalConfig
+from src.worlds.world_3_industrial import IndustrialWorld, IndustrialConfig
 from src.agents.mamba_agent import MambaAgent
 
 # Clés whitelistées qui visent un champ IMBRIQUÉ de WorldConfig (et non un champ plat).
@@ -31,18 +33,14 @@ _BOUNDS = {"size": (8, 128), "num_altars": (0, 50)}
 
 # Overrides de config autorisés pour un run (la "variable d'intervention" de l'A/B). Spec §5.
 WHITELIST = ({"active_exp_variable", "robust_hof_K", "base_metabolism",
-              "forage_payoff", "size", "num_altars", "prey_mode"}
+              "forage_payoff", "size", "num_altars", "prey_mode", "world_type"}
              | set(_NESTED_OVERRIDES))
 
 
 def _apply_override(cfg, key, value):
-    """Applique un override whitelisté sur la WorldConfig.
-
-    - clé imbriquée (_NESTED_OVERRIDES) -> écrit le vrai champ imbriqué (ex. mutation_rate ->
-      cfg.agent.mutation.weight_mutate_rate), pas un attribut plat mort.
-    - clé plate -> doit être un champ RÉEL de WorldConfig (dataclasses.fields), sinon le setattr
-      créerait un attribut fantôme que rien ne lit (échec silencieux).
-    """
+    """Applique un override whitelisté sur la WorldConfig."""
+    if key == "world_type":
+        return  # Géré spécifiquement au niveau du serveur Flatland
     path = _NESTED_OVERRIDES.get(key)
     if path is not None:
         target = cfg
@@ -76,7 +74,16 @@ class FlatlandServer:
             _apply_override(cfg, k, v)
         self.cfg = cfg
         self.label = label
-        self.world = Biosphere3D(self.cfg)
+        
+        world_type = (config_overrides or {}).get("world_type", "stoneage")
+        if world_type == "agricultural":
+            self.world = AgriculturalWorld(AgriculturalConfig(size=cfg.size, num_altars=cfg.num_altars))
+        elif world_type == "industrial":
+            self.world = IndustrialWorld(IndustrialConfig(size=cfg.size, num_altars=cfg.num_altars))
+        else:
+            self.world = Biosphere3D(self.cfg)
+        self.world_type = world_type
+
         self.queue = None
         self.running = False
         self.loop = None
@@ -116,13 +123,20 @@ class FlatlandServer:
     def extract_frame(self) -> Dict[str, Any]:
         agents = []
         for a in self.world.agents:
+            is_speaking = bool(
+                a.get("lu_latent") is not None or 
+                a.get("active_lu_mode", False) or 
+                a.get("speech_signal", 0) > 0
+            )
             agents.append({
                 "x": int(a["x"]),
                 "y": int(a["y"]),
                 "hp": float(a["hp"]),
                 "energy": float(a["energy"]),
                 "inventory_size": len(a.get("inventory", [])),
-                "last_action": int(a.get("last_action", -1))
+                "last_action": int(a.get("last_action", -1)),
+                "role": str(a.get("role", "STANDARD")),
+                "is_speaking": is_speaking
             })
             
         preys = []
@@ -196,9 +210,36 @@ class FlatlandServer:
                     genome_distances.append(float(np.linalg.norm(w1 - w2)))
         genome_diversity = float(np.mean(genome_distances)) if genome_distances else 0.0
 
+        season = getattr(self.world, "season", None)
+        granary_reserves = None
+        granary_info = None
+        if hasattr(self.world, "granary") and self.world.granary:
+            granary_reserves = float(self.world.granary.get("reserves", 0.0))
+            granary_info = {
+                "x": int(self.world.granary.get("x", 0)),
+                "y": int(self.world.granary.get("y", 0)),
+                "reserves": granary_reserves
+            }
+
+        furnace_info = None
+        if hasattr(self.world, "furnace") and self.world.furnace:
+            furnace_info = {
+                "x": int(self.world.furnace.get("x", 0)),
+                "y": int(self.world.furnace.get("y", 0)),
+                "heat": float(self.world.furnace.get("heat", 0.0)),
+                "fuel": float(self.world.furnace.get("fuel", 0.0))
+            }
+
+        pollution_level = float(getattr(self.world, "pollution_level", 0.0))
+
         return {
             "ticks": self.world.ticks,
             "size": self.world.size,
+            "season": season,
+            "granary_reserves": granary_reserves,
+            "granary": granary_info,
+            "furnace": furnace_info,
+            "pollution_level": pollution_level,
             "agents": agents,
             "preys": preys,
             "items": items,
@@ -208,6 +249,8 @@ class FlatlandServer:
             "geometry": self.world.geometry[0].tolist(),
             "summary": {
                 "era": self.era,
+                "season": season,
+                "granary_reserves": granary_reserves,
                 "agent_count": agent_count,
                 "avg_energy": total_energy / agent_count if agent_count else 0.0,
                 "avg_hp": total_hp / agent_count if agent_count else 0.0,

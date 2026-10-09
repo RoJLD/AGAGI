@@ -346,6 +346,40 @@ Ollama).
 5. **#8** — une fois la mesure fiable + budgétée : LLM en conteneur, propose des demandes
    `world_demand`, lit les échecs via l'ontologie, **itère** sous évaluation puissante (≫ 3 seeds).
 
+## 🚀 Résolution Définitive de l'Arc 4 : Le Langage Ultime (LU) Continu (M1 à M5)
+
+Le dilemme historique d'Arc 4 (tokens discrets 1-of-4 écrasant l'espace sémantique, bloquant la survie à 40 ticks) a été résolu par la branche **Langage Ultime (LU)** :
+- **Gigatokens Continus $z \in \mathbb{R}^D$** : Transmission subquadratique $O(N)$ préservant la métrique euclidienne et les angles d'approche.
+- **Traduction Mutuelle Intersubjective (`MutualLatentTranslator`)** : Co-adaptation Procruste SVD avec cycle-consistance ($A \to B \to A$) permettant à des connectomes divergents de communiquer sans dictionnaire centralisé.
+- **Preuve Causale Scalée (450 runs, 50 seeds)** : Survie médiane bondissant de **40.0 ticks à 138.0 ticks (+245%, ratio 3.45x)**, CKA sous bruit sévère ($\sigma=0.15$) à **0.8842** ($p < 0.001$).
+- **Pérennité Génétique HGT** : Transmission des variétés de projection latentes aux nouveau-nés et absorption horizontale entre pairs lors de surprises cognitives.
+- **Auditabilité Dashboard** : Décompilation instantanée des pensées d'agents vivants en français/anglais via `LUHumanExplainer` et affichage temps réel dans le dashboard.
+- **Clôture :** Arc 4 validé et clos (Article 006 dans KuzuDB). L'Arc 5 (La Tribu, Culture & Craft Partagé) et l'Arc 6 (EXP-9 : Maîtrise du Feu) sont désormais opérationnels.
+
+## 🏛️ Résolution des Arcs 5 & 6 : Émergence des Rôles, Maîtrise du Feu et Transmission Culturelle (Article 007)
+
+L'Arc 5 (La Tribu) et l'Arc 6 (EXP-9 : Rituels du Foyer) étendent la communication continue par Gigatokens à la dynamique collective :
+- **Émergence Endogène des Rôles (Sevrage du Scaffolding)** : Remplacement de l'attribution rigide de rôles fixes par une inférence descriptive *a posteriori* (`infer_emergent_roles`) basée sur les comportements effectifs (émission de signaux $\to$ SCOUT, fabrication d'outils $\to$ CRAFTER, prédation active $\to$ HUNTER).
+- **Synergie Coopérative Non-Supervisée** : Déclenchement de la coordination de meute et du bonus de capture ($\times 3.0$) dès qu'un signal directionnel saillant est transmis et intercepté, sans exiger d'étiquettes artificielles préalables.
+- **Thermodynamique Sociale du Foyer (EXP-9)** : Réduction de 80% du bruit acoustique de propagation ($\sigma_{\text{eff}} \times 0.2$) à proximité d'un feu de camp actif, offrant un sanctuaire d'écoute et de calme rituel restaurant la vitalité métabolique (+0.1 énergie).
+- **Transmission Culturelle Orale de Recettes** : Les agents rassemblés autour du feu s'échangent spontanément des recettes artisanales complexes projetées sur la sphère unité $\mathbb{S}^{D-1}$ et décodées via le traducteur mutuel.
+- **Clôture & Journalisation :** Validé empiriquement par banc de simulation (Survie LU 300 ticks vs Discret 40 ticks, ratio $\times 7.50$, CKA = 0.9962) et consigné dans KuzuDB sous l'identifiant `art_007_emergence_culture_arc5` (Article 007).
+
+## 🔮 EXP-10 : Test-Time Compute Adaptatif (TTC) & MCTS Instrumental
+
+L'anticipation cognitive et le raisonnement contrefactuel sont désormais portés par le modèle de transition latent :
+- **Recherche MCTS Instrumentale Multi-Pas (`mcts_instrumental_search`)** : Les agents dotés du cortex simulent des trajectoires d'actions futures $(s, a \to \hat{s}, \hat{r})$ sur une profondeur paramétrable ($D \ge 3$) avec sélection UCB.
+- **Budget Énergétique Différenciable** : Le calcul mental alloué $\text{TTC}_i \propto \text{Surprise}_i \times \text{do\_dream}_i$ est facturé à l'agent de façon sub-linéaire ($0.01 \times (1 + \log_2(1 + K))$), pénalisant la rumination stérile et récompensant la planification féconde.
+- **Non-Régression Bit-Exacte :** Désactivé par défaut via `ENABLE_INSTRUMENTAL_MCTS = False`, activable via configuration sans fork architectural.
+
+## 🌾 Monde 2 : L'Âge Agricole & Révolution Néolithique (`AgriculturalWorld`)
+
+Transition écologique majeure de la prédation opportuniste vers la production et la prévoyance saisonnière :
+- **Rythme Circadien & Saisonnier** : Cycle quadri-partite (Printemps $\to$ Été $\to$ Automne $\to$ Hiver) imposant une planification à long terme.
+- **Phytotechnie & Croissance** : Semailles (`Seed` $\to$ `Planted_Seed`), germination printanière et maturation estivale produisant des fruits.
+- **Greniers Communautaires (`Granary`)** : Stockage centralisé des surplus durant l'abondance automnale et redistribution calorique vitale face à la rigueur de l'hiver (-0.2 E/tick sans abri).
+- **Coordination Agricole par Gigatokens LU** : Amplification de $+50\%$ du rendement des cultures (`lu_agricultural_synergy = 1.5`) lorsque les semailles et récoltes sont coordonnées collectivement par signaux latents continus.
+
 ## Comment lire les preuves
 
 Chaque affirmation ci-dessus pointe vers son EDR (`docs/EDR/NNN_*.md`), qui contient le protocole, les
