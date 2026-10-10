@@ -113,6 +113,13 @@ class LUCompositionalGrammar:
         self.ROLE_GIVE = self._generate_canonical_unit_vector(rng)
         self.ROLE_DEMAND = self._generate_canonical_unit_vector(rng)
         self.ROLE_QUORUM = self._generate_canonical_unit_vector(rng)
+        # Rôles pour consortiums multipartites et gouvernance (Phase 5)
+        self.ROLE_SUPPLIER_WOOD = self._generate_canonical_unit_vector(rng)
+        self.ROLE_SUPPLIER_FOOD = self._generate_canonical_unit_vector(rng)
+        self.ROLE_SMELTER_ORE = self._generate_canonical_unit_vector(rng)
+        self.ROLE_FORGE_OUTPUT = self._generate_canonical_unit_vector(rng)
+        self.ROLE_SANCTION = self._generate_canonical_unit_vector(rng)
+        self.ROLE_TRUST = self._generate_canonical_unit_vector(rng)
 
     def _generate_canonical_unit_vector(self, rng: np.random.Generator) -> np.ndarray:
         """
@@ -286,6 +293,30 @@ class LUCompositionalGrammar:
         d = self.extract_demand(contract_message)
         return g, d
 
+    def compose_consortium_contract(
+        self,
+        wood_item: np.ndarray,
+        food_item: np.ndarray,
+        ore_item: np.ndarray,
+        forge_product: np.ndarray,
+    ) -> np.ndarray:
+        """
+        Compose un contrat tripartite de consortium pour la métallurgie (Phase 5 M3) :
+        Z = bundle(r_wood ⊛ wood, r_food ⊛ food, r_ore ⊛ ore, r_forge ⊛ product).
+        """
+        parts = [
+            circular_convolution(self.ROLE_SUPPLIER_WOOD, wood_item),
+            circular_convolution(self.ROLE_SUPPLIER_FOOD, food_item),
+            circular_convolution(self.ROLE_SMELTER_ORE, ore_item),
+            circular_convolution(self.ROLE_FORGE_OUTPUT, forge_product),
+        ]
+        weights = [1.0, 1.0, 1.0, 1.0]
+        return bundle_vectors(parts, weights)
+
+    def extract_consortium_part(self, consortium_message: np.ndarray, role: np.ndarray) -> np.ndarray:
+        """Extrait l'un des constituants d'un contrat tripartite de consortium."""
+        return self.query_role(consortium_message, role)
+
 
 # =========================================================================
 # Fonctions de Variété de Grassmann & Dynamique Dialectale (Phase 4 M1)
@@ -420,4 +451,114 @@ def match_contract_trade(
     reciprocity_score = float((sim_ab + sim_ba) / 2.0)
     agreed = (sim_ab >= threshold) and (sim_ba >= threshold)
     return agreed, reciprocity_score
+
+
+# =========================================================================
+# Fonctions de Gouvernance Juridique & Confiance Latente (Phase 5 M1 & M3)
+# =========================================================================
+
+def compute_contract_breach(
+    expected_give: np.ndarray,
+    actual_delivered: np.ndarray
+) -> float:
+    """
+    Calcule l'écart de solvabilité vectoriel (Δ_breach) entre l'engagement et l'exécution :
+    Δ_breach = ||Z_expected_give - Z_actual_delivered||_2.
+    """
+    exp_arr = np.asarray(expected_give, dtype=np.float32)
+    act_arr = np.asarray(actual_delivered, dtype=np.float32)
+    diff = exp_arr - act_arr
+    return float(np.linalg.norm(diff))
+
+
+def update_agent_reputation(
+    R_curr: np.ndarray,
+    contract_vector: np.ndarray,
+    breach_distance: float,
+    alpha: float = 0.25,
+    breach_threshold: float = 0.50,
+    trust_reference: Optional[np.ndarray] = None
+) -> np.ndarray:
+    """
+    Met à jour le vecteur d'attestation de confiance continue R_agent ∈ R^D (Phase 5 M1) :
+    R_{t+1} = normalize((1 - α) * R_t + α * sign(1 - Δ_breach) * Z_contract).
+    En cas de défection (breach >= breach_threshold), applique une pénalité sévère
+    qui retire la composante d'alignement avec trust_reference et projette la réputation
+    dans un état de défiance durable.
+    """
+    r_arr = np.asarray(R_curr, dtype=np.float32)
+    c_arr = np.asarray(contract_vector, dtype=np.float32)
+    d = r_arr.shape[0]
+
+    guide_vec = np.asarray(trust_reference, dtype=np.float32) if trust_reference is not None else c_arr
+    guide_norm = np.linalg.norm(guide_vec) + 1e-12
+    guide_unit = guide_vec / guide_norm
+
+    is_breach = breach_distance >= breach_threshold
+    if is_breach:
+        neutral_ortho = np.ones(d, dtype=np.float32) / np.sqrt(d)
+        ortho_component = neutral_ortho - np.dot(neutral_ortho, guide_unit) * guide_unit
+        ortho_norm = np.linalg.norm(ortho_component) + 1e-12
+        ortho_unit = ortho_component / ortho_norm
+
+        penalty_alpha = max(alpha, 0.40)
+        r_next = (1.0 - penalty_alpha) * r_arr - penalty_alpha * guide_unit + 0.5 * ortho_unit
+    else:
+        r_next = (1.0 - alpha) * r_arr + alpha * guide_unit
+
+    norm = np.linalg.norm(r_next) + 1e-12
+    return (r_next / norm).astype(np.float32)
+
+
+def reputation_trust_score(
+    R_agent: np.ndarray,
+    trust_reference: np.ndarray
+) -> float:
+    """
+    Calcule le score de confiance perçu par similarité cosinus avec l'archétype de confiance.
+    """
+    return float(cosine_similarity(R_agent, trust_reference))
+
+
+def decay_reputation_towards_neutral(
+    R_agent: np.ndarray,
+    neutral_reference: np.ndarray,
+    decay_rate: float = 0.02
+) -> np.ndarray:
+    """
+    Applique une inertie lente de purge temporelle sans oubli catastrophique de réputation.
+    """
+    r_arr = np.asarray(R_agent, dtype=np.float32)
+    n_arr = np.asarray(neutral_reference, dtype=np.float32)
+    n_unit = n_arr / (np.linalg.norm(n_arr) + 1e-12)
+
+    r_next = (1.0 - decay_rate) * r_arr + decay_rate * n_unit
+    norm = np.linalg.norm(r_next) + 1e-12
+    return (r_next / norm).astype(np.float32)
+
+
+def verify_consortium_agreement(
+    consortium_contract: np.ndarray,
+    wood_offer: np.ndarray,
+    food_offer: np.ndarray,
+    ore_offer: np.ndarray,
+    grammar: LUCompositionalGrammar,
+    threshold: float = 0.40
+) -> Tuple[bool, float]:
+    """
+    Vérifie la validité d'un accord tripartite pour le consortium métallurgique (Phase 5 M3).
+    Chaque offre doit satisfaire la clause correspondante déliée du contrat global.
+    """
+    clause_wood = grammar.extract_consortium_part(consortium_contract, grammar.ROLE_SUPPLIER_WOOD)
+    clause_food = grammar.extract_consortium_part(consortium_contract, grammar.ROLE_SUPPLIER_FOOD)
+    clause_ore = grammar.extract_consortium_part(consortium_contract, grammar.ROLE_SMELTER_ORE)
+
+    sim_w = cosine_similarity(wood_offer, clause_wood)
+    sim_f = cosine_similarity(food_offer, clause_food)
+    sim_o = cosine_similarity(ore_offer, clause_ore)
+
+    mean_score = float((sim_w + sim_f + sim_o) / 3.0)
+    agreed = (sim_w >= threshold) and (sim_f >= threshold) and (sim_o >= threshold)
+    return agreed, mean_score
+
 

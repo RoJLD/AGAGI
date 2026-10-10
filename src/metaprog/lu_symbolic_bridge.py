@@ -103,6 +103,15 @@ class LUSymbolicBridge:
             "FRUIT": ("TARGET", 1.0),
             "SPEAR": ("TARGET", 1.0),
             "TOOL": ("TARGET", 1.0),
+            # Phase 5 : Gouvernance juridique, arbitrage & métallurgie du Monde 3
+            "ORE": ("TARGET", 1.0),
+            "COAL": ("TARGET", 1.0),
+            "STEEL": ("TARGET", 1.0),
+            "INGOT": ("TARGET", 1.0),
+            "PICKAXE": ("TARGET", 1.0),
+            "SANCTION": ("PREDICATE", 1.0),
+            "TRUST": ("TARGET", 1.0),
+            "LAW": ("TARGET", 1.0),
         }
         
         for name, (cat, weight) in concepts.items():
@@ -351,6 +360,66 @@ class LUSymbolicBridge:
             "is_valid": (sim_g >= 0.40 and sim_d >= 0.40),
         }
 
+    def compile_consortium_contract(
+        self,
+        wood_concept: str = "WOOD",
+        food_concept: str = "FOOD",
+        ore_concept: str = "ORE",
+        product_concept: str = "STEEL"
+    ) -> np.ndarray:
+        """
+        Compile un contrat tripartite de consortium pour la métallurgie (Phase 5 M3).
+        """
+        def get_v(c: str) -> np.ndarray:
+            key = c.upper()
+            if key in self.lexicon:
+                return self.lexicon[key]["vector"]
+            rng = np.random.default_rng(abs(hash(key)) % (2**31 - 1))
+            return self.grammar._generate_canonical_unit_vector(rng)
+
+        v_wood = get_v(wood_concept)
+        v_food = get_v(food_concept)
+        v_ore = get_v(ore_concept)
+        v_prod = get_v(product_concept)
+
+        return self.grammar.compose_consortium_contract(v_wood, v_food, v_ore, v_prod)
+
+    def decode_consortium_contract(self, token: np.ndarray) -> Dict[str, Any]:
+        """
+        Décompile un token de consortium tripartite en concepts auditables.
+        """
+        v_wood = self.grammar.extract_consortium_part(token, self.grammar.ROLE_SUPPLIER_WOOD)
+        v_food = self.grammar.extract_consortium_part(token, self.grammar.ROLE_SUPPLIER_FOOD)
+        v_ore = self.grammar.extract_consortium_part(token, self.grammar.ROLE_SMELTER_ORE)
+        v_prod = self.grammar.extract_consortium_part(token, self.grammar.ROLE_FORGE_OUTPUT)
+
+        def best_match(qv: np.ndarray) -> Tuple[str, float]:
+            best_label = "UNKNOWN"
+            best_sim = -1.0
+            for name, data in self.lexicon.items():
+                sim = cosine_similarity(qv, data["vector"])
+                if sim > best_sim:
+                    best_sim = sim
+                    best_label = name
+            return best_label, best_sim
+
+        w_name, w_sim = best_match(v_wood)
+        f_name, f_sim = best_match(v_food)
+        o_name, o_sim = best_match(v_ore)
+        p_name, p_sim = best_match(v_prod)
+
+        return {
+            "wood": w_name,
+            "wood_sim": round(w_sim, 3),
+            "food": f_name,
+            "food_sim": round(f_sim, 3),
+            "ore": o_name,
+            "ore_sim": round(o_sim, 3),
+            "product": p_name,
+            "product_sim": round(p_sim, 3),
+            "is_valid": (w_sim >= 0.35 and f_sim >= 0.35 and o_sim >= 0.35),
+        }
+
     def register_trade_contract(
         self,
         contract_id: str,
@@ -410,6 +479,94 @@ class LUSymbolicBridge:
                 return True
             except Exception as e:
                 logger.debug(f"Persistence LUDialect ignorée : {e}")
+        return False
+
+    def register_legal_rule(
+        self,
+        rule_id: str,
+        title: str,
+        description: str,
+        quorum_threshold: float = 0.60
+    ) -> bool:
+        """
+        Consigne une règle de droit coutumier dans la table LULaw de KuzuDB (Phase 5 M3).
+        """
+        if self.db is not None:
+            try:
+                self.db.execute_cypher(
+                    "CREATE NODE TABLE LULaw (id STRING, title STRING, "
+                    "description STRING, quorum_threshold DOUBLE, PRIMARY KEY (id))"
+                )
+            except Exception:
+                pass
+            try:
+                q = (
+                    f"CREATE (l:LULaw {{id: '{rule_id}', title: '{title}', "
+                    f"description: '{description}', quorum_threshold: {quorum_threshold}}})"
+                )
+                self.db.execute_cypher(q)
+                return True
+            except Exception as e:
+                logger.debug(f"Persistence LULaw ignorée : {e}")
+        return False
+
+    def register_sanction_event(
+        self,
+        sanction_id: str,
+        agent_id: str,
+        reason: str,
+        penalty: float = 1.0
+    ) -> bool:
+        """
+        Consigne un arbitrage / sanction dans la table LUSanction de KuzuDB (Phase 5 M3).
+        """
+        if self.db is not None:
+            try:
+                self.db.execute_cypher(
+                    "CREATE NODE TABLE LUSanction (id STRING, agent_id STRING, "
+                    "reason STRING, penalty DOUBLE, PRIMARY KEY (id))"
+                )
+            except Exception:
+                pass
+            try:
+                q = (
+                    f"CREATE (s:LUSanction {{id: '{sanction_id}', agent_id: '{agent_id}', "
+                    f"reason: '{reason}', penalty: {penalty}}})"
+                )
+                self.db.execute_cypher(q)
+                return True
+            except Exception as e:
+                logger.debug(f"Persistence LUSanction ignorée : {e}")
+        return False
+
+    def register_consortium(
+        self,
+        consortium_id: str,
+        name: str,
+        members_count: int,
+        output_product: str,
+        surplus_energy: float
+    ) -> bool:
+        """
+        Consigne un traité de consortium métallurgique dans la table LUConsortium de KuzuDB (Phase 5 M3).
+        """
+        if self.db is not None:
+            try:
+                self.db.execute_cypher(
+                    "CREATE NODE TABLE LUConsortium (id STRING, name STRING, "
+                    "members_count INT64, output_product STRING, surplus_energy DOUBLE, PRIMARY KEY (id))"
+                )
+            except Exception:
+                pass
+            try:
+                q = (
+                    f"CREATE (c:LUConsortium {{id: '{consortium_id}', name: '{name}', "
+                    f"members_count: {members_count}, output_product: '{output_product}', surplus_energy: {surplus_energy}}})"
+                )
+                self.db.execute_cypher(q)
+                return True
+            except Exception as e:
+                logger.debug(f"Persistence LUConsortium ignorée : {e}")
         return False
 
 

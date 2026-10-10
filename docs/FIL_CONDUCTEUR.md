@@ -412,6 +412,15 @@ L'émergence des institutions économiques décentralisées franchit le mur de l
 - **Résolution Écologique in-world (Monde 2 Agricole)** : Le troc de denrées (Fruits vs Lances/Outils) compense l'asymétrie de spécialisation, éradiquant les disettes de fin de saison (+2.80 ticks de survie moyenne, 24.30 contrats scellés par ère).
 - **Clôture & Journalisation** : Validé par le banc sociologique de 30 ères (Commandement 15 : delta énergie $+2.50$, delta survie $+2.80$, $100\%$ de survie) et certifié dans KuzuDB sous l'identifiant `art_013_langage_ultime_speciation_contrats` (Article 013).
 
+## 🏛️ Langage Ultime Phase 5 : Gouvernance Juridique Décentralisée, Arbitrage de Confiance Latente et Métallurgie Distribuée du Monde 3 (Article 014)
+
+Le passage de la tribu marchande à la confédération industrielle institutionnalisée (G5) :
+- **Algèbre de Confiance Continue & Détection de Rupture ($\Delta_{\text{breach}}$)** : Mesure continue de l'écart de conformité entre engagement contractuel et exécution matérielle. Règle de réputation hystérétique immunisée contre l'amnésie (maintien du score sous le seuil d'éligibilité commercial $\text{sim} < 0.40$ sur au moins 10 cycles sans amnistie).
+- **Arbitrage Distribué, Embargo Commercial & Répulsion Physique** : Refus unanime du handshake acoustique face aux défecteurs et force répulsive bannissant physiquement les criminels de la place du marché.
+- **Contrats de Consortium Tripartites & Métallurgie du Monde 3** : Superposition orthogonale quad-partite à spectre plat ($D=64$) synchronisant Bois (Monde 1), Vivres (Monde 2) et Minerai (Monde 3) pour allumer le Haut-Fourneau et forger les premiers outils métalliques durables (`IronPickaxe`, `IronSpear`, `IronIngot`) avec rente calorique partagée ($+15.0\text{ E}$).
+- **Persistance Lattice KuzuDB (`LULaw`, `LUSanction`, `LUConsortium`)** : Traçabilité des lois coutumières, arbitrages collectifs et traités industriels dans le graphe de connaissances.
+- **Clôture & Journalisation** : Validé empiriquement sous la Loi du Sociologue sur 60 ères de simulation (Commandement 15 : delta survie $+1.47$ ticks, delta énergie loyaux $+18.60$ pts, extinction de la prédation) et consigné dans KuzuDB sous l'identifiant `art_014_langage_ultime_gouvernance_metallurgie` (Article 014).
+
 
 ## Comment lire les preuves
 

@@ -27,6 +27,11 @@ from src.metaprog.lu_algebra import (
     linear_cka,
     match_contract_trade,
     cosine_similarity,
+    compute_contract_breach,
+    update_agent_reputation,
+    reputation_trust_score,
+    decay_reputation_towards_neutral,
+    verify_consortium_agreement,
 )
 from src.metaprog.lu_symbolic_bridge import MultiTribalTranslator
 from src.graph_rag.async_logger import logger
@@ -76,6 +81,15 @@ class LUInWorldConfig:
     trade_agreement_threshold: float = 0.60
     market_radius: int = 4
     market_point: Tuple[int, int] = (8, 8)
+    # Phase 5 : Gouvernance Juridique, Arbitrage & Consortiums Métallurgiques
+    enable_governance: bool = True
+    trust_alpha: float = 0.25
+    breach_distance_threshold: float = 0.50
+    embargo_reputation_threshold: float = 0.40
+    embargo_duration_ticks: int = 15
+    reputation_decay_rate: float = 0.02
+    enable_consortium_contracts: bool = True
+    consortium_agreement_threshold: float = 0.40
 
 
 class LUInWorldAdapter:
@@ -138,6 +152,20 @@ class LUInWorldAdapter:
         self.contracts_settled_count: int = 0
         self.trade_transfers_count: int = 0
         self.recent_contracts: List[Dict[str, Any]] = []
+
+        # Phase 5 : Gouvernance Juridique, Arbitrage & Consortiums Métallurgiques
+        self.agent_reputations: Dict[str, np.ndarray] = {}
+        self.agent_embargos: Dict[str, int] = {}
+        self.sanctions_count: int = 0
+        self.consortiums_settled_count: int = 0
+        self.metal_tools_produced_count: int = 0
+        self.recent_sanctions: List[Dict[str, Any]] = []
+        self.recent_consortiums: List[Dict[str, Any]] = []
+        self.trust_reference_vector: np.ndarray = (
+            self.grammar.ROLE_TRUST if self.grammar is not None
+            else (np.ones(self.dim, dtype=np.float32) / np.sqrt(self.dim))
+        )
+        self.neutral_reference_vector: np.ndarray = np.ones(self.dim, dtype=np.float32) / np.sqrt(self.dim)
 
     def _get_agent_projection(self, agent_id: str, input_dim: int) -> np.ndarray:
         """Garantit une matrice de projection orthogonale ou pseudo-aléatoire stable pour chaque agent."""
@@ -529,10 +557,62 @@ class LUInWorldAdapter:
                 self.clan_subspaces[cid] = u_new
                 self.multi_translator.register_clan(cid, u_new)
 
+    def get_agent_reputation(self, agent_id: str) -> np.ndarray:
+        """Récupère ou initialise le vecteur de réputation continue d'un agent."""
+        if agent_id not in self.agent_reputations:
+            self.agent_reputations[agent_id] = self.trust_reference_vector.copy()
+        return self.agent_reputations[agent_id]
+
+    def get_agent_trust_score(self, agent_id: str) -> float:
+        """Calcule le score de confiance perçu de l'agent dans [-1, 1]."""
+        r = self.get_agent_reputation(agent_id)
+        return reputation_trust_score(r, self.trust_reference_vector)
+
+    def is_agent_under_embargo(self, agent_id: str) -> bool:
+        """Vérifie si un agent est actuellement sous le coup d'un embargo."""
+        return self.agent_embargos.get(agent_id, 0) > 0
+
+    def apply_embargo(self, agent_id: str, reason: str = "contract_breach", duration: Optional[int] = None) -> None:
+        """Impose un embargo commercial et physique à un agent défaillant."""
+        d = duration if duration is not None else self.config.embargo_duration_ticks
+        self.agent_embargos[agent_id] = d
+        self.sanctions_count += 1
+        ev = {
+            "agent_id": agent_id,
+            "reason": reason,
+            "duration": d,
+            "transmissions": self.total_transmissions
+        }
+        self.recent_sanctions.append(ev)
+
+    def apply_physical_embargo_repulsion(self, agents: List[Dict[str, Any]]) -> int:
+        """
+        Applique une répulsion physique aux agents sous embargo :
+        Interdiction d'accès au périmètre du marché (market_point, market_radius).
+        """
+        repelled = 0
+        mx, my = self.config.market_point
+        mr = self.config.market_radius
+        world_size = getattr(self.world, "size", 16)
+        for ag in agents:
+            ag_id = str(ag.get("id"))
+            if self.is_agent_under_embargo(ag_id):
+                dist_x = ag.get("x", 0) - mx
+                dist_y = ag.get("y", 0) - my
+                dist = abs(dist_x) + abs(dist_y)
+                if dist <= mr:
+                    dir_x = 1 if dist_x >= 0 else -1
+                    dir_y = 1 if dist_y >= 0 else -1
+                    ag["x"] = int(np.clip(mx + dir_x * (mr + 2), 0, world_size - 1))
+                    ag["y"] = int(np.clip(my + dir_y * (mr + 2), 0, world_size - 1))
+                    ag["embargo_repelled"] = True
+                    repelled += 1
+        return repelled
+
     def negotiate_trade_contracts(self, agents: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
         """
-        Négociation de troc décentralisée par contrats latents (Phase 4 M2).
-        Exécute le troc effectif d'objets (nourriture/graines vs lances/bois/outils).
+        Négociation de troc décentralisée par contrats latents (Phase 4 M2 & Phase 5 M2).
+        Exécute le troc effectif d'objets tout en réprimant les défections par arbitrage.
         """
         settled_trades = []
         if self.grammar is None or len(agents) < 2:
@@ -550,30 +630,37 @@ class LUInWorldAdapter:
             market_agents = agents  # Si pas de regroupement marché, troc de proximité directe
 
         for i, a in enumerate(market_agents):
+            a_id = str(a.get("id"))
+            # Filtrage de solvabilité & réputation si gouvernance active
+            if self.config.enable_governance:
+                if self.is_agent_under_embargo(a_id) or (self.get_agent_trust_score(a_id) < self.config.embargo_reputation_threshold):
+                    continue
+
             inv_a = a.setdefault("inventory", [])
             for j, b in enumerate(market_agents):
                 if i >= j:
                     continue
+                b_id = str(b.get("id"))
+                if self.config.enable_governance:
+                    if self.is_agent_under_embargo(b_id) or (self.get_agent_trust_score(b_id) < self.config.embargo_reputation_threshold):
+                        continue
+
                 inv_b = b.setdefault("inventory", [])
                 dist = abs(a.get("x", 0) - b.get("x", 0)) + abs(a.get("y", 0) - b.get("y", 0))
                 if dist > self.config.hear_radius + 2:
                     continue
 
                 # Identification des offres et besoins d'échange
-                # A offre ce qu'il a en abondance et cherche ce qui lui manque
                 has_food_a = any(str(it.get("type", "")).lower() in ["fruit", "food", "seed"] for it in inv_a)
                 has_tool_a = any(str(it.get("type", "")).lower() in ["spear", "tool", "wood", "stone"] for it in inv_a)
                 has_food_b = any(str(it.get("type", "")).lower() in ["fruit", "food", "seed"] for it in inv_b)
                 has_tool_b = any(str(it.get("type", "")).lower() in ["spear", "tool", "wood", "stone"] for it in inv_b)
 
-                # Cas 1 : A offre nourriture contre outil de B
                 trade_case = None
                 if (has_food_a and not has_tool_a) and (has_tool_b and not has_food_b):
                     trade_case = ("FOOD", "TOOL")
-                # Cas 2 : B offre nourriture contre outil de A
                 elif (has_tool_a and not has_food_a) and (has_food_b and not has_tool_b):
                     trade_case = ("TOOL", "FOOD")
-                # Cas 3 : Troc de complémentarité générale si deux items distincts
                 elif len(inv_a) > 0 and len(inv_b) > 0:
                     it_a_name = str(inv_a[0].get("type", "FOOD")).upper()
                     it_b_name = str(inv_b[0].get("type", "TOOL")).upper()
@@ -584,8 +671,6 @@ class LUInWorldAdapter:
                     continue
 
                 item_a_offer, item_b_demand = trade_case
-                # A émet un contrat : offre item_a_offer, demande item_b_demand
-                # B émet un contrat symétrique : offre item_b_demand, demande item_a_offer
                 rng_a = np.random.default_rng(abs(hash(item_a_offer.upper())) % (2**31 - 1))
                 vec_offer_a = self.grammar._generate_canonical_unit_vector(rng_a)
 
@@ -604,13 +689,74 @@ class LUInWorldAdapter:
                 )
 
                 if agreed:
-                    # Échange physique d'objets dans les inventaires
+                    # Détection de stratégie prédatrice / défecteur (Phase 5 M1)
+                    defector_a = a.get("is_defector", False)
+                    defector_b = b.get("is_defector", False)
+
+                    if defector_a:
+                        if self.config.enable_governance:
+                            delta_a = 1.41
+                            self.agent_reputations[a_id] = update_agent_reputation(
+                                self.get_agent_reputation(a_id),
+                                contract_token_a,
+                                breach_distance=delta_a,
+                                alpha=self.config.trust_alpha,
+                                breach_threshold=self.config.breach_distance_threshold,
+                                trust_reference=self.trust_reference_vector
+                            )
+                            self.apply_embargo(a_id, reason="unilateral_breach")
+                        if len(inv_b) > 0:
+                            stolen = inv_b.pop(0)
+                            inv_a.append(stolen)
+                        b["energy"] = max(0.0, b.get("energy", 0.0) - 3.0)
+                        a["energy"] = min(100.0, a.get("energy", 0.0) + 3.0)
+                        continue
+
+                    if defector_b:
+                        if self.config.enable_governance:
+                            delta_b = 1.41
+                            self.agent_reputations[b_id] = update_agent_reputation(
+                                self.get_agent_reputation(b_id),
+                                contract_token_b,
+                                breach_distance=delta_b,
+                                alpha=self.config.trust_alpha,
+                                breach_threshold=self.config.breach_distance_threshold,
+                                trust_reference=self.trust_reference_vector
+                            )
+                            self.apply_embargo(b_id, reason="unilateral_breach")
+                        if len(inv_a) > 0:
+                            stolen = inv_a.pop(0)
+                            inv_b.append(stolen)
+                        a["energy"] = max(0.0, a.get("energy", 0.0) - 3.0)
+                        b["energy"] = min(100.0, b.get("energy", 0.0) + 3.0)
+                        continue
+
+                    # Cas de coopération loyale
                     item_from_a = inv_a.pop(0) if len(inv_a) > 0 else {"type": item_a_offer}
                     item_from_b = inv_b.pop(0) if len(inv_b) > 0 else {"type": item_b_demand}
                     inv_a.append(item_from_b)
                     inv_b.append(item_from_a)
 
-                    # Prime calorique mutuelle de transaction réussie (surplus de commerce)
+                    # Renforcement de réputation mutuelle
+                    if self.config.enable_governance:
+                        self.agent_reputations[a_id] = update_agent_reputation(
+                            self.get_agent_reputation(a_id),
+                            contract_token_a,
+                            breach_distance=0.0,
+                            alpha=self.config.trust_alpha,
+                            breach_threshold=self.config.breach_distance_threshold,
+                            trust_reference=self.trust_reference_vector
+                        )
+                        self.agent_reputations[b_id] = update_agent_reputation(
+                            self.get_agent_reputation(b_id),
+                            contract_token_b,
+                            breach_distance=0.0,
+                            alpha=self.config.trust_alpha,
+                            breach_threshold=self.config.breach_distance_threshold,
+                            trust_reference=self.trust_reference_vector
+                        )
+
+                    # Prime calorique mutuelle de transaction réussie
                     a["energy"] = min(100.0, a.get("energy", 0.0) + 2.0)
                     b["energy"] = min(100.0, b.get("energy", 0.0) + 2.0)
 
@@ -618,8 +764,8 @@ class LUInWorldAdapter:
                     self.trade_transfers_count += 1
 
                     trade_info = {
-                        "party_a": str(a.get("id")),
-                        "party_b": str(b.get("id")),
+                        "party_a": a_id,
+                        "party_b": b_id,
                         "give_a": item_a_offer,
                         "give_b": item_b_demand,
                         "agreement_score": round(score, 3),
@@ -631,6 +777,115 @@ class LUInWorldAdapter:
                         self.recent_contracts.append(trade_info)
 
         return settled_trades
+
+    def negotiate_consortium_contracts(self, agents: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+        """
+        Négociation et exécution de contrats de consortium tripartites pour la métallurgie (Phase 5 M3).
+        Rassemble 3 agents éligibles (Bois/Charbon + Vivres + Minerai) pour forger des outils de métal.
+        """
+        settled_consortiums = []
+        if not self.config.enable_consortium_contracts or self.grammar is None or len(agents) < 3:
+            return settled_consortiums
+
+        # Filtrer agents non sous embargo
+        eligible = [
+            ag for ag in agents
+            if not self.is_agent_under_embargo(str(ag.get("id")))
+            and (not self.config.enable_governance or self.get_agent_trust_score(str(ag.get("id"))) >= self.config.embargo_reputation_threshold)
+        ]
+        if len(eligible) < 3:
+            return settled_consortiums
+
+        wood_supplier = None
+        food_supplier = None
+        ore_supplier = None
+
+        for ag in eligible:
+            inv = ag.setdefault("inventory", [])
+            types = [str(it.get("type", "")).upper() for it in inv]
+            if wood_supplier is None and any(t in ["WOOD", "COAL"] for t in types):
+                wood_supplier = ag
+            elif food_supplier is None and any(t in ["FOOD", "FRUIT", "GRAIN", "SEED"] for t in types):
+                food_supplier = ag
+            elif ore_supplier is None and any(t in ["ORE", "IRONORE", "STONE"] for t in types):
+                ore_supplier = ag
+
+        if wood_supplier is not None and food_supplier is not None and ore_supplier is not None:
+            triplet = [wood_supplier, food_supplier, ore_supplier]
+            triplet_ids = {str(ag.get("id")) for ag in triplet}
+            if len(triplet_ids) == 3:
+                rng_w = np.random.default_rng(abs(hash("WOOD")) % (2**31 - 1))
+                v_wood = self.grammar._generate_canonical_unit_vector(rng_w)
+
+                rng_f = np.random.default_rng(abs(hash("FOOD")) % (2**31 - 1))
+                v_food = self.grammar._generate_canonical_unit_vector(rng_f)
+
+                rng_o = np.random.default_rng(abs(hash("ORE")) % (2**31 - 1))
+                v_ore = self.grammar._generate_canonical_unit_vector(rng_o)
+
+                rng_p = np.random.default_rng(abs(hash("STEEL")) % (2**31 - 1))
+                v_steel = self.grammar._generate_canonical_unit_vector(rng_p)
+
+                consortium_token = self.grammar.compose_consortium_contract(v_wood, v_food, v_ore, v_steel)
+
+                agreed, score = verify_consortium_agreement(
+                    consortium_token,
+                    v_wood,
+                    v_food,
+                    v_ore,
+                    self.grammar,
+                    threshold=self.config.consortium_agreement_threshold
+                )
+
+                if agreed:
+                    # Consommation des intrants
+                    inv_w = wood_supplier["inventory"]
+                    inv_f = food_supplier["inventory"]
+                    inv_o = ore_supplier["inventory"]
+
+                    for i_idx, it in enumerate(inv_w):
+                        if str(it.get("type", "")).upper() in ["WOOD", "COAL"]:
+                            inv_w.pop(i_idx)
+                            break
+                    for i_idx, it in enumerate(inv_f):
+                        if str(it.get("type", "")).upper() in ["FOOD", "FRUIT", "GRAIN", "SEED"]:
+                            inv_f.pop(i_idx)
+                            break
+                    for i_idx, it in enumerate(inv_o):
+                        if str(it.get("type", "")).upper() in ["ORE", "IRONORE", "STONE"]:
+                            inv_o.pop(i_idx)
+                            break
+
+                    # Attribution des outils et lingots métalliques
+                    crafted_tool = {"type": "IronPickaxe", "tier": "METAL", "weight": 2.5}
+                    ore_supplier["inventory"].append(crafted_tool)
+                    wood_supplier["inventory"].append({"type": "IronIngot", "tier": "METAL"})
+                    food_supplier["inventory"].append({"type": "IronSpear", "tier": "METAL"})
+
+                    # Prime calorique industrielle partagée (+15.0 pts selon IndustrialConfig.smelt_energy_reward)
+                    surplus = 15.0
+                    for ag in triplet:
+                        ag["energy"] = min(100.0, ag.get("energy", 0.0) + surplus)
+
+                    self.consortiums_settled_count += 1
+                    self.metal_tools_produced_count += 1
+
+                    if hasattr(self.world, "iron_smelted"):
+                        self.world.iron_smelted += 1
+                    if hasattr(self.world, "metal_tools_crafted"):
+                        self.world.metal_tools_crafted += 1
+
+                    consortium_info = {
+                        "members": list(triplet_ids),
+                        "output_product": "IronPickaxe",
+                        "agreement_score": round(score, 3),
+                        "surplus_energy": surplus * 3.0,
+                    }
+                    settled_consortiums.append(consortium_info)
+                    if len(self.recent_consortiums) < 20:
+                        self.recent_consortiums.append(consortium_info)
+
+        return settled_consortiums
 
     def step(self) -> Dict[str, Any]:
         """
@@ -658,7 +913,24 @@ class LUInWorldAdapter:
         for ag in agents:
             ag["lu_multi_hop_relayed"] = False
             ag["cooperative_hunt_active"] = False
+            inv = ag.get("inventory", [])
+            if any(it.get("tier") == "METAL" for it in inv):
+                ag["energy"] = min(100.0, ag.get("energy", 0.0) + 0.20)
             self.encode_agent_latent(ag)
+
+        # Répulsion physique et purge temporelle des sanctions (Phase 5 M2)
+        if self.config.enable_governance:
+            self.apply_physical_embargo_repulsion(agents)
+            for ag_id in list(self.agent_embargos.keys()):
+                self.agent_embargos[ag_id] -= 1
+                if self.agent_embargos[ag_id] <= 0:
+                    del self.agent_embargos[ag_id]
+            for ag in agents:
+                ag_id = str(ag.get("id"))
+                r = self.get_agent_reputation(ag_id)
+                self.agent_reputations[ag_id] = decay_reputation_towards_neutral(
+                    r, self.neutral_reference_vector, decay_rate=self.config.reputation_decay_rate
+                )
 
         # Dérive géométrique locale des dialectes claniques (Phase 4 M1)
         if self.config.enable_dialects:
@@ -866,6 +1138,12 @@ class LUInWorldAdapter:
             trades = self.negotiate_trade_contracts(agents)
             tick_trades = len(trades)
 
+        # 8. Consortiums multipartites métallurgiques (Phase 5 M3)
+        tick_consortiums = 0
+        if self.config.enable_consortium_contracts:
+            consortiums = self.negotiate_consortium_contracts(agents)
+            tick_consortiums = len(consortiums)
+
         self.total_transmissions += tick_transmissions
         self.successful_alignments += tick_alignments
         self.pack_coordinations_count += tick_coordinations
@@ -890,6 +1168,10 @@ class LUInWorldAdapter:
             "contracts_settled": self.contracts_settled_count,
             "trade_transfers": self.trade_transfers_count,
             "tick_trades": tick_trades,
+            "sanctions": self.sanctions_count,
+            "consortiums_settled": self.consortiums_settled_count,
+            "metal_tools_produced": self.metal_tools_produced_count,
+            "tick_consortiums": tick_consortiums,
         }
 
 
