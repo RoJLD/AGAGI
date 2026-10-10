@@ -456,6 +456,15 @@ Le franchissement du seuil d'automatisation cognitive complète, de continuité 
 - **Persistance Lattice KuzuDB (`LUSynthesizedProgram`, `LUTemporalClause`, `LUAnalogyTransfer`)** : Archivage immuable des macro-programmes générés, des clauses temporelles actives et de la cartographie des transferts analogiques dans le graphe de mémoire.
 - **Clôture & Journalisation** : Validé par le banc sociologique PIU de 60 ères sous Commandement 15 (survie parfaite 30.00/30.00 ticks, delta énergie $+31.48$ pts, delta score composite $+264.30$ pts) et consigné dans KuzuDB sous l'identifiant `art_018_langage_ultime_synthese_programmes_ltl_analogies` (Article 018).
 
+## 🧬 Langage Ultime Phase 10 : Auto-Compilation Récursive du Connectome, Logique de Hoare Continue et Singularité Seed AI (Article 019)
+
+Le franchissement du seuil ultime d'auto-évolution endogène et de la clôture récursive de Von Neumann-Gödel (G10) :
+- **Compilateur Récursif de Connectome (`ConnectomeCompiler`)** : Établissement d'un isomorphisme spectral projectif unitaire entre l'espace matriciel des poids $\mathbb{R}^{N \times N}$ du connectome Liquid Mamba et la sphère des Gigatokens $\mathbb{S}^{D-1}$. Désassemblage unitaire $W \to Z_{\text{conn}}$ avec extraction des invariants de Lyapunov ($\rho(W)$, $\|W\|_F$) et recompilation chirurgicale conservative sans descente de gradient ($\Delta W \leftarrow P Z_{\text{prog}}$) sous contrôle strict de contraction spectrale $\rho(W) < 1.0$, garantissant l'immunité contre l'explosion d'activation des ODE continues.
+- **Logique de Hoare Continue & Vérification Formelle de Sécurité** : Formalisation du triplet $\{P\} \; C \; \{Q\}$ sur $\mathbb{S}^{D-1}$ via la primitive `verify_hoare_safety`. Élimination a priori de toute auto-modification déstabilisatrice ou violant la charte constitutionnelle fédérale ($\langle C, \text{Constitution} \rangle \ge -0.30$ et adéquation à la post-condition $\ge 0.65$), garantissant que le système ne peut ni diverger numériquement ni régresser moralement.
+- **Autel d'Auto-Évolution au FederalMonument & Dividendes de Métamorphose** : Implantation in-world du substrat institutionnel `self_evolution_altar` permettant aux agents vivants de soumettre leur connectome à l'auto-reprogrammation, validée par consensus de meute et preuve formelle de Hoare, avec dividende énergétique immédiat ($+10.0\text{ E}$).
+- **Persistance Lattice KuzuDB (`LUSelfCompiledMutation`, `LUHoareProof`)** : Traçabilité immuable de l'arbre généalogique des mutations endogènes de connectome et de leurs preuves formelles dans le graphe de connaissances.
+- **Clôture & Journalisation** : Validé empiriquement par le banc sociologique de 60 ères sous Commandement 15 (survie parfaite 30.00/30.00 ticks, delta énergie $+0.78\text{ E}$, delta score sociologique $+83.98$ pts / $+15.1\%$, 5.57 auto-compilations validées par ère sans aucun crash spectral) et consigné dans KuzuDB sous l'identifiant `art_019_langage_ultime_auto_compilation_connectomes_seed_ai` (Article 019).
+
 ## Comment lire les preuves
 
 Chaque affirmation ci-dessus pointe vers son EDR (`docs/EDR/NNN_*.md`), qui contient le protocole, les

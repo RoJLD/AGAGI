@@ -149,6 +149,13 @@ class LUSymbolicBridge:
             "NEXT": ("TEMPORAL", 1.0),
             "ALWAYS": ("TEMPORAL", 1.0),
             "EVENTUALLY": ("TEMPORAL", 1.0),
+            # Phase 10 : Auto-Compilation Récursive, Logique de Hoare & Seed AI
+            "SELF_COMPILE_CONNECTOME": ("ACTION", 1.0),
+            "HOARE_ASSERT": ("META", 1.0),
+            "DISASSEMBLE": ("ACTION", 1.0),
+            "INSPECT_WEIGHTS": ("ACTION", 1.0),
+            "PRECONDITION": ("META", 1.0),
+            "POSTCONDITION": ("META", 1.0),
         }
         
         for name, (cat, weight) in concepts.items():
@@ -1401,6 +1408,127 @@ class LUSymbolicBridge:
             "c": c_name, "c_sim": round(c_sim, 3),
             "d": d_name, "d_sim": round(d_sim, 3),
             "is_valid": (a_sim >= 0.25 and b_sim >= 0.25 and c_sim >= 0.25 and d_sim >= 0.25),
+        }
+
+    # =========================================================================
+    # Méthodes Auto-Compilation de Connectome & Logique de Hoare (Phase 10 M1)
+    # =========================================================================
+
+    def register_self_compiled_mutation(
+        self,
+        mutation_id: str,
+        agent_id: str,
+        program_id: str,
+        spectral_radius: float,
+        approved: bool,
+        score: float
+    ) -> bool:
+        """
+        Consigne une auto-modification de connectome dans LUSelfCompiledMutation (Phase 10 M1).
+        """
+        if self.db is not None:
+            try:
+                self.db.execute_cypher(
+                    "CREATE NODE TABLE LUSelfCompiledMutation (id STRING, agent_id STRING, "
+                    "program_id STRING, spectral_radius DOUBLE, approved BOOLEAN, score DOUBLE, PRIMARY KEY (id))"
+                )
+            except Exception:
+                pass
+            try:
+                q = (
+                    f"CREATE (m:LUSelfCompiledMutation {{id: '{mutation_id}', agent_id: '{agent_id}', "
+                    f"program_id: '{program_id}', spectral_radius: {spectral_radius}, "
+                    f"approved: {str(approved).lower()}, score: {score}}})"
+                )
+                self.db.execute_cypher(q)
+                return True
+            except Exception as e:
+                logger.debug(f"Persistence LUSelfCompiledMutation ignorée : {e}")
+        return False
+
+    def register_hoare_proof(
+        self,
+        proof_id: str,
+        mutation_id: str,
+        pre_label: str,
+        post_label: str,
+        is_valid: bool,
+        confidence: float
+    ) -> bool:
+        """
+        Consigne une preuve de sécurité de Hoare dans LUHoareProof (Phase 10 M1).
+        """
+        if self.db is not None:
+            try:
+                self.db.execute_cypher(
+                    "CREATE NODE TABLE LUHoareProof (id STRING, mutation_id STRING, "
+                    "pre_label STRING, post_label STRING, is_valid BOOLEAN, confidence DOUBLE, PRIMARY KEY (id))"
+                )
+            except Exception:
+                pass
+            try:
+                q = (
+                    f"CREATE (hp:LUHoareProof {{id: '{proof_id}', mutation_id: '{mutation_id}', "
+                    f"pre_label: '{pre_label}', post_label: '{post_label}', "
+                    f"is_valid: {str(is_valid).lower()}, confidence: {confidence}}})"
+                )
+                self.db.execute_cypher(q)
+                return True
+            except Exception as e:
+                logger.debug(f"Persistence LUHoareProof ignorée : {e}")
+        return False
+
+    def compile_hoare_triple_directive(
+        self,
+        pre_label: str,
+        cmd_label: str,
+        post_label: str
+    ) -> np.ndarray:
+        """
+        Compile un triplet de Hoare {P} C {Q} en Gigatoken formel de vérification.
+        """
+        def get_v(lbl: str) -> np.ndarray:
+            key = lbl.upper()
+            if key in self.lexicon:
+                return self.lexicon[key]["vector"]
+            rng = np.random.default_rng(abs(hash(key)) % (2**31 - 1))
+            return self.grammar._generate_canonical_unit_vector(rng)
+
+        vp = get_v(pre_label)
+        vc = get_v(cmd_label)
+        vq = get_v(post_label)
+        return self.grammar.compose_hoare_triple(vp, vc, vq)
+
+    def decode_hoare_triple_vector(self, hoare_vector: np.ndarray) -> Dict[str, Any]:
+        """
+        Décompile un triplet formel de Hoare vectoriel en composantes symboliques.
+        """
+        qp = self.grammar.query_role(hoare_vector, self.grammar.ROLE_HOARE_PRE)
+        qc = self.grammar.query_role(hoare_vector, self.grammar.ROLE_HOARE_CMD)
+        qq = self.grammar.query_role(hoare_vector, self.grammar.ROLE_HOARE_POST)
+
+        def best_match(qv: np.ndarray) -> Tuple[str, float]:
+            best_label = "UNKNOWN"
+            best_sim = -1.0
+            for name, data in self.lexicon.items():
+                sim = float(cosine_similarity(qv, data["vector"]))
+                if sim > best_sim:
+                    best_sim = sim
+                    best_label = name
+            return best_label, best_sim
+
+        p_name, p_sim = best_match(qp)
+        c_name, c_sim = best_match(qc)
+        q_name, q_sim = best_match(qq)
+
+        return {
+            "precondition": p_name,
+            "precondition_sim": round(p_sim, 3),
+            "command": c_name,
+            "command_sim": round(c_sim, 3),
+            "postcondition": q_name,
+            "postcondition_sim": round(q_sim, 3),
+            "is_valid": (p_sim >= 0.25 and c_sim >= 0.25 and q_sim >= 0.25)
         }
 
 

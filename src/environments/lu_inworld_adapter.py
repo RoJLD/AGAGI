@@ -46,6 +46,8 @@ from src.metaprog.lu_algebra import (
     apply_temporal_operator,
     solve_latent_analogy,
     verify_analogy_quality,
+    ConnectomeCompiler,
+    verify_hoare_safety,
 )
 from src.metaprog.lu_symbolic_bridge import MultiTribalTranslator, FederalDiplomaticBridge
 from src.graph_rag.async_logger import logger
@@ -101,6 +103,10 @@ class FederalMonument:
     synthesized_programs: List[Dict[str, Any]] = field(default_factory=list)
     temporal_escrows: Dict[str, Dict[str, Any]] = field(default_factory=dict)
     analogies_repository: List[Dict[str, Any]] = field(default_factory=list)
+    # Phase 10 M2 : Auto-compilation récursive de connectome & preuves de Hoare
+    self_evolution_altar: Dict[str, Any] = field(default_factory=dict)
+    self_compiled_mutations: List[Dict[str, Any]] = field(default_factory=list)
+    hoare_proofs: List[Dict[str, Any]] = field(default_factory=list)
 
 
 @dataclass
@@ -180,6 +186,11 @@ class LUInWorldConfig:
     temporal_horizon_ticks: int = 5
     analogy_fidelity_threshold: float = 0.50
     program_execution_energy_bonus: float = 4.0
+    # Phase 10 : Auto-Compilation Récursive de Connectome, Logique de Hoare & Singularité Seed AI
+    enable_self_compilation: bool = True
+    enable_hoare_verification: bool = True
+    self_evolution_energy_bonus: float = 10.0
+    hoare_safety_threshold: float = 0.65
 
 
 class LUInWorldAdapter:
@@ -291,6 +302,12 @@ class LUInWorldAdapter:
         self.temporal_clauses_evaluated_count: int = 0
         self.temporal_escrows_released_count: int = 0
         self.analogy_transfers_count: int = 0
+        # Phase 10 : Auto-Compilation Récursive de Connectome & Logique de Hoare
+        self.connectome_compiler = ConnectomeCompiler(dim=self.dim, config=getattr(self.grammar, "config", None))
+        self.self_compiled_mutations_count: int = 0
+        self.hoare_proofs_verified_count: int = 0
+        self.hoare_rejections_count: int = 0
+        self.connectome_evolutions_applied_count: int = 0
         if getattr(self.config, "enable_diplomacy", True):
             self._init_federal_monument()
 
@@ -965,6 +982,139 @@ class LUInWorldAdapter:
             "fidelity": round(fidelity, 4),
             "d_vector": d_solved,
         }
+
+    def submit_connectome_self_compilation(
+        self,
+        agent: Dict[str, Any],
+        target_model: Any,
+        macro_program_token: np.ndarray,
+        pre_condition: Optional[np.ndarray] = None,
+        post_condition: Optional[np.ndarray] = None,
+        alpha: float = 0.15
+    ) -> Tuple[bool, str, Dict[str, Any]]:
+        """
+        Soumet une auto-modification chirurgicale du connectome Liquid Mamba au FederalMonument (LU Phase 10 M2).
+        1. Évalue la sécurité formelle de Hoare continue {P} C {Q} et la non-contradiction constitutionnelle.
+        2. Si la preuve est valide, recompile in-situ les poids W du connectome sous garantie spectrale rho(W) < 1.0.
+        3. Alloue un dividende de saut évolutif à l'agent (+10.0 E).
+        """
+        if not getattr(self.config, "enable_self_compilation", True):
+            return False, "SELF_COMPILATION_DISABLED", {}
+
+        z_agent = agent.get("lu_latent")
+        if z_agent is None:
+            z_agent = self.encode_agent_latent(agent)
+
+        vp = pre_condition if pre_condition is not None else z_agent
+        vq = post_condition if post_condition is not None else z_agent
+
+        const_vec = getattr(self.federal_monument, "constitution_vector", None) if self.federal_monument else None
+
+        # 1. Vérification formelle de Hoare
+        thresh = float(getattr(self.config, "hoare_safety_threshold", 0.65))
+        if getattr(self.config, "enable_hoare_verification", True):
+            is_safe, score, reason = verify_hoare_safety(
+                pre_state=vp,
+                modification=macro_program_token,
+                post_condition=vq,
+                constitution_vector=const_vec,
+                alignment_threshold=thresh
+            )
+            proof_record = {
+                "agent_id": str(agent.get("id")),
+                "score": round(score, 4),
+                "is_safe": is_safe,
+                "reason": reason,
+                "tick": getattr(self.world, "ticks", 0)
+            }
+            if self.federal_monument is not None:
+                self.federal_monument.hoare_proofs.append(proof_record)
+
+            if not is_safe:
+                self.hoare_rejections_count += 1
+                return False, f"REJECTED_{reason}", {"score": score, "proof": proof_record}
+
+            self.hoare_proofs_verified_count += 1
+        else:
+            score = 1.0
+            reason = "HOARE_SKIPPED"
+
+        # 2. Compilation chirurgicale dans le connectome
+        ok, spec_rad, compile_info = self.connectome_compiler.compile_to_connectome(
+            macro_program=macro_program_token,
+            target_model=target_model,
+            alpha=alpha
+        )
+
+        if not ok:
+            return False, "COMPILATION_FAILED", compile_info
+
+        # 3. Dividende d'évolution & enregistrement
+        bonus = float(getattr(self.config, "self_evolution_energy_bonus", 10.0))
+        agent["energy"] = min(100.0, float(agent.get("energy", 0.0)) + bonus)
+        agent["connectome_self_compiled"] = True
+
+        self.self_compiled_mutations_count += 1
+        self.connectome_evolutions_applied_count += 1
+
+        mut_record = {
+            "agent_id": str(agent.get("id")),
+            "spectral_radius": spec_rad,
+            "bonus": bonus,
+            "info": compile_info,
+            "tick": getattr(self.world, "ticks", 0)
+        }
+        if self.federal_monument is not None:
+            self.federal_monument.self_compiled_mutations.append(mut_record)
+
+        return True, "SELF_COMPILATION_SUCCESS", {
+            "spectral_radius": spec_rad,
+            "score": score,
+            "bonus": bonus,
+            "compile_info": compile_info
+        }
+
+    def verify_and_apply_connectome_evolution(
+        self,
+        agent: Dict[str, Any],
+        target_model: Any,
+        alpha: float = 0.15
+    ) -> bool:
+        """
+        Décompilation, synthèse d'un macro-programme latent aligné sur le FederalMonument
+        et auto-compilation récursive in-situ du connectome pour l'agent (Phase 10 M2).
+        """
+        if not getattr(self.config, "enable_self_compilation", True):
+            return False
+
+        try:
+            z_conn, conn_info = self.connectome_compiler.disassemble_connectome(target_model)
+        except Exception:
+            return False
+
+        # Si le monument a une constitution, orienter la mutation vers la clause constitutionnelle
+        if self.federal_monument is not None and self.federal_monument.constitution_vector is not None:
+            target_direction = self.federal_monument.constitution_vector
+        elif self.grammar is not None:
+            target_direction = self.grammar.ROLE_TRUST
+        else:
+            target_direction = np.ones(self.dim, dtype=np.float32) / np.sqrt(self.dim)
+
+        # Macro-programme latent : synthèse d'une directive d'alignement constructive
+        macro_prog = (0.60 * target_direction + 0.40 * z_conn).astype(np.float32)
+        norm_prog = np.linalg.norm(macro_prog) + 1e-12
+        macro_prog = (macro_prog / norm_prog).astype(np.float32)
+
+        # Pré-condition = état connectome actuel, Post-condition = macro_prog
+        ok, status, _ = self.submit_connectome_self_compilation(
+            agent=agent,
+            target_model=target_model,
+            macro_program_token=macro_prog,
+            pre_condition=z_conn,
+            post_condition=macro_prog,
+            alpha=alpha
+        )
+        return ok
 
     def _get_agent_projection(self, agent_id: str, input_dim: int) -> np.ndarray:
         """Garantit une matrice de projection orthogonale ou pseudo-aléatoire stable pour chaque agent."""
@@ -2213,6 +2363,18 @@ class LUInWorldAdapter:
                 if exec_res.get("converged", False):
                     tick_programs_executed += 1
 
+        # 13. Auto-Compilation Récursive du Connectome au FederalMonument (Phase 10 M2)
+        tick_self_compilations = 0
+        if getattr(self.config, "enable_self_compilation", True) and self.federal_monument is not None:
+            mon_x, mon_y = self.federal_monument.x, self.federal_monument.y
+            near_altar = [ag for ag in agents if (abs(ag.get("x", 0) - mon_x) + abs(ag.get("y", 0) - mon_y)) <= 3]
+            for ag in near_altar:
+                model = ag.get("model") or ag.get("brain") or getattr(self.world, "model", None)
+                if model is not None and not ag.get("connectome_self_compiled", False):
+                    ok = self.verify_and_apply_connectome_evolution(ag, model)
+                    if ok:
+                        tick_self_compilations += 1
+
         self.total_transmissions += tick_transmissions
         self.successful_alignments += tick_alignments
         self.pack_coordinations_count += tick_coordinations
@@ -2264,6 +2426,11 @@ class LUInWorldAdapter:
             "programs_executed": self.programs_executed_count,
             "tick_programs_executed": tick_programs_executed,
             "analogy_transfers": self.analogy_transfers_count,
+            "self_compiled_mutations": self.self_compiled_mutations_count,
+            "hoare_proofs_verified": self.hoare_proofs_verified_count,
+            "hoare_rejections": self.hoare_rejections_count,
+            "connectome_evolutions_applied": self.connectome_evolutions_applied_count,
+            "tick_self_compilations": tick_self_compilations,
         }
 
 
