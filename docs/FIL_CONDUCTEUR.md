@@ -465,6 +465,15 @@ Le franchissement du seuil ultime d'auto-évolution endogène et de la clôture 
 - **Persistance Lattice KuzuDB (`LUSelfCompiledMutation`, `LUHoareProof`)** : Traçabilité immuable de l'arbre généalogique des mutations endogènes de connectome et de leurs preuves formelles dans le graphe de connaissances.
 - **Clôture & Journalisation** : Validé empiriquement par le banc sociologique de 60 ères sous Commandement 15 (survie parfaite 30.00/30.00 ticks, delta énergie $+0.78\text{ E}$, delta score sociologique $+83.98$ pts / $+15.1\%$, 5.57 auto-compilations validées par ère sans aucun crash spectral) et consigné dans KuzuDB sous l'identifiant `art_019_langage_ultime_auto_compilation_connectomes_seed_ai` (Article 019).
 
+## 🌙 Langage Ultime Phase 11 : Méta-Simulation Contrefactuelle, Rêve Sémantique Partagé et Délibération dans le World Model Latent (Article 020)
+
+Le franchissement du seuil d'imagination collective et de délibération prospective intérieure (Arc 6 : Le Penseur / G11) :
+- **Algèbre de l'Hypothèse de Rêve & Directives Symboliques** : Encodage unitaire sur $\mathbb{S}^{D-1}$ des hypothèses contrefactuelles $Z_{\text{dream}} = \sigma_{\mathbb{S}}((\text{ROLE\_DREAM} \circledast \text{ROLE\_WHAT\_IF} \circledast Z_{\text{scen}}) \oplus (\text{ROLE\_OUTCOME} \circledast Z_{\text{goal}}))$ et pont symbolique KuzuDB (`DREAM_SCENARIO`, `WHAT_IF`, `ROLLOUT_ASSERT`).
+- **Moteur de Rollout Contrefactuel Vectorisé (`LatentDreamEngine`)** : Déroulement accéléré de 10 pas de dynamique intérieure dans l'espace latent en un seul tick physique sous contraction lipschitzienne stricte ($L \le \frac{1}{1-\gamma}$). Calcul du Gain Espéré Contrefactuel $\text{CEG} = \Delta \cos(s_t, \text{goal})$ et rejet instantané des trajectoires létales sans dépense corporelle.
+- **Conseil Délibératif du Feu de Camp (`CampfireCouncilOfDreams`)** : Délibération nocturne collective autour du foyer (`campfire`), agrégation robuste par médiane sphérique de Weiszfeld BFT des scénarios anticipateurs, ratification dans le `SharedDreamPool` et dividende prédictif (+6.0 E) récompensant l'anticipation sans coût moteur.
+- **Persistance Lattice KuzuDB (`LUSharedDream`, `LUCounterfactualRollout`)** : Enregistrement immuable des rêves ratifiés, des arbres de déroulé contrefactuel et des accords de consensus.
+- **Clôture & Journalisation** : Validé sous Commandement 15 sur le Monde 2 agricole (survie 30/30 ticks, anticipation des famines hivernales, surpassement de la Phase 10 en score sociologique composite) et consigné dans KuzuDB sous l'identifiant `art_020_langage_ultime_meta_simulation_reve_contrefactuel` (Article 020).
+
 ## Comment lire les preuves
 
 Chaque affirmation ci-dessus pointe vers son EDR (`docs/EDR/NNN_*.md`), qui contient le protocole, les

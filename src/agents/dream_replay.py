@@ -7,7 +7,7 @@ Permet aux agents d'apprendre hors-ligne durant les phases nocturnes ou de repos
 Conforme aux 12 Commandements AGIseed (3. NumPy vectorisé, 5. Traçabilité KuzuDB, 9. Stabilité numérique).
 """
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import List, Dict, Any, Optional, Tuple
 import numpy as np
 
@@ -128,6 +128,39 @@ class NightConsolidator:
             "loss_reduction": float(loss_reduction)
         }
 
+    def consolidate_shared_dream(
+        self,
+        dream: Any,
+        dream_engine: Optional[Any] = None
+    ) -> Dict[str, Any]:
+        """Consolide une trajectoire de rêve sémantique partagé dans le WorldModel sans coût moteur (Phase 11 M1)."""
+        traj = getattr(dream, "trajectory", [])
+        gain = float(getattr(dream, "counterfactual_gain", 0.0))
+        dream_id = getattr(dream, "dream_id", "unknown_dream")
+        if self.world_model is None or len(traj) < 2:
+            return {"status": "skipped", "loss_reduction": 0.0, "gain": gain}
+
+        err_pre = 0.0
+        err_post = 0.0
+        n_steps = len(traj) - 1
+        for i in range(n_steps):
+            s_cur = traj[i]
+            s_nxt = traj[i+1]
+            e_pre = self.world_model.observe(s_cur, s_nxt, train=False)
+            err_pre += float(np.mean(e_pre))
+            self.world_model.observe(s_cur, s_nxt, train=True)
+            e_post = self.world_model.observe(s_cur, s_nxt, train=False)
+            err_post += float(np.mean(e_post))
+
+        loss_reduction = max(0.0, float((err_pre - err_post) / max(1, n_steps)))
+        self.total_consolidations += 1
+        return {
+            "status": "dream_consolidated",
+            "dream_id": dream_id,
+            "loss_reduction": loss_reduction,
+            "counterfactual_gain": gain
+        }
+
     def consolidate_population_batch(self, agents: List[Dict[str, Any]]) -> Dict[str, Any]:
         """
         Consolidation collective vectorisée à haut débit (Commandement 3).
@@ -191,3 +224,64 @@ class NightConsolidator:
 
 
 BatchNightConsolidator = NightConsolidator
+
+
+@dataclass
+class SharedDreamExperience:
+    """Hypothèse de rêve contrefactuel partagé en Gigatokens LU (Phase 11 M1)."""
+    dream_id: str
+    creator_id: str = "agent_0"
+    scenario_token: Optional[np.ndarray] = None
+    target_goal_token: Optional[np.ndarray] = None
+    counterfactual_gain: float = 0.0
+    trajectory: List[np.ndarray] = field(default_factory=list)
+    is_ratified: bool = False
+    tick: int = 0
+    # Alias et champs pour délibération au feu de camp (M2)
+    initiator_id: Optional[str] = None
+    hypothesis_token: Optional[np.ndarray] = None
+    latent_trajectory: Optional[List[np.ndarray]] = None
+    participant_ids: List[str] = field(default_factory=list)
+    ratified: bool = False
+    consensus_agreement: float = 0.0
+    creation_tick: int = 0
+
+    def __post_init__(self):
+        if self.initiator_id and not self.creator_id:
+            self.creator_id = self.initiator_id
+        elif self.creator_id and not self.initiator_id:
+            self.initiator_id = self.creator_id
+        if self.ratified and not self.is_ratified:
+            self.is_ratified = self.ratified
+        elif self.is_ratified and not self.ratified:
+            self.ratified = self.is_ratified
+        if self.latent_trajectory and not self.trajectory:
+            self.trajectory = self.latent_trajectory
+        elif self.trajectory and not self.latent_trajectory:
+            self.latent_trajectory = self.trajectory
+
+
+
+class SharedDreamPool:
+    """Répertoire de rêves et scénarios contrefactuels collectifs partagés par la meute."""
+    def __init__(self, capacity: int = 64):
+        self.capacity = capacity
+        self.dreams: List[SharedDreamExperience] = []
+
+    def push(self, dream: SharedDreamExperience):
+        if len(self.dreams) < self.capacity:
+            self.dreams.append(dream)
+        else:
+            self.dreams.pop(0)
+            self.dreams.append(dream)
+
+    def add_shared_dream(self, dream: Any) -> None:
+        """Alias public pour insérer une expérience de rêve partagé."""
+        self.push(dream)
+
+    def get_ratified_dreams(self) -> List[SharedDreamExperience]:
+        return [d for d in self.dreams if d.is_ratified]
+
+    def __len__(self) -> int:
+        return len(self.dreams)
+

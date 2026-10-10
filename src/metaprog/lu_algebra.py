@@ -162,6 +162,11 @@ class LUCompositionalGrammar:
         self.ROLE_HOARE_POST = self._generate_canonical_unit_vector(rng)
         self.ROLE_CONNECTOME_SPEC = self._generate_canonical_unit_vector(rng)
         self.ROLE_CONNECTOME_WEIGHTS = self._generate_canonical_unit_vector(rng)
+        # Rôles pour Méta-Simulation Contrefactuelle & Rêve Sémantique Partagé (Phase 11)
+        self.ROLE_DREAM = self._generate_canonical_unit_vector(rng)
+        self.ROLE_WHAT_IF = self._generate_canonical_unit_vector(rng)
+        self.ROLE_SCENARIO = self._generate_canonical_unit_vector(rng)
+        self.ROLE_COUNTERFACTUAL_OUTCOME = self._generate_canonical_unit_vector(rng)
 
     def _generate_canonical_unit_vector(self, rng: np.random.Generator) -> np.ndarray:
         """
@@ -686,6 +691,26 @@ class LUCompositionalGrammar:
             circular_convolution(self.ROLE_HOARE_POST, post_condition),
         ]
         return bundle_vectors(parts, [1.0, 1.0, 1.0])
+
+    def compose_dream_hypothesis(
+        self,
+        scenario: np.ndarray,
+        target_goal: np.ndarray,
+        what_if_modifier: Optional[np.ndarray] = None
+    ) -> np.ndarray:
+        """
+        Compose une hypothèse de rêve contrefactuel unitaire (LU Phase 11 M1) :
+        Z_dream = bundle(ROLE_DREAM ⊛ WHAT_IF ⊛ scenario, ROLE_COUNTERFACTUAL_OUTCOME ⊛ target_goal).
+        """
+        mod = what_if_modifier if what_if_modifier is not None else self.ROLE_WHAT_IF
+        scen_part = circular_convolution(circular_convolution(self.ROLE_DREAM, mod), scenario)
+        goal_part = circular_convolution(self.ROLE_COUNTERFACTUAL_OUTCOME, target_goal)
+        return bundle_vectors([scen_part, goal_part], [1.0, 1.0])
+
+    def extract_dream_scenario(self, dream_token: np.ndarray) -> np.ndarray:
+        """Extrait le scénario sous-jacent délié d'une hypothèse de rêve."""
+        prefix = circular_convolution(self.ROLE_DREAM, self.ROLE_WHAT_IF)
+        return self.unbind(dream_token, prefix)
 
     def extract_analogy_parts(self, analogy_vector: np.ndarray) -> Dict[str, np.ndarray]:
         """Extrait les 4 pôles A, B, C, D d'une analogie vectorielle."""
@@ -1741,6 +1766,99 @@ def verify_hoare_safety(
         return False, score, "HOARE_POSTCONDITION_VIOLATION"
 
     return True, score, "HOARE_PROOF_SATISFIED"
+
+
+# =========================================================================
+# Moteur de Méta-Simulation Contrefactuelle & Rêve Sémantique (Phase 11 M1)
+# =========================================================================
+
+class LatentDreamEngine:
+    """
+    Moteur de simulation mentale accélérée et de rêve sémantique partagé (LU Phase 11 M1).
+    Permet aux agents d'explorer des branches contrefactuelles (CEG)
+    dans le World Model latent sans engagement moteur direct.
+    """
+    def __init__(self, dim: int = 16, config: Optional[LUAlgebraConfig] = None, seed: int = 42):
+        self.config = config or LUAlgebraConfig(dim=dim, seed=seed)
+        self.dim = self.config.dim
+        self.seed = self.config.seed
+        self.rng = np.random.default_rng(self.seed)
+        self.grammar = LUCompositionalGrammar(self.config)
+
+    def encode_dream_hypothesis(
+        self,
+        scenario_token: np.ndarray,
+        goal_token: np.ndarray,
+        what_if_token: Optional[np.ndarray] = None
+    ) -> np.ndarray:
+        """Encode un Gigatoken unitaire d'hypothèse contrefactuelle sur S^(D-1)."""
+        return self.grammar.compose_dream_hypothesis(
+            scenario=scenario_token,
+            target_goal=goal_token,
+            what_if_modifier=what_if_token
+        )
+
+    def simulate_latent_rollout(
+        self,
+        initial_state: np.ndarray,
+        scenario_token: np.ndarray,
+        world_model: Optional[Any] = None,
+        goal_token: Optional[np.ndarray] = None,
+        horizon: int = 10,
+        contraction_gamma: float = 0.85
+    ) -> Tuple[np.ndarray, float, bool, List[np.ndarray]]:
+        """
+        Déroule une trajectoire mentale contrefactuelle de longueur 'horizon' pas.
+        Garantit la contraction dynamique lipschitzienne et calcule le gain contrefactuel.
+        Retourne : (final_state, counterfactual_gain, converged, trajectory).
+        """
+        s_t = (initial_state / (np.linalg.norm(initial_state) + 1e-12)).astype(np.float32)
+        v_scen = (scenario_token / (np.linalg.norm(scenario_token) + 1e-12)).astype(np.float32)
+        v_goal = (goal_token / (np.linalg.norm(goal_token) + 1e-12)).astype(np.float32) if goal_token is not None else v_scen
+
+        trajectory = [s_t.copy()]
+        gamma = float(np.clip(contraction_gamma, 0.10, 0.95))
+        diffs = []
+
+        for step in range(horizon):
+            if world_model is not None and hasattr(world_model, "predict_next"):
+                try:
+                    s_next_raw = world_model.predict_next(s_t, v_scen)
+                    s_next = (s_next_raw / (np.linalg.norm(s_next_raw) + 1e-12)).astype(np.float32)
+                except Exception:
+                    s_step = circular_convolution(s_t, v_scen)
+                    s_next = (1.0 - gamma) * s_t + gamma * s_step
+            else:
+                s_step = circular_convolution(s_t, v_scen)
+                if goal_token is not None:
+                    s_step = (0.65 * s_step + 0.35 * v_goal).astype(np.float32)
+                    s_step = (s_step / (np.linalg.norm(s_step) + 1e-12)).astype(np.float32)
+                s_next = (1.0 - gamma) * s_t + gamma * s_step
+
+            s_next = (s_next / (np.linalg.norm(s_next) + 1e-12)).astype(np.float32)
+            step_diff = float(np.linalg.norm(s_next - s_t))
+            diffs.append(step_diff)
+            s_t = s_next
+            trajectory.append(s_t.copy())
+
+            if step_diff < 1e-4:
+                break
+
+        sim_final_goal = float(cosine_similarity(s_t, v_goal))
+        sim_init_goal = float(cosine_similarity(initial_state, v_goal))
+        ceg = float(sim_final_goal - sim_init_goal)
+        converged = bool(len(diffs) > 0 and diffs[-1] < 0.05)
+
+        return s_t, ceg, converged, trajectory
+
+    def evaluate_counterfactual_gain(
+        self,
+        baseline_reward: float,
+        dream_trajectory_reward: float
+    ) -> float:
+        """Calcule le surplus espéré contrefactuel CEG = E[R_dream] - E[R_baseline]."""
+        return float(dream_trajectory_reward - baseline_reward)
+
 
 
 

@@ -48,8 +48,10 @@ from src.metaprog.lu_algebra import (
     verify_analogy_quality,
     ConnectomeCompiler,
     verify_hoare_safety,
+    LatentDreamEngine,
 )
 from src.metaprog.lu_symbolic_bridge import MultiTribalTranslator, FederalDiplomaticBridge
+from src.agents.dream_replay import SharedDreamExperience, SharedDreamPool
 from src.graph_rag.async_logger import logger
 
 
@@ -191,6 +193,11 @@ class LUInWorldConfig:
     enable_hoare_verification: bool = True
     self_evolution_energy_bonus: float = 10.0
     hoare_safety_threshold: float = 0.65
+    # Phase 11 : Méta-Simulation Contrefactuelle, Rêve Sémantique Partagé & Délibération au Feu
+    enable_counterfactual_dreaming: bool = True
+    dream_rollout_horizon: int = 10
+    dream_predictive_bonus: float = 6.0
+    dream_min_gain_threshold: float = 0.05
 
 
 class LUInWorldAdapter:
@@ -308,6 +315,14 @@ class LUInWorldAdapter:
         self.hoare_proofs_verified_count: int = 0
         self.hoare_rejections_count: int = 0
         self.connectome_evolutions_applied_count: int = 0
+        # Phase 11 : Méta-Simulation Contrefactuelle, Rêve Sémantique Partagé & Conseil du Feu
+        self.dream_engine = LatentDreamEngine(dim=self.dim, config=getattr(self.grammar, "config", None))
+        self.shared_dream_pool = SharedDreamPool(capacity=64)
+        self.shared_dreams_count: int = 0
+        self.dreams_ratified_count: int = 0
+        self.counterfactual_rollouts_count: int = 0
+        self.counterfactual_gains_total: float = 0.0
+        self.recent_shared_dreams: List[Dict[str, Any]] = []
         if getattr(self.config, "enable_diplomacy", True):
             self._init_federal_monument()
 
@@ -1471,6 +1486,141 @@ class LUInWorldAdapter:
             "participants": len(gathered_agents),
         }
 
+    def deliberate_shared_dreams_at_campfire(
+        self,
+        campfire_agents: List[Dict[str, Any]],
+        horizon: Optional[int] = None,
+    ) -> List[Dict[str, Any]]:
+        """
+        Conseil Délibératif du Feu de Camp (Campfire Council of Dreams - Phase 11 M2).
+        Les agents réunis au feu de camp partagent et simulent prospectivement
+        des trajectoires contrefactuelles (Shared Latent Dreaming) sans coût moteur.
+        Seules les stratégies validées par consensus sphérique de Weiszfeld
+        sont ratifiées, octroyant un dividende prédictif (+6.0 E) et gravées si possible.
+        """
+        if not getattr(self.config, "enable_counterfactual_dreaming", True) or len(campfire_agents) < 2:
+            return []
+
+        h = horizon or self.config.dream_rollout_horizon
+        valid_dreams: List[Dict[str, Any]] = []
+        dream_vectors: List[np.ndarray] = []
+
+        # 1. Génération & Simulation contrefactuelle par chaque agent
+        for ag in campfire_agents:
+            ag_id = str(ag.get("id"))
+            z_state = ag.get("lu_latent")
+            if z_state is None:
+                z_state = self.encode_agent_latent(ag)
+
+            # Scénario contrefactuel : exploration constructive vers l'objectif de préservation
+            if self.grammar is not None:
+                goal_vec = getattr(self.grammar, "ROLE_TRUST", z_state)
+                scenario_vec = (0.5 * z_state + 0.5 * goal_vec).astype(np.float32)
+                scenario_vec = (scenario_vec / (np.linalg.norm(scenario_vec) + 1e-12)).astype(np.float32)
+                hypothesis_vec = self.grammar.compose_dream_hypothesis(scenario_vec, goal_vec)
+            else:
+                goal_vec = z_state
+                scenario_vec = z_state
+                hypothesis_vec = z_state
+
+            # Rollout contrefactuel accéléré (10 pas) dans l'espace latent avec évaluation du but
+            final_state, ceg, converged, traj = self.dream_engine.simulate_latent_rollout(
+                initial_state=z_state,
+                scenario_token=scenario_vec,
+                goal_token=goal_vec,
+                horizon=h
+            )
+            is_fatal = bool(ceg < -0.15)
+            self.counterfactual_rollouts_count += 1
+            self.counterfactual_gains_total += ceg
+
+            # Si le rêve mène à un résultat fatal ou un gain insuffisant, rejet immédiat
+            if is_fatal or ceg < self.config.dream_min_gain_threshold:
+                continue
+
+            dream_info = {
+                "agent_id": ag_id,
+                "hypothesis_token": hypothesis_vec,
+                "scenario_token": scenario_vec,
+                "final_state": final_state,
+                "ceg": float(ceg),
+                "is_fatal": bool(is_fatal),
+            }
+            valid_dreams.append(dream_info)
+            dream_vectors.append(hypothesis_vec)
+
+        if len(valid_dreams) < 2:
+            return []
+
+        # 2. Consensus sphérique de Weiszfeld BFT sur les hypothèses de rêve
+        ratio = float(getattr(self.config, "byzantine_tolerance_ratio", 0.33))
+        consensus_vec, err, byz_indices = spherical_weiszfeld_bft_consensus(
+            vectors=dream_vectors,
+            max_byzantine_ratio=ratio
+        )
+
+        sims = [float(np.dot(v, consensus_vec)) for v in dream_vectors]
+        mean_agreement = float(np.mean(sims)) if len(sims) > 0 else float('nan')
+
+        ratified_dreams: List[Dict[str, Any]] = []
+        if (not np.isnan(mean_agreement)) and (mean_agreement >= self.config.deliberation_consensus_threshold):
+            # Consensus atteint ! Ratification collective du rêve
+            self.dreams_ratified_count += 1
+            tick = getattr(self.world, "tick", getattr(self.world, "ticks", 0))
+
+            # Création de l'expérience partagée
+            participant_ids = [d["agent_id"] for d in valid_dreams]
+            dream_exp = SharedDreamExperience(
+                dream_id=f"dream_{tick}_{self.dreams_ratified_count}",
+                initiator_id=valid_dreams[0]["agent_id"],
+                hypothesis_token=consensus_vec.copy(),
+                latent_trajectory=[d["final_state"] for d in valid_dreams],
+                counterfactual_gain=float(np.mean([d["ceg"] for d in valid_dreams])),
+                participant_ids=participant_ids,
+                ratified=True,
+                consensus_agreement=mean_agreement,
+                creation_tick=tick,
+            )
+            self.shared_dream_pool.add_shared_dream(dream_exp)
+            self.shared_dreams_count += 1
+            self.recent_shared_dreams.append({
+                "dream_id": dream_exp.dream_id,
+                "participants": participant_ids,
+                "gain": dream_exp.counterfactual_gain,
+                "agreement": mean_agreement,
+                "tick": tick
+            })
+
+            # Attribution du dividende prédictif (+6.0 E) aux agents participants
+            bonus = float(self.config.dream_predictive_bonus)
+            for ag in campfire_agents:
+                ag_id = str(ag.get("id"))
+                if ag_id in participant_ids:
+                    ag["energy"] = min(100.0, ag.get("energy", 0.0) + bonus)
+                    ag["shared_dream_ratified"] = True
+                    ag["last_ratified_dream_id"] = dream_exp.dream_id
+                    # Orientation cognitive collective
+                    ag["lu_deliberated_consensus"] = consensus_vec.copy()
+                    ag["lu_steer_bias"] = (float(consensus_vec[0]), float(consensus_vec[1]))
+
+            # Inscription stigmargique si stèle à proximité
+            if self.config.enable_writing and self.steles:
+                for stele in self.steles.values():
+                    stele.content_vector = (0.7 * stele.content_vector + 0.3 * consensus_vec).astype(np.float32)
+                    norm_s = np.linalg.norm(stele.content_vector) + 1e-12
+                    stele.content_vector = (stele.content_vector / norm_s).astype(np.float32)
+                    break
+
+            ratified_dreams.append({
+                "dream_id": dream_exp.dream_id,
+                "consensus_vector": consensus_vec,
+                "agreement": mean_agreement,
+                "participants": participant_ids,
+                "mean_gain": dream_exp.counterfactual_gain,
+            })
+
+        return ratified_dreams
+
     # =========================================================================
     # Spéciation Dialectale & Contrats de Troc Décentralisés (Phase 4 M1 & M2)
     # =========================================================================
@@ -2365,15 +2515,38 @@ class LUInWorldAdapter:
 
         # 13. Auto-Compilation Récursive du Connectome au FederalMonument (Phase 10 M2)
         tick_self_compilations = 0
+        tick_now = getattr(self.world, "tick", getattr(self.world, "ticks", 0)) if self.world is not None else 0
         if getattr(self.config, "enable_self_compilation", True) and self.federal_monument is not None:
             mon_x, mon_y = self.federal_monument.x, self.federal_monument.y
             near_altar = [ag for ag in agents if (abs(ag.get("x", 0) - mon_x) + abs(ag.get("y", 0) - mon_y)) <= 3]
             for ag in near_altar:
                 model = ag.get("model") or ag.get("brain") or getattr(self.world, "model", None)
-                if model is not None and not ag.get("connectome_self_compiled", False):
+                last_attempt = ag.get("last_connectome_attempt_tick", -999)
+                if model is not None and not ag.get("connectome_self_compiled", False) and (tick_now - last_attempt >= 5):
+                    ag["last_connectome_attempt_tick"] = tick_now
                     ok = self.verify_and_apply_connectome_evolution(ag, model)
                     if ok:
                         tick_self_compilations += 1
+
+        # 14. Méta-Simulation Contrefactuelle & Rêve Sémantique Partagé au Feu de Camp (Phase 11 M2)
+        tick_shared_dreams = 0
+        tick_dreams_ratified = 0
+        if getattr(self.config, "enable_counterfactual_dreaming", True) and self.world is not None:
+            tick_now = getattr(self.world, "tick", getattr(self.world, "ticks", 0))
+            if tick_now % 5 == 0:
+                items = getattr(self.world, "items", [])
+                fires = [it for it in items if str(it.get("type", "")).lower() == "fire" or str(it.get("name", "")).lower() == "fire"]
+                if fires:
+                    campfire_agents = []
+                    for ag in agents:
+                        for f in fires:
+                            if abs(ag.get("x", 0) - f.get("x", 0)) + abs(ag.get("y", 0) - f.get("y", 0)) <= 3:
+                                campfire_agents.append(ag)
+                                break
+                    if len(campfire_agents) >= 2:
+                        ratified = self.deliberate_shared_dreams_at_campfire(campfire_agents)
+                        tick_dreams_ratified = len(ratified)
+                        tick_shared_dreams = len(ratified)
 
         self.total_transmissions += tick_transmissions
         self.successful_alignments += tick_alignments
@@ -2431,6 +2604,12 @@ class LUInWorldAdapter:
             "hoare_rejections": self.hoare_rejections_count,
             "connectome_evolutions_applied": self.connectome_evolutions_applied_count,
             "tick_self_compilations": tick_self_compilations,
+            "shared_dreams": self.shared_dreams_count,
+            "dreams_ratified": self.dreams_ratified_count,
+            "counterfactual_rollouts": self.counterfactual_rollouts_count,
+            "counterfactual_gains_total": round(self.counterfactual_gains_total, 4),
+            "tick_shared_dreams": tick_shared_dreams,
+            "tick_dreams_ratified": tick_dreams_ratified,
         }
 
 

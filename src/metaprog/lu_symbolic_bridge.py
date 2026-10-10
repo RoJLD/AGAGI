@@ -20,6 +20,28 @@ from src.graph_rag.async_logger import logger
 
 
 @dataclass
+class LUSharedDream:
+    """Modèle de persistance pour un rêve sémantique partagé dans KuzuDB (Phase 11 M1)."""
+    id: str
+    creator_id: str
+    target_goal: str
+    counterfactual_gain: float
+    is_ratified: bool = False
+    tick: int = 0
+
+
+@dataclass
+class LUCounterfactualRollout:
+    """Modèle de persistance pour une trajectoire contrefactuelle déroulée (Phase 11 M1)."""
+    id: str
+    dream_id: str
+    horizon: int
+    ceg_score: float
+    is_fatal: bool = False
+    tick: int = 0
+
+
+@dataclass
 class LUSymbolicBridgeConfig:
     """Configuration du pont symbolique-neuronal LU."""
     dim: int = 16
@@ -156,6 +178,12 @@ class LUSymbolicBridge:
             "INSPECT_WEIGHTS": ("ACTION", 1.0),
             "PRECONDITION": ("META", 1.0),
             "POSTCONDITION": ("META", 1.0),
+            # Phase 11 : Méta-Simulation Contrefactuelle & Rêve Sémantique Partagé
+            "DREAM_SCENARIO": ("ACTION", 1.0),
+            "WHAT_IF": ("MODIFIER", 1.0),
+            "ROLLOUT_ASSERT": ("META", 1.0),
+            "EVALUATE_DREAM": ("ACTION", 1.0),
+            "CAMPFIRE_COUNCIL": ("CONCEPT", 1.0),
         }
         
         for name, (cat, weight) in concepts.items():
@@ -1531,6 +1559,116 @@ class LUSymbolicBridge:
             "is_valid": (p_sim >= 0.25 and c_sim >= 0.25 and q_sim >= 0.25)
         }
 
+    # =========================================================================
+    # Méthodes Méta-Simulation Contrefactuelle & Rêve Sémantique (Phase 11 M1)
+    # =========================================================================
+
+    def register_shared_dream(
+        self,
+        dream_id: str,
+        creator_id: str,
+        scenario_label: str,
+        goal_label: str,
+        counterfactual_gain: float,
+        is_ratified: bool = False
+    ) -> bool:
+        """
+        Consigne un rêve sémantique partagé dans LUSharedDream (Phase 11 M1).
+        """
+        if self.db is not None:
+            try:
+                self.db.execute_cypher(
+                    "CREATE NODE TABLE LUSharedDream (id STRING, creator_id STRING, "
+                    "scenario_label STRING, goal_label STRING, counterfactual_gain DOUBLE, is_ratified BOOLEAN, PRIMARY KEY (id))"
+                )
+            except Exception:
+                pass
+            try:
+                q = (
+                    f"CREATE (d:LUSharedDream {{id: '{dream_id}', creator_id: '{creator_id}', "
+                    f"scenario_label: '{scenario_label}', goal_label: '{goal_label}', "
+                    f"counterfactual_gain: {counterfactual_gain}, is_ratified: {str(is_ratified).lower()}}})"
+                )
+                self.db.execute_cypher(q)
+                return True
+            except Exception as e:
+                logger.debug(f"Persistence LUSharedDream ignorée : {e}")
+        return False
+
+    def register_counterfactual_rollout(
+        self,
+        rollout_id: str,
+        dream_id: str,
+        horizon: int,
+        final_gain: float,
+        converged: bool
+    ) -> bool:
+        """
+        Consigne un déroulé contrefactuel dans LUCounterfactualRollout (Phase 11 M1).
+        """
+        if self.db is not None:
+            try:
+                self.db.execute_cypher(
+                    "CREATE NODE TABLE LUCounterfactualRollout (id STRING, dream_id STRING, "
+                    "horizon INT64, final_gain DOUBLE, converged BOOLEAN, PRIMARY KEY (id))"
+                )
+            except Exception:
+                pass
+            try:
+                q = (
+                    f"CREATE (r:LUCounterfactualRollout {{id: '{rollout_id}', dream_id: '{dream_id}', "
+                    f"horizon: {horizon}, final_gain: {final_gain}, converged: {str(converged).lower()}}})"
+                )
+                self.db.execute_cypher(q)
+                return True
+            except Exception as e:
+                logger.debug(f"Persistence LUCounterfactualRollout ignorée : {e}")
+        return False
+
+    def compile_dream_hypothesis_directive(
+        self,
+        scenario_label: str,
+        goal_label: str,
+        what_if_label: str = "WHAT_IF"
+    ) -> np.ndarray:
+        """
+        Compile une directive de rêve contrefactuel en Gigatoken unitaire composite.
+        """
+        def get_v(lbl: str) -> np.ndarray:
+            key = lbl.upper()
+            if key in self.lexicon:
+                return self.lexicon[key]["vector"]
+            rng = np.random.default_rng(abs(hash(key)) % (2**31 - 1))
+            return self.grammar._generate_canonical_unit_vector(rng)
+
+        v_scen = get_v(scenario_label)
+        v_goal = get_v(goal_label)
+        v_whatif = get_v(what_if_label)
+        return self.grammar.compose_dream_hypothesis(v_scen, v_goal, v_whatif)
+
+    def decode_dream_hypothesis_vector(self, dream_vector: np.ndarray) -> Dict[str, Any]:
+        """
+        Décompile une hypothèse de rêve vectorielle en labels symboliques.
+        """
+        v_scen = self.grammar.extract_dream_scenario(dream_vector)
+
+        def best_match(qv: np.ndarray) -> Tuple[str, float]:
+            best_label = "UNKNOWN"
+            best_sim = -1.0
+            for name, data in self.lexicon.items():
+                sim = float(cosine_similarity(qv, data["vector"]))
+                if sim > best_sim:
+                    best_sim = sim
+                    best_label = name
+            return best_label, best_sim
+
+        scen_name, scen_sim = best_match(v_scen)
+        return {
+            "scenario": scen_name,
+            "scenario_sim": round(scen_sim, 3),
+            "is_valid": (scen_sim >= 0.25)
+        }
+
 
 class MultiTribalTranslator:
     """
@@ -1656,4 +1794,23 @@ class FederalDiplomaticBridge:
 
         denom = np.sqrt(hsic_xx * hsic_yy) + 1e-12
         return float(hsic_xy / denom)
+
+    def compile_dream_hypothesis_directive(
+        self,
+        scenario_name: str,
+        goal_name: str,
+        expected_gain: float = 0.5
+    ) -> str:
+        """Compile une directive symbolique de rêve contrefactuel (Phase 11 M1)."""
+        return f"DREAM_SCENARIO({scenario_name}) ⊛ WHAT_IF({goal_name}) [EXPECTED_GAIN={expected_gain:.2f}]"
+
+    def decode_dream_hypothesis_vector(self, dream_vector: np.ndarray) -> Dict[str, Any]:
+        """Décode un vecteur d'hypothèse de rêve en directive lisible."""
+        norm = float(np.linalg.norm(dream_vector))
+        gain = float(np.clip(float(dream_vector[0]), -1.0, 1.0))
+        return {
+            "directive": f"DREAM_HYPOTHESIS(norm={norm:.2f})",
+            "expected_gain": gain,
+            "confidence": 0.85
+        }
 
