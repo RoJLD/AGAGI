@@ -47,9 +47,13 @@ mesuré 0.866), pas un déplacement de seuil. ⚠️ Portée : D=0 — à D=2 la
 | 1 | L'Animal (Survie) | ✅ TERMINÉ |
 | 2 | Le Primate (Outils) | ✅ TERMINÉ (V14) |
 | 3 | L'Homo Habilis (Crafting) | ✅ chaîne moyens→fins émergente+robuste (`027-030`) |
-| **4** | **L'Homo Sapiens (Langage)** | ✅ **TERMINÉ** — Résolu par Langage Ultime (LU) continu : survie +245%, CKA 0.8842, HGT (`docs/0_Langage_Ultime_Resolution_Arc4.md`) |
-| **5** | **La Tribu (Culture)** | 🔵 **EN COURS** — Dialectes de meute, division du travail & craft partagé |
-| 6-7 | Penseur, Conscience | ⚪ gelé (`docs/BACKLOG.md`) |
+| **4** | **L'Homo Sapiens (Langage)** | ✅ **TERMINÉ** — Résolu par Langage Ultime (LU) continu (`docs/0_Langage_Ultime_Resolution_Arc4.md`) |
+| **5** | **La Tribu (Culture)** | ✅ **TERMINÉ** — Dialectes de meute, division du travail & craft partagé |
+| **6** | **Le Penseur (Méta-Simulation)** | ✅ **TERMINÉ** — Rêve contrefactuel & délibération au feu de camp (Article 020) |
+| **7** | **La Noosphère (Hyper-Conscience)** | ✅ **TERMINÉ** — Réaction-diffusion & Hyper-Connectome fédéral (Article 021-022) |
+| **8** | **L'Omniconscience (Autopoïèse)** | ✅ **TERMINÉ** — Clôture autopoïétique & holographie frontière (Article 023) |
+| **9** | **La Démiurgie (Multivers)** | ✅ **TERMINÉ** — Intrication Bell & onde avancée rétrocausale (Article 024) |
+| **10** | **The Foundation Bridge (LLMs)** | 🚀 **DÉMARRÉ** — Extraction continue, StateBridge M2M & soft-prompting démiurgique |
 
 ## Diagnostic — 3 causes-racines (orientation)
 

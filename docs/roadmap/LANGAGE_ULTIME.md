@@ -27,6 +27,10 @@ graph LR
     M5 --> M6["M6: La Tribu & Culture<br/>(✅ Validé)"]
     M6 --> M14["M14: Singularité Autopoïétique<br/>(✅ Validé PIU)"]
     M14 --> M15["M15: Intrication & Démiurgie<br/>(✅ Validé PIU)"]
+    M15 --> M16["M16: Extracteur d'Activations LLM<br/>(🚀 En cours)"]
+    M16 --> M17["M17: Pont Inter-LLMs M2M (Procruste/CKA)<br/>(📋 Planifié)"]
+    M17 --> M18["M18: Steering Continu & Soft-Prompting<br/>(📋 Planifié)"]
+    M18 --> M19["M19: Lattice KuzuDB & Validation Formelle<br/>(📋 Planifié)"]
 ```
 
 
@@ -116,4 +120,35 @@ graph LR
 - [x] Persistance Lattice KuzuDB : Nœuds `LUSemanticEntanglement` et `LUDemiurgicCollapse`.
 - [x] Banc sociologique 60 ères (Commandement 15) : Survie 100%, éradication de la dégradation spatiale, score sociologique validé.
 - [x] Journalisation Scientifique (Commandement 16) : Article 024 enregistré dans KuzuDB (`art_024_langage_ultime_intrication_retrocausalite_demiurgie`).
+
+---
+
+## 🏛️ Arc 10 : The Foundation Bridge — Passerelle LLM Réelle & Alignement M2M
+
+> **Objectif Majeur** : Brancher le cœur d'algèbre latente continue $\mathbb{S}^{D-1}$ directement sur les activations cachées de véritables modèles de fondation (Transformers / LLMs), éliminant le goulot d'étranglement textuel $O(N^2)$ au profit du transfert direct d'intentions sans tokenisation.
+
+### Jalon M16 / Arc 10 : L'Extracteur & Normalisateur d'Activations de Fondations (`LLMLatentExtractor`) (🚀 EN COURS)
+- [x] Module d'extraction d'états cachés (`src/metaprog/llm_latent_extractor.py`) branché sur PyTorch / HuggingFace Transformers.
+- [x] Projection isométrique semi-orthogonale déterministe sur la variété hypersphérique $\mathbb{S}^{D-1}$ avec garantie unitaire stricte ($\|z\|_2 = 1.0$).
+- [x] Stratégies de pooling temporel configurables (`mean`, `cls`, `last_token`, `max`) et sélection de couches cachées.
+- [x] Fallback déterministe sémantique hors-ligne pour portabilité CI/CD et non-régression instantanée sans GPU.
+- [ ] Suite de validation TDD (`tests/test_llm_latent_extractor.py`) avec préservation de la proximité sémantique.
+
+### Jalon M17 / Arc 10 : Le Pont Inter-LLMs Hétérogène & Transfert M2M Direct (`LLMThoughtBridge`) (📋 PLANIFIÉ)
+- [ ] Alignement de géométries d'activations asymétriques ($D_A \neq D_B$) via Procruste orthogonal régularisé (`LUStateBridge`).
+- [ ] Protocole de calibration sans données annotées par corpus d'ancrage synchronisé.
+- [ ] Métrologie d'alignement géométrique par Linear CKA (Centered Kernel Alignment $\ge 0.75$) et fidélité cosinus.
+- [ ] Transfert direct de pensée continue : le Modèle B reçoit et comprend l'activation du Modèle A sans génération de tokens textuels.
+
+### Jalon M18 / Arc 10 : Guidage Téléologique & Soft-Prompting Démiurgique Continu (📋 PLANIFIÉ)
+- [ ] Injection continue de vecteurs d'attracteurs futurs $z_{\text{goal}} \in \mathbb{S}^{D-1}$ dans les couches d'attention/activations du LLM (Continuous Steering).
+- [ ] Méthode de l'état adjoint (Adjoint State / Wheeler-Feynman continu) pour contraindre la trajectoire de génération vers un objectif sans prompt textuel rallongé.
+- [ ] Évaluation comparative : Réduction drastique du Test-Time Compute (TTC) et de la consommation de tokens face au CoT verbeux classique.
+
+### Jalon M19 / Arc 10 : Mémoire Lattice KuzuDB, Preuves de Sécurité de Hoare & Validation Formelle (📋 PLANIFIÉ)
+- [ ] Persistance Lattice KuzuDB : Nœuds `LULLMThought` et relations `LATENT_TRANSFERRED_TO` dans le graphe de connaissances universel.
+- [ ] Vérification formelle de Hoare continue sur les activations transférées pour prévenir l'injection de prompts latents toxiques ou non-alignés.
+- [ ] Décompilation sémantique de contrôle vers le langage naturel pour auditabilité humaine immédiate (Commandement 5).
+- [ ] Article scientifique rédigé et consigné dans KuzuDB sous Commandement 16.
+
 
