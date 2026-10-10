@@ -421,6 +421,15 @@ Le passage de la tribu marchande à la confédération industrielle institutionn
 - **Persistance Lattice KuzuDB (`LULaw`, `LUSanction`, `LUConsortium`)** : Traçabilité des lois coutumières, arbitrages collectifs et traités industriels dans le graphe de connaissances.
 - **Clôture & Journalisation** : Validé empiriquement sous la Loi du Sociologue sur 60 ères de simulation (Commandement 15 : delta survie $+1.47$ ticks, delta énergie loyaux $+18.60$ pts, extinction de la prédation) et consigné dans KuzuDB sous l'identifiant `art_014_langage_ultime_gouvernance_metallurgie` (Article 014).
 
+## 📜 Langage Ultime Phase 6 : Émergence de l'Écriture Stigmargique, Arithmétique Vectorielle Discrète et Transmission Scientifique Intergénérationnelle (Article 015)
+
+Le franchissement du seuil anthropologique de la mémoire stigmargique externe et de l'Académie scientifique (G6) :
+- **Algèbre d'Arithmétique Vectorielle FPE (Phasor Binding)** : Intégration du Fractional Power Encoding assurant l'homomorphisme d'addition spectrale $Z_{\text{num}}(a) \circledast Z_{\text{num}}(b) = Z_{\text{num}}(a + b)$ et formulation d'équations stœchiométriques quantifiées ($3\text{ Bois} + 1\text{ Minerai} \to 1\text{ Outil}$).
+- **Substrats d'Écriture In-World (`InscriptionStone`, `SlateTablet`)** : Gravure physique de stèles fixes pérennes résistantes à l'érosion géologique ($\sigma = 10^{-4}$, demi-vie $> 10\,000$ ticks) et tablettes d'ardoise transportables pour la comptabilité à partie double de marché (`CREDIT`, `DEBT`).
+- **Académie Scientifique & Transmission Épigénétique de Prior** : Les agents nouveau-nés lisent la stèle centrale de métallurgie, absorbent le prior sémantique de recette et reçoivent un boost calorique immédiat (+5.0 pts d'énergie), éliminant l'amnésie post-mortem des civilisations orales.
+- **Persistance KuzuDB (`LUScripture`, `LUMathematics`, `LUScience`)** : Indexation des corpus épigraphiques, transactions arithmétiques et théorèmes scientifiques.
+- **Clôture & Journalisation** : Validé par le banc sociologique de 60 ères sous renouvellement démographique périodique (Commandement 15 : delta énergie $+7.74$ pts, rétention continue de la production métallurgique) et consigné dans KuzuDB sous l'identifiant `art_015_langage_ultime_ecriture_mathematiques_science` (Article 015).
+
 
 ## Comment lire les preuves
 

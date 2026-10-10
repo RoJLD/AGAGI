@@ -120,6 +120,14 @@ class LUCompositionalGrammar:
         self.ROLE_FORGE_OUTPUT = self._generate_canonical_unit_vector(rng)
         self.ROLE_SANCTION = self._generate_canonical_unit_vector(rng)
         self.ROLE_TRUST = self._generate_canonical_unit_vector(rng)
+        # Rôles pour arithmétique vectorielle et écriture stigmargique (Phase 6)
+        self.ROLE_RATIO_IN = self._generate_canonical_unit_vector(rng)
+        self.ROLE_RATIO_OUT = self._generate_canonical_unit_vector(rng)
+        self.ROLE_QUANTITY = self._generate_canonical_unit_vector(rng)
+        self.ROLE_INSCRIPTION_TOPIC = self._generate_canonical_unit_vector(rng)
+        self.ROLE_INSCRIPTION_CONTENT = self._generate_canonical_unit_vector(rng)
+        self.ROLE_INSCRIPTION_AUTHOR = self._generate_canonical_unit_vector(rng)
+        self.UNIT_PHASOR = self._generate_canonical_unit_vector(rng)
 
     def _generate_canonical_unit_vector(self, rng: np.random.Generator) -> np.ndarray:
         """
@@ -317,6 +325,102 @@ class LUCompositionalGrammar:
         """Extrait l'un des constituants d'un contrat tripartite de consortium."""
         return self.query_role(consortium_message, role)
 
+    # ---------------------------------------------------------------------
+    # Arithmétique Vectorielle & Stigmergie (LU Phase 6 M1)
+    # ---------------------------------------------------------------------
+
+    def encode_number(self, n: float) -> np.ndarray:
+        """Encode un entier ou quantité scalaire via FPE / Phasor binding."""
+        return encode_fractional_power_number(n, self.UNIT_PHASOR)
+
+    def decode_number(self, z_num: np.ndarray, max_n: int = 10) -> Tuple[int, float]:
+        """Décode un vecteur numérique FPE vers le meilleur entier k in [0, max_n]."""
+        return decode_fractional_power_number(z_num, self.UNIT_PHASOR, max_n=max_n)
+
+    def encode_quantified_item(self, quantity: float, item_vector: np.ndarray) -> np.ndarray:
+        """
+        Liaison d'une quantité à un item :
+        Z = circular_convolution(ROLE_QUANTITY ⊛ encode_number(n), item_vector)
+        """
+        z_n = self.encode_number(quantity)
+        role_num = circular_convolution(self.ROLE_QUANTITY, z_n)
+        return circular_convolution(role_num, item_vector)
+
+    def extract_quantified_item(
+        self,
+        quantified_vector: np.ndarray,
+        item_vector: np.ndarray,
+        max_n: int = 10
+    ) -> Tuple[int, float]:
+        """Délie un item d'un vecteur quantifié et décode la quantité sous-jacente."""
+        # Unbind item pour récupérer (ROLE_QUANTITY ⊛ Z_num)
+        role_num_est = circular_correlation(quantified_vector, item_vector)
+        # Unbind ROLE_QUANTITY pour récupérer Z_num
+        z_num_est = circular_correlation(role_num_est, self.ROLE_QUANTITY)
+        return self.decode_number(z_num_est, max_n=max_n)
+
+    def compose_recipe_ratio(
+        self,
+        inputs: List[Tuple[float, np.ndarray]],
+        outputs: List[Tuple[float, np.ndarray]],
+    ) -> np.ndarray:
+        """
+        Encode une équation stœchiométrique / recette de production :
+        Z_recipe = bundle(ROLE_RATIO_IN ⊛ bundle(inputs), ROLE_RATIO_OUT ⊛ bundle(outputs))
+        """
+        in_parts = [self.encode_quantified_item(q, it) for q, it in inputs]
+        out_parts = [self.encode_quantified_item(q, it) for q, it in outputs]
+
+        z_in = bundle_vectors(in_parts) if in_parts else np.zeros(self.dim, dtype=np.float32)
+        z_out = bundle_vectors(out_parts) if out_parts else np.zeros(self.dim, dtype=np.float32)
+
+        parts = [
+            circular_convolution(self.ROLE_RATIO_IN, z_in),
+            circular_convolution(self.ROLE_RATIO_OUT, z_out),
+        ]
+        return bundle_vectors(parts)
+
+    def extract_recipe_inputs(self, recipe_vector: np.ndarray) -> np.ndarray:
+        """Extrait la partie intrants d'une recette ou équation."""
+        return self.query_role(recipe_vector, self.ROLE_RATIO_IN)
+
+    def extract_recipe_outputs(self, recipe_vector: np.ndarray) -> np.ndarray:
+        """Extrait la partie extrants d'une recette ou équation."""
+        return self.query_role(recipe_vector, self.ROLE_RATIO_OUT)
+
+    def compose_inscription(
+        self,
+        topic_vector: np.ndarray,
+        content_vector: np.ndarray,
+        author_vector: Optional[np.ndarray] = None,
+    ) -> np.ndarray:
+        """
+        Grave une inscription pérenne pour stèle ou tablette (LU Phase 6 M1) :
+        Z_inscription = bundle(ROLE_TOPIC ⊛ topic, ROLE_CONTENT ⊛ content [, ROLE_AUTHOR ⊛ author]).
+        """
+        parts = [
+            circular_convolution(self.ROLE_INSCRIPTION_TOPIC, topic_vector),
+            circular_convolution(self.ROLE_INSCRIPTION_CONTENT, content_vector),
+        ]
+        weights = [1.0, 1.0]
+        if author_vector is not None:
+            parts.append(circular_convolution(self.ROLE_INSCRIPTION_AUTHOR, author_vector))
+            weights.append(0.5)
+        return bundle_vectors(parts, weights)
+
+    def extract_inscription_topic(self, inscription_vector: np.ndarray) -> np.ndarray:
+        """Lit la classe thématique gravée sur une stèle ou tablette."""
+        return self.query_role(inscription_vector, self.ROLE_INSCRIPTION_TOPIC)
+
+    def extract_inscription_content(self, inscription_vector: np.ndarray) -> np.ndarray:
+        """Lit le contenu sémantique gravé sur une stèle ou tablette."""
+        return self.query_role(inscription_vector, self.ROLE_INSCRIPTION_CONTENT)
+
+    def extract_inscription_author(self, inscription_vector: np.ndarray) -> np.ndarray:
+        """Lit l'auteur ou le sceau d'une inscription."""
+        return self.query_role(inscription_vector, self.ROLE_INSCRIPTION_AUTHOR)
+
+
 
 # =========================================================================
 # Fonctions de Variété de Grassmann & Dynamique Dialectale (Phase 4 M1)
@@ -351,7 +455,7 @@ def grassmann_distance(U_A: np.ndarray, U_B: np.ndarray) -> float:
     return dist
 
 
-def orthonormal_subspace(vectors: np.ndarray, k: int = 4) -> np.ndarray:
+def orthonormal_subspace(vectors: np.ndarray, k: int = 4, target_dim: Optional[int] = None) -> np.ndarray:
     """
     Extrait une base orthonormale U in Gr(k, D) à partir d'un ensemble de vecteurs.
     vectors: (N, D) ou (D, N). Retourne (D, k).
@@ -359,14 +463,24 @@ def orthonormal_subspace(vectors: np.ndarray, k: int = 4) -> np.ndarray:
     arr = np.asarray(vectors, dtype=np.float64)
     if arr.ndim == 1:
         arr = arr.reshape(1, -1)
-    if arr.shape[0] < arr.shape[1]:
-        # N x D -> décomposition SVD sur N échantillons en dimension D
+
+    if target_dim is not None:
+        if arr.shape[1] == target_dim:
+            # Format standard (N, D)
+            _, _, vh = np.linalg.svd(arr, full_matrices=False)
+            u_base = vh[:min(k, vh.shape[0]), :].T
+        elif arr.shape[0] == target_dim:
+            # Format transposé (D, N)
+            u, _, _ = np.linalg.svd(arr, full_matrices=False)
+            u_base = u[:, :min(k, u.shape[1])]
+        else:
+            u_base = np.random.randn(target_dim, k)
+            q, _ = np.linalg.qr(u_base)
+            return q.astype(np.float32)
+    else:
+        # Les vecteurs latents sont classiquement disposés en lignes (N, D)
         _, _, vh = np.linalg.svd(arr, full_matrices=False)
         u_base = vh[:min(k, vh.shape[0]), :].T
-    else:
-        # D x N
-        u, _, _ = np.linalg.svd(arr, full_matrices=False)
-        u_base = u[:, :min(k, u.shape[1])]
 
     # Si k > rang réel, compléter par Gram-Schmidt
     d = u_base.shape[0]
@@ -395,11 +509,12 @@ def drift_subspace(
     """
     d = U_base.shape[0]
     k = U_base.shape[1]
-    u_stim = orthonormal_subspace(stimulus_vectors, k=k)
+    u_stim = orthonormal_subspace(stimulus_vectors, k=k, target_dim=d)
 
     combined = (1.0 - drift_rate) * U_base.astype(np.float64) + drift_rate * u_stim.astype(np.float64)
     q, _ = np.linalg.qr(combined)
     return q[:, :k].astype(np.float32)
+
 
 
 def linear_cka(X: np.ndarray, Y: np.ndarray) -> float:
@@ -559,6 +674,94 @@ def verify_consortium_agreement(
 
     mean_score = float((sim_w + sim_f + sim_o) / 3.0)
     agreed = (sim_w >= threshold) and (sim_f >= threshold) and (sim_o >= threshold)
+    return agreed, mean_score
+
+
+# =========================================================================
+# Fonctions d'Arithmétique Vectorielle FPE & Stigmergie (LU Phase 6 M1)
+# =========================================================================
+
+def encode_fractional_power_number(n: float, base_phasor: np.ndarray) -> np.ndarray:
+    """
+    Encode un scalaire ou entier n >= 0 via Fractional Power Encoding (FPE) / Phasor Binding.
+    Propriété fondamentale VSA :
+    Z_num(a) ⊛ Z_num(b) = Z_num(a + b).
+    Z_num(0) est l'identité spectrale unitaire (delta de Dirac).
+    """
+    p = np.asarray(base_phasor, dtype=np.float64)
+    dim = len(p)
+    F_p = np.fft.fft(p)
+    phases = np.angle(F_p)
+
+    # Multiplication des phases et maintien strict de la symétrie hermitienne
+    n_phases = float(n) * phases
+    n_phases[0] = 0.0
+    if dim % 2 == 0:
+        n_phases[dim // 2] = 0.0
+        n_phases[dim // 2 + 1:] = -n_phases[1:dim // 2][::-1]
+    else:
+        n_phases[(dim + 1) // 2:] = -n_phases[1:(dim + 1) // 2][::-1]
+
+    spectrum = np.exp(1j * n_phases)
+    raw = np.fft.ifft(spectrum).real
+    norm = np.linalg.norm(raw) + 1e-12
+    return (raw / norm).astype(np.float32)
+
+
+def decode_fractional_power_number(
+    z_num: np.ndarray,
+    base_phasor: np.ndarray,
+    max_n: int = 10
+) -> Tuple[int, float]:
+    """
+    Décode un vecteur numérique FPE vers le meilleur entier k in [0, max_n] par similarité cosinus.
+    """
+    z_arr = np.asarray(z_num, dtype=np.float32)
+    best_k = 0
+    best_sim = -1.0
+    for k in range(max_n + 1):
+        cand = encode_fractional_power_number(float(k), base_phasor)
+        sim = float(cosine_similarity(z_arr, cand))
+        if sim > best_sim:
+            best_sim = sim
+            best_k = k
+    return best_k, best_sim
+
+
+def decay_inscription_geological(
+    inscription_vector: np.ndarray,
+    noise_std: float = 1e-4,
+    rng: Optional[np.random.Generator] = None
+) -> np.ndarray:
+    """
+    Simule la très lente érosion géologique d'une stèle ou tablette gravée dans le substrat physique.
+    Maintient une demi-vie longue (> 10 000 ticks) tout en simulant le bruit entropique de l'environnement.
+    """
+    generator = rng or np.random.default_rng()
+    noise = generator.normal(0.0, float(noise_std), size=inscription_vector.shape).astype(np.float32)
+    decayed = np.asarray(inscription_vector, dtype=np.float32) + noise
+    norm = np.linalg.norm(decayed) + 1e-12
+    return (decayed / norm).astype(np.float32)
+
+
+def validate_recipe_ratio(
+    recipe_vector: np.ndarray,
+    candidate_inputs: np.ndarray,
+    candidate_outputs: np.ndarray,
+    grammar: LUCompositionalGrammar,
+    threshold: float = 0.35
+) -> Tuple[bool, float]:
+    """
+    Valide l'adéquation d'une proposition avec une recette ou ratio de transformation gravé.
+    """
+    clause_in = grammar.extract_recipe_inputs(recipe_vector)
+    clause_out = grammar.extract_recipe_outputs(recipe_vector)
+
+    sim_in = cosine_similarity(candidate_inputs, clause_in)
+    sim_out = cosine_similarity(candidate_outputs, clause_out)
+
+    mean_score = float((sim_in + sim_out) / 2.0)
+    agreed = (sim_in >= threshold) and (sim_out >= threshold)
     return agreed, mean_score
 
 

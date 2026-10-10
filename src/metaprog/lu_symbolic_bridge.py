@@ -112,6 +112,18 @@ class LUSymbolicBridge:
             "SANCTION": ("PREDICATE", 1.0),
             "TRUST": ("TARGET", 1.0),
             "LAW": ("TARGET", 1.0),
+            # Phase 6 : Écriture stigmargique, arithmétique vectorielle & sciences
+            "INSCRIPTION": ("TARGET", 1.0),
+            "TABLET": ("TARGET", 1.0),
+            "STELE": ("TARGET", 1.0),
+            "RATIO": ("PREDICATE", 1.0),
+            "RECIPE": ("TARGET", 1.0),
+            "NUMBER": ("MODIFIER", 1.0),
+            "READ": ("ACTION", 1.0),
+            "WRITE": ("ACTION", 1.0),
+            "SCIENCE": ("TARGET", 1.0),
+            "DEBT": ("TARGET", 1.0),
+            "CREDIT": ("TARGET", 1.0),
         }
         
         for name, (cat, weight) in concepts.items():
@@ -569,6 +581,167 @@ class LUSymbolicBridge:
                 logger.debug(f"Persistence LUConsortium ignorée : {e}")
         return False
 
+    def register_scripture(
+        self,
+        scripture_id: str,
+        stele_type: str,
+        topic: str,
+        content_summary: str,
+        author_id: str,
+        creation_tick: int = 0
+    ) -> bool:
+        """
+        Consigne une inscription stigmargique durable dans la table LUScripture de KuzuDB (Phase 6 M1/M2).
+        """
+        if self.db is not None:
+            try:
+                self.db.execute_cypher(
+                    "CREATE NODE TABLE LUScripture (id STRING, stele_type STRING, "
+                    "topic STRING, content_summary STRING, author_id STRING, creation_tick INT64, PRIMARY KEY (id))"
+                )
+            except Exception:
+                pass
+            try:
+                q = (
+                    f"CREATE (s:LUScripture {{id: '{scripture_id}', stele_type: '{stele_type}', "
+                    f"topic: '{topic}', content_summary: '{content_summary}', author_id: '{author_id}', creation_tick: {creation_tick}}})"
+                )
+                self.db.execute_cypher(q)
+                return True
+            except Exception as e:
+                logger.debug(f"Persistence LUScripture ignorée : {e}")
+        return False
+
+    def register_mathematics_record(
+        self,
+        math_id: str,
+        operation_type: str,
+        input_values: str,
+        result_value: str
+    ) -> bool:
+        """
+        Consigne une transaction comptable ou opération arithmétique dans LUMathematics (Phase 6 M1/M2).
+        """
+        if self.db is not None:
+            try:
+                self.db.execute_cypher(
+                    "CREATE NODE TABLE LUMathematics (id STRING, operation_type STRING, "
+                    "input_values STRING, result_value STRING, PRIMARY KEY (id))"
+                )
+            except Exception:
+                pass
+            try:
+                q = (
+                    f"CREATE (m:LUMathematics {{id: '{math_id}', operation_type: '{operation_type}', "
+                    f"input_values: '{input_values}', result_value: '{result_value}'}})"
+                )
+                self.db.execute_cypher(q)
+                return True
+            except Exception as e:
+                logger.debug(f"Persistence LUMathematics ignorée : {e}")
+        return False
+
+    def register_science_theorem(
+        self,
+        theorem_id: str,
+        theorem_name: str,
+        domain: str,
+        formula_dsl: str
+    ) -> bool:
+        """
+        Consigne un théorème ou loi causale empirique dans LUScience (Phase 6 M3).
+        """
+        if self.db is not None:
+            try:
+                self.db.execute_cypher(
+                    "CREATE NODE TABLE LUScience (id STRING, theorem_name STRING, "
+                    "domain STRING, formula_dsl STRING, PRIMARY KEY (id))"
+                )
+            except Exception:
+                pass
+            try:
+                q = (
+                    f"CREATE (sc:LUScience {{id: '{theorem_id}', theorem_name: '{theorem_name}', "
+                    f"domain: '{domain}', formula_dsl: '{formula_dsl}'}})"
+                )
+                self.db.execute_cypher(q)
+                return True
+            except Exception as e:
+                logger.debug(f"Persistence LUScience ignorée : {e}")
+        return False
+
+    def compile_recipe_directive(
+        self,
+        inputs: List[Tuple[float, str]],
+        outputs: List[Tuple[float, str]]
+    ) -> np.ndarray:
+        """
+        Compile une recette stœchiométrique symbolique en vecteur ratio HRR quantifié.
+        Ex: inputs=[(3.0, "WOOD"), (1.0, "ORE")], outputs=[(1.0, "INGOT")]
+        """
+        in_vectors = []
+        for q, label in inputs:
+            vec = self.lexicon.get(label.upper(), {}).get("vector")
+            if vec is None:
+                vec = self.grammar._generate_canonical_unit_vector(np.random.default_rng(abs(hash(label)) % (2**31 - 1)))
+            in_vectors.append((float(q), vec))
+
+        out_vectors = []
+        for q, label in outputs:
+            vec = self.lexicon.get(label.upper(), {}).get("vector")
+            if vec is None:
+                vec = self.grammar._generate_canonical_unit_vector(np.random.default_rng(abs(hash(label)) % (2**31 - 1)))
+            out_vectors.append((float(q), vec))
+
+        return self.grammar.compose_recipe_ratio(in_vectors, out_vectors)
+
+    def compile_inscription_directive(
+        self,
+        topic: str,
+        content_text: str,
+        author_id: Optional[str] = None
+    ) -> np.ndarray:
+        """
+        Compile une inscription stigmargique complète en vecteur gravable sur stèle.
+        """
+        topic_vec = self.lexicon.get(topic.upper(), {}).get("vector")
+        if topic_vec is None:
+            topic_vec = self.grammar._generate_canonical_unit_vector(np.random.default_rng(abs(hash(topic)) % (2**31 - 1)))
+
+        content_vec = self.compile_directive_to_gigatoken(content_text)
+
+        author_vec = None
+        if author_id:
+            rng_a = np.random.default_rng(abs(hash(author_id)) % (2**31 - 1))
+            author_vec = self.grammar._generate_canonical_unit_vector(rng_a)
+
+        return self.grammar.compose_inscription(topic_vec, content_vec, author_vec)
+
+    def decode_inscription_vector(self, inscription_vector: np.ndarray) -> Dict[str, Any]:
+        """
+        Lit et décode un vecteur gravé d'inscription stigmargique.
+        Extrait le topic le plus proche et le contenu décompilé.
+        """
+        t_vec = self.grammar.extract_inscription_topic(inscription_vector)
+        c_vec = self.grammar.extract_inscription_content(inscription_vector)
+
+        # Match du topic avec le lexique
+        best_topic = "UNKNOWN"
+        best_sim = -1.0
+        for name, data in self.lexicon.items():
+            sim = float(cosine_similarity(t_vec, data["vector"]))
+            if sim > best_sim:
+                best_sim = sim
+                best_topic = name
+
+        content_decompiled = self.decompile_gigatoken_to_dsl(c_vec)
+
+        return {
+            "topic": best_topic,
+            "topic_confidence": round(best_sim, 3),
+            "content_dsl": content_decompiled.get("dsl", ""),
+            "matched_lexemes": content_decompiled.get("matched_lexemes", []),
+        }
 
 class MultiTribalTranslator:
     """

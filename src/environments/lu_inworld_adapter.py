@@ -32,6 +32,10 @@ from src.metaprog.lu_algebra import (
     reputation_trust_score,
     decay_reputation_towards_neutral,
     verify_consortium_agreement,
+    decay_inscription_geological,
+    encode_fractional_power_number,
+    decode_fractional_power_number,
+    validate_recipe_ratio,
 )
 from src.metaprog.lu_symbolic_bridge import MultiTribalTranslator
 from src.graph_rag.async_logger import logger
@@ -41,6 +45,33 @@ ROLE_SCOUT = "SCOUT"
 ROLE_CRAFTER = "CRAFTER"
 ROLE_HUNTER = "HUNTER"
 ALL_ROLES = [ROLE_SCOUT, ROLE_HUNTER, ROLE_CRAFTER]
+
+
+@dataclass
+class InscriptionStone:
+    """Stèle fixe gravée dans le substrat physique de la biosphère (Phase 6 M2)."""
+    id: str
+    x: float
+    y: float
+    z: float
+    topic: str
+    content_vector: np.ndarray
+    author_id: str
+    creation_tick: int
+    read_count: int = 0
+    durability: float = 1.0
+
+
+@dataclass
+class SlateTablet:
+    """Tablette d'argile ou ardoise portable transportable dans l'inventaire (Phase 6 M2)."""
+    id: str
+    topic: str
+    content_vector: np.ndarray
+    owner_id: str
+    creation_tick: int
+    read_count: int = 0
+    balance_entries: List[Dict[str, Any]] = field(default_factory=list)
 
 
 @dataclass
@@ -90,6 +121,14 @@ class LUInWorldConfig:
     reputation_decay_rate: float = 0.02
     enable_consortium_contracts: bool = True
     consortium_agreement_threshold: float = 0.40
+    # Phase 6 : Écriture Stigmargique, Arithmétique Vectorielle & Transmission Scientifique
+    enable_writing: bool = True
+    enable_arithmetic: bool = True
+    read_inscription_radius: float = 3.5
+    engrave_metabolic_cost: float = 0.08
+    inscription_geological_decay_std: float = 1e-4
+    epigenetic_prior_boost: float = 5.0
+    epigenetic_age_limit: int = 50
 
 
 class LUInWorldAdapter:
@@ -166,6 +205,70 @@ class LUInWorldAdapter:
             else (np.ones(self.dim, dtype=np.float32) / np.sqrt(self.dim))
         )
         self.neutral_reference_vector: np.ndarray = np.ones(self.dim, dtype=np.float32) / np.sqrt(self.dim)
+
+        # Phase 6 : Écriture Stigmargique, Tablettes & Transmission Scientifique
+        self.steles: Dict[str, InscriptionStone] = {}
+        self.tablets: Dict[str, SlateTablet] = {}
+        self.steles_engraved_count: int = 0
+        self.steles_read_count: int = 0
+        self.epigenetic_boosts_count: int = 0
+        self.arithmetic_ledger_entries_count: int = 0
+        self.recent_scriptures: List[Dict[str, Any]] = []
+        if self.config.enable_writing:
+            self._init_foundational_steles()
+
+    def _init_foundational_steles(self) -> None:
+        """Initialise les stèles fondatrices in-world (Académie Métallurgique et Carte des Ressources)."""
+        if self.grammar is None:
+            return
+
+        # 1. Stèle Scientifique : Recette de métallurgie du Haut-Fourneau (3 Wood + 1 Ore -> 1 IronPickaxe)
+        rng_w = np.random.default_rng(abs(hash("WOOD")) % (2**31 - 1))
+        v_wood = self.grammar._generate_canonical_unit_vector(rng_w)
+        rng_o = np.random.default_rng(abs(hash("ORE")) % (2**31 - 1))
+        v_ore = self.grammar._generate_canonical_unit_vector(rng_o)
+        rng_p = np.random.default_rng(abs(hash("STEEL")) % (2**31 - 1))
+        v_tool = self.grammar._generate_canonical_unit_vector(rng_p)
+
+        recipe_vec = self.grammar.compose_recipe_ratio(
+            inputs=[(3.0, v_wood), (1.0, v_ore)],
+            outputs=[(1.0, v_tool)]
+        )
+        rng_topic = np.random.default_rng(abs(hash("SCIENCE")) % (2**31 - 1))
+        v_science = self.grammar._generate_canonical_unit_vector(rng_topic)
+        inscription_metallurgy = self.grammar.compose_inscription(v_science, recipe_vec)
+
+        stele_metal = InscriptionStone(
+            id="stele_metallurgy_academy",
+            x=float(self.config.market_point[0]),
+            y=float(self.config.market_point[1]),
+            z=0.0,
+            topic="SCIENCE",
+            content_vector=inscription_metallurgy,
+            author_id="ANCIENT_FOUNDER",
+            creation_tick=0,
+            read_count=0,
+            durability=1.0,
+        )
+        self.steles[stele_metal.id] = stele_metal
+
+        # 2. Stèle Géologique : Carte des gisements & du Haut-Fourneau
+        rng_granary = np.random.default_rng(abs(hash("GRANARY")) % (2**31 - 1))
+        v_granary = self.grammar._generate_canonical_unit_vector(rng_granary)
+        inscription_map = self.grammar.compose_inscription(v_science, v_granary)
+        stele_map = InscriptionStone(
+            id="stele_geology_map",
+            x=float(self.config.market_point[0] - 2),
+            y=float(self.config.market_point[1] - 2),
+            z=0.0,
+            topic="RESOURCE_MAP",
+            content_vector=inscription_map,
+            author_id="ANCIENT_CARTOGRAPHER",
+            creation_tick=0,
+            read_count=0,
+            durability=1.0,
+        )
+        self.steles[stele_map.id] = stele_map
 
     def _get_agent_projection(self, agent_id: str, input_dim: int) -> np.ndarray:
         """Garantit une matrice de projection orthogonale ou pseudo-aléatoire stable pour chaque agent."""
@@ -776,6 +879,9 @@ class LUInWorldAdapter:
                     if len(self.recent_contracts) < 30:
                         self.recent_contracts.append(trade_info)
 
+                    if self.config.enable_writing:
+                        self.record_market_transaction_to_ledger(trade_info)
+
         return settled_trades
 
     def negotiate_consortium_contracts(self, agents: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
@@ -885,7 +991,202 @@ class LUInWorldAdapter:
                     if len(self.recent_consortiums) < 20:
                         self.recent_consortiums.append(consortium_info)
 
+                    if self.config.enable_writing:
+                        self.record_market_transaction_to_ledger({
+                            "party_a": str(ore_supplier.get("id")),
+                            "party_b": "FORGE_CONSORTIUM",
+                            "agreement_score": round(score, 3),
+                        })
+
         return settled_consortiums
+
+    # ---------------------------------------------------------------------
+    # Stigmergie Symbolique, Inscriptions & Épigénétique (Phase 6 M2 & M3)
+    # ---------------------------------------------------------------------
+
+    def engrave_stele(
+        self,
+        agent: Dict[str, Any],
+        topic: str,
+        content: np.ndarray,
+        pos: Optional[Tuple[float, float, float]] = None
+    ) -> Optional[InscriptionStone]:
+        """
+        Grave une stèle fixe pérenne dans le substrat physique (Phase 6 M2).
+        Coût métabolique prélevé sur l'agent graveur.
+        """
+        if not self.config.enable_writing:
+            return None
+
+        cost = self.config.engrave_metabolic_cost
+        if agent.get("energy", 0.0) < cost:
+            return None
+
+        agent["energy"] = max(0.0, agent.get("energy", 0.0) - cost)
+        self.total_metabolic_cost += cost
+
+        x = float(pos[0]) if pos else float(agent.get("x", 0.0))
+        y = float(pos[1]) if pos else float(agent.get("y", 0.0))
+        z = float(pos[2]) if pos and len(pos) > 2 else 0.0
+
+        stele_id = f"stele_{len(self.steles)}_{topic.lower()}"
+        tick = getattr(self.world, "tick", 0)
+
+        inscription_stone = InscriptionStone(
+            id=stele_id,
+            x=x,
+            y=y,
+            z=z,
+            topic=topic.upper(),
+            content_vector=np.asarray(content, dtype=np.float32),
+            author_id=str(agent.get("id")),
+            creation_tick=tick,
+            read_count=0,
+            durability=1.0,
+        )
+        self.steles[stele_id] = inscription_stone
+        self.steles_engraved_count += 1
+
+        scripture_info = {
+            "id": stele_id,
+            "type": "STELE",
+            "topic": topic.upper(),
+            "author": str(agent.get("id")),
+            "pos": (x, y, z),
+            "tick": tick,
+        }
+        if len(self.recent_scriptures) < 30:
+            self.recent_scriptures.append(scripture_info)
+
+        return inscription_stone
+
+    def read_nearest_stele(
+        self,
+        agent: Dict[str, Any],
+        max_radius: Optional[float] = None
+    ) -> Optional[InscriptionStone]:
+        """
+        Lit la stèle la plus proche dans le rayon sensoriel de lecture directionnelle (Phase 6 M2).
+        """
+        if not self.config.enable_writing or not self.steles:
+            return None
+
+        radius = max_radius or self.config.read_inscription_radius
+        ax = float(agent.get("x", 0.0))
+        ay = float(agent.get("y", 0.0))
+
+        nearest_stele = None
+        min_dist = float('inf')
+
+        for stele in self.steles.values():
+            dist = float(np.sqrt((ax - stele.x)**2 + (ay - stele.y)**2))
+            if dist <= radius and dist < min_dist:
+                min_dist = dist
+                nearest_stele = stele
+
+        if nearest_stele is not None:
+            read_steles = agent.setdefault("lu_read_steles", set())
+            if nearest_stele.id not in read_steles:
+                nearest_stele.read_count += 1
+                self.steles_read_count += 1
+                # Transmission épigénétique du savoir si l'agent est éligible
+                self.apply_epigenetic_prior_boost(agent, nearest_stele)
+
+        return nearest_stele
+
+    def engrave_tablet(
+        self,
+        agent: Dict[str, Any],
+        topic: str,
+        content: np.ndarray
+    ) -> SlateTablet:
+        """
+        Grave une tablette portative d'inventaire (Phase 6 M2).
+        """
+        ag_id = str(agent.get("id"))
+        tab_id = f"tablet_{len(self.tablets)}_{ag_id}"
+        tick = getattr(self.world, "tick", 0)
+
+        tablet = SlateTablet(
+            id=tab_id,
+            topic=topic.upper(),
+            content_vector=np.asarray(content, dtype=np.float32),
+            owner_id=ag_id,
+            creation_tick=tick,
+            read_count=0,
+        )
+        self.tablets[tab_id] = tablet
+
+        inv = agent.setdefault("inventory", [])
+        inv.append({"type": "SlateTablet", "tablet_id": tab_id, "topic": topic.upper()})
+
+        return tablet
+
+    def apply_epigenetic_prior_boost(
+        self,
+        agent: Dict[str, Any],
+        stele: InscriptionStone
+    ) -> bool:
+        """
+        Transmission de prior culturel et épigénétique (Phase 6 M3) :
+        Quand un agent jeune ou apprenti lit une stèle de savoir, son état récurrent H ou sa projection
+        reçoit un amorçage direct contournant les générations d'essais-erreurs.
+        """
+        ag_id = str(agent.get("id"))
+
+        read_steles = agent.setdefault("lu_read_steles", set())
+        if stele.id in read_steles:
+            return False
+
+        read_steles.add(stele.id)
+
+        proj = self._get_agent_projection(ag_id, 8)
+        content_extracted = getattr(stele, "_cached_content", None)
+        if content_extracted is None:
+            if self.grammar is not None:
+                content_extracted = self.grammar.extract_inscription_content(stele.content_vector)
+            else:
+                content_extracted = stele.content_vector
+            stele._cached_content = content_extracted
+
+        proj[-1] = 0.5 * proj[-1] + 0.5 * content_extracted[:self.dim]
+        norm = np.linalg.norm(proj[-1]) + 1e-12
+        proj[-1] /= norm
+
+        boost = self.config.epigenetic_prior_boost
+        agent["energy"] = min(100.0, agent.get("energy", 0.0) + boost)
+        agent["lu_prior_boosted"] = True
+        self.epigenetic_boosts_count += 1
+        return True
+
+    def record_market_transaction_to_ledger(self, trade_info: Dict[str, Any]) -> None:
+        """
+        Enregistre une transaction sur le grand livre comptable de marché (Phase 6 M2).
+        """
+        if not self.config.enable_arithmetic:
+            return
+
+        self.arithmetic_ledger_entries_count += 1
+        party_a = trade_info.get("party_a", "")
+        party_b = trade_info.get("party_b", "")
+
+        for party, partner, role in [(party_a, party_b, "CREDIT"), (party_b, party_a, "DEBT")]:
+            tab_id = f"market_ledger_{party}"
+            if tab_id not in self.tablets:
+                dummy_v = np.ones(self.dim, dtype=np.float32) / np.sqrt(self.dim)
+                self.tablets[tab_id] = SlateTablet(
+                    id=tab_id,
+                    topic="MARKET_LEDGER",
+                    content_vector=dummy_v,
+                    owner_id=party,
+                    creation_tick=getattr(self.world, "tick", 0),
+                )
+            self.tablets[tab_id].balance_entries.append({
+                "partner": partner,
+                "role": role,
+                "score": trade_info.get("agreement_score", 1.0),
+                "tick": getattr(self.world, "tick", 0),
+            })
 
     def step(self) -> Dict[str, Any]:
         """
@@ -1144,6 +1445,21 @@ class LUInWorldAdapter:
             consortiums = self.negotiate_consortium_contracts(agents)
             tick_consortiums = len(consortiums)
 
+        # 9. Écriture stigmargique, érosion géologique & transmission épigénétique (Phase 6 M1-M3)
+        tick_steles_read = 0
+        if self.config.enable_writing and self.steles:
+            # Érosion géologique très lente
+            for s_id, stele in self.steles.items():
+                stele.content_vector = decay_inscription_geological(
+                    stele.content_vector,
+                    noise_std=self.config.inscription_geological_decay_std
+                )
+            # Lecture des stèles pour les agents proches
+            for ag in agents:
+                read_res = self.read_nearest_stele(ag)
+                if read_res is not None:
+                    tick_steles_read += 1
+
         self.total_transmissions += tick_transmissions
         self.successful_alignments += tick_alignments
         self.pack_coordinations_count += tick_coordinations
@@ -1172,6 +1488,11 @@ class LUInWorldAdapter:
             "consortiums_settled": self.consortiums_settled_count,
             "metal_tools_produced": self.metal_tools_produced_count,
             "tick_consortiums": tick_consortiums,
+            "steles_engraved": self.steles_engraved_count,
+            "steles_read": self.steles_read_count,
+            "tick_steles_read": tick_steles_read,
+            "epigenetic_boosts": self.epigenetic_boosts_count,
+            "ledger_entries": self.arithmetic_ledger_entries_count,
         }
 
 
