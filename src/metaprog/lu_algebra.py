@@ -172,6 +172,11 @@ class LUCompositionalGrammar:
         self.ROLE_RESONANCE = self._generate_canonical_unit_vector(rng)
         self.ROLE_UNCERTAINTY = self._generate_canonical_unit_vector(rng)
         self.ROLE_SYNARCHY = self._generate_canonical_unit_vector(rng)
+        # Rôles pour Morphogenèse Noogénétique, Réaction-Diffusion & Hyper-Connectome (Phase 13)
+        self.ROLE_NOOGENESIS = self._generate_canonical_unit_vector(rng)
+        self.ROLE_DIFFUSION = self._generate_canonical_unit_vector(rng)
+        self.ROLE_REACTION = self._generate_canonical_unit_vector(rng)
+        self.ROLE_HYPER_CONNECTOME = self._generate_canonical_unit_vector(rng)
 
     def _generate_canonical_unit_vector(self, rng: np.random.Generator) -> np.ndarray:
         """
@@ -2069,6 +2074,311 @@ def spherical_sinkhorn_barycenter(
     entropy = float(-np.sum(p_sink * np.log(p_sink + 1e-12)))
 
     return bary_out, entropy
+
+
+# =============================================================================
+# Phase 13 : Morphogenèse Noogénétique, Réaction-Diffusion Latente Continue
+#            & Hyper-Connectome Fédéral Distribué (Arc 7 : L'Hyper-Conscience)
+# =============================================================================
+
+class LatentReactionDiffusionPDE:
+    """
+    Moteur de PDE Noosphérique Continue de Réaction-Diffusion (LU Phase 13 M1).
+    Modélise la dynamique spatio-temporelle continue du champ noosphérique Phi(x, y, t) in S^(D-1).
+    Équation de morphogenèse de Turing-FitzHugh-Nagumo vectorisée sur tore 2D (conditions limites périodiques) :
+      d/dt Phi = D_diff * Laplacian(Phi) + alpha * Phi * (1 - ||Phi||^2) * ROLE_REACTION - beta * Phi_inhib + S_ext - gamma * Phi
+      d/dt Phi_inhib = D_inhib * Laplacian(Phi_inhib) + c_inh * (Phi - Phi_inhib)
+    Fait émerger des ondes stationnaires d'innovation technologique et des gradients d'orientation physique.
+    """
+    def __init__(
+        self,
+        grid_size: int = 16,
+        dim: int = 64,
+        diffusion_coef: float = 0.15,
+        reaction_rate: float = 0.25,
+        decay_rate: float = 0.05,
+        grammar: Optional[LUCompositionalGrammar] = None,
+        seed: int = 42,
+    ):
+        self.grid_size = grid_size
+        self.dim = dim
+        self.diffusion_coef = float(diffusion_coef)
+        self.reaction_rate = float(reaction_rate)
+        self.decay_rate = float(decay_rate)
+        self.grammar = grammar or LUCompositionalGrammar(LUAlgebraConfig(dim=dim, seed=seed))
+        self.rng = np.random.default_rng(seed)
+
+        # Initialisation du champ activateur Phi et inhibiteur Phi_inhib
+        base_vec = getattr(self.grammar, "ROLE_NOOSPHERE", self.grammar.ROLE_SUBJECT)
+        # Bruit blanc doux pour brisure spontanée de symétrie de Turing
+        noise = self.rng.normal(0, 0.05, size=(grid_size, grid_size, dim)).astype(np.float32)
+        grid_init = np.tile(base_vec, (grid_size, grid_size, 1)).astype(np.float32) + noise
+        norms = np.linalg.norm(grid_init, axis=-1, keepdims=True) + 1e-12
+        self.phi = (grid_init / norms).astype(np.float32)
+        self.phi_inhib = (0.5 * self.phi).astype(np.float32)
+
+        self.step_count = 0
+        self.focal_points_history: List[List[Dict[str, Any]]] = []
+
+    def compute_laplacian(self, field: np.ndarray) -> np.ndarray:
+        """
+        Calcule le Laplacien discret à 5 points vectorisé avec conditions périodiques toriques.
+        Laplacian(Phi)(x, y) = Phi(x+1, y) + Phi(x-1, y) + Phi(x, y+1) + Phi(x, y-1) - 4 * Phi(x, y).
+        """
+        lap = (
+            np.roll(field, shift=1, axis=0) +
+            np.roll(field, shift=-1, axis=0) +
+            np.roll(field, shift=1, axis=1) +
+            np.roll(field, shift=-1, axis=1) -
+            4.0 * field
+        )
+        return lap.astype(np.float32)
+
+    def step(
+        self,
+        external_sources: Optional[List[Tuple[int, int, np.ndarray]]] = None,
+        dt: float = 0.20,
+    ) -> np.ndarray:
+        """
+        Effectue une étape d'intégration temporelle d'Euler pour le système de réaction-diffusion.
+        external_sources : liste de triplets (x, y, vector) pour injecter les émissions de stèles ou conseils.
+        """
+        dt_val = float(np.clip(dt, 0.01, 0.50))
+        lap_phi = self.compute_laplacian(self.phi)
+        lap_inhib = self.compute_laplacian(self.phi_inhib)
+
+        # Terme de réaction cubique non-linéaire (bistable / activateur de Turing)
+        phi_sq = np.sum(self.phi ** 2, axis=-1, keepdims=True)
+        role_react = getattr(self.grammar, "ROLE_REACTION", None)
+        if role_react is not None:
+            reaction_term = self.reaction_rate * self.phi * (1.0 - phi_sq) * role_react[np.newaxis, np.newaxis, :]
+        else:
+            reaction_term = self.reaction_rate * self.phi * (1.0 - phi_sq)
+
+        # Dynamique activateur / inhibiteur
+        d_phi = (
+            self.diffusion_coef * lap_phi +
+            reaction_term -
+            0.15 * self.phi_inhib -
+            self.decay_rate * self.phi
+        )
+
+        d_inhib = (
+            0.5 * self.diffusion_coef * lap_inhib +
+            0.20 * (self.phi - self.phi_inhib)
+        )
+
+        # Injection des sources externes ponctuelles (stèles, monuments, conseils)
+        if external_sources:
+            for src in external_sources:
+                if len(src) == 4:
+                    sx, sy, s_vec, weight = src
+                else:
+                    sx, sy, s_vec = src
+                    weight = 0.8
+                gx = int(np.clip(sx, 0, self.grid_size - 1))
+                gy = int(np.clip(sy, 0, self.grid_size - 1))
+                v_norm = (s_vec / (np.linalg.norm(s_vec) + 1e-12)).astype(np.float32)
+                d_phi[gx, gy] += float(weight) * v_norm
+
+        # Mise à jour Euler
+        self.phi += dt_val * d_phi
+        self.phi_inhib += dt_val * d_inhib
+
+        # Contrôle strict de stabilité spectrale : projection sur la boule unitaire
+        norms = np.linalg.norm(self.phi, axis=-1, keepdims=True) + 1e-12
+        mask = norms > 1.0
+        self.phi = np.where(mask, self.phi / norms, self.phi).astype(np.float32)
+
+        self.step_count += 1
+        return self.phi
+
+    def get_focal_points(self, threshold: float = 0.65) -> List[Dict[str, Any]]:
+        """
+        Détecte les foyers d'innovation / singularités d'activation constructive de Turing.
+        Retourne la liste des points où l'énergie du champ dépasse le seuil avec coordonnées et vecteur.
+        """
+        energies = np.linalg.norm(self.phi, axis=-1)
+        focal_points = []
+        for x in range(self.grid_size):
+            for y in range(self.grid_size):
+                e = float(energies[x, y])
+                if e >= threshold:
+                    v = self.phi[x, y]
+                    norm_v = np.linalg.norm(v) + 1e-12
+                    focal_points.append({
+                        "x": x,
+                        "y": y,
+                        "energy": round(e, 4),
+                        "vector": (v / norm_v).astype(np.float32),
+                    })
+        return focal_points
+
+    def compute_pde_energy(self) -> float:
+        """Calcule l'énergie totale L2 du champ morphogénétique."""
+        return float(np.sum(self.phi ** 2))
+
+    def compute_morphogen_entropy(self) -> float:
+        """Calcule l'entropie spatiale de Shannon de la densité d'énergie du champ."""
+        energies = np.linalg.norm(self.phi, axis=-1).flatten()
+        tot = np.sum(energies) + 1e-12
+        p = energies / tot
+        ent = -np.sum(p * np.log(p + 1e-12))
+        return float(ent)
+
+    def get_gradient_at(self, x: float, y: float) -> Tuple[float, float]:
+        """
+        Calcule le gradient 2D de magnitude noosphérique d'orientation pour guider le déplacement des agents.
+        """
+        ix = int(np.clip(np.round(x), 0, self.grid_size - 1))
+        iy = int(np.clip(np.round(y), 0, self.grid_size - 1))
+        energies = np.linalg.norm(self.phi, axis=-1)
+
+        x_prev = (ix - 1) % self.grid_size
+        x_next = (ix + 1) % self.grid_size
+        y_prev = (iy - 1) % self.grid_size
+        y_next = (iy + 1) % self.grid_size
+
+        grad_x = float(energies[x_next, iy] - energies[x_prev, iy]) * 0.5
+        grad_y = float(energies[ix, y_next] - energies[ix, y_prev]) * 0.5
+        return grad_x, grad_y
+
+
+class HyperConnectomeSynthesizer:
+    """
+    Distillateur & Synthétiseur d'Hyper-Connectome Fédéral Distribué (LU Phase 13 M1).
+    Condense l'historique des directives et barycentres synarchiques de Wasserstein
+    en un macro-génome connectomique unifié Z_hyper in S^(D-1) et une matrice de poids canonique W_hyper.
+    Permet la distillation holographique dans les nouveau-nés et les connectomes en détresse sans écrasement local.
+    """
+    def __init__(
+        self,
+        dim: int = 64,
+        connectome_size: int = 16,
+        grammar: Optional[LUCompositionalGrammar] = None,
+        seed: int = 42,
+    ):
+        self.dim = dim
+        self.connectome_size = connectome_size
+        self.grammar = grammar or LUCompositionalGrammar(LUAlgebraConfig(dim=dim, seed=seed))
+        self.rng = np.random.default_rng(seed)
+        self.compiler = ConnectomeCompiler(dim=dim, seed=seed)
+
+        # Vecteur Gigatoken d'Hyper-Connectome canonique
+        base_role = getattr(self.grammar, "ROLE_HYPER_CONNECTOME", self.grammar.ROLE_SUBJECT)
+        self.z_hyper = base_role.copy().astype(np.float32)
+
+        # Matrice matricielle sous-jacente W_hyper à rayon spectral sous-unitaire (Lipschitz contractant)
+        raw_w = self.rng.normal(0, 1.0 / np.sqrt(connectome_size), size=(connectome_size, connectome_size)).astype(np.float32)
+        try:
+            ev = np.linalg.eigvals(raw_w.astype(np.complex64))
+            spec = float(np.max(np.abs(ev)))
+            if spec > 0.85:
+                raw_w = (raw_w * (0.85 / spec)).astype(np.float32)
+        except Exception:
+            raw_w = (raw_w * 0.5).astype(np.float32)
+        self.W_hyper = raw_w
+
+        self.synarchic_history: List[np.ndarray] = []
+        self.version = 1
+        self.distillations_count = 0
+
+    def condense_synarchic_history_to_hyperconnectome(
+        self,
+        barycenters: List[np.ndarray],
+        learning_rate: float = 0.10,
+    ) -> Dict[str, Any]:
+        """
+        Condense les barycentres synarchiques récents dans l'Hyper-Connectome fédéral.
+        Applique un apprentissage spectral additif régularisé avec contrôle lipschitzien strict (rho < 0.95).
+        """
+        if not barycenters:
+            return self.get_hyperconnectome_spec()
+
+        lr = float(np.clip(learning_rate, 0.01, 0.50))
+        role_noo = getattr(self.grammar, "ROLE_NOOGENESIS", self.grammar.ROLE_SUBJECT)
+
+        for b_vec in barycenters:
+            b_norm = (b_vec / (np.linalg.norm(b_vec) + 1e-12)).astype(np.float32)
+            self.synarchic_history.append(b_norm)
+
+            # Liaison avec ROLE_NOOGENESIS et interpolation sphérique
+            enriched_b = circular_convolution(b_norm, role_noo)
+            new_z = (1.0 - lr) * self.z_hyper + lr * enriched_b
+            norm_z = np.linalg.norm(new_z) + 1e-12
+            self.z_hyper = (new_z / norm_z).astype(np.float32)
+
+            # Mise à jour de W_hyper via rétro-projection
+            proj = self.compiler._get_projection(self.connectome_size)
+            dw_flat = (proj @ self.z_hyper).astype(np.float32)
+            dw = dw_flat.reshape(self.connectome_size, self.connectome_size)
+            dw = (dw / (np.linalg.norm(dw) + 1e-12)).astype(np.float32)
+
+            self.W_hyper = (self.W_hyper + lr * 0.5 * dw).astype(np.float32)
+
+            # Contrôle strict du rayon spectral
+            try:
+                ev = np.linalg.eigvals(self.W_hyper.astype(np.complex64))
+                rho = float(np.max(np.abs(ev)))
+            except Exception:
+                rho = float(np.linalg.norm(self.W_hyper, ord=2))
+
+            if rho >= 0.95:
+                self.W_hyper = (self.W_hyper * (0.90 / rho)).astype(np.float32)
+
+        self.version += 1
+        return self.get_hyperconnectome_spec()
+
+    def project_hyperconnectome_prior(
+        self,
+        agent: Dict[str, Any],
+        alpha: float = 0.35,
+    ) -> Tuple[bool, float, Dict[str, Any]]:
+        """
+        Distille chirurgicalement le prior noogénétique de l'Hyper-Connectome dans un agent.
+        Utilise ConnectomeCompiler pour transférer z_hyper dans le connectome de l'agent.
+        """
+        model = agent.get("model") or agent.get("brain")
+        if model is None:
+            return False, 0.0, {"status": "no_model"}
+
+        alpha_val = float(np.clip(alpha, 0.05, 0.50))
+        success, fid, details = self.compiler.compile_to_connectome(
+            macro_program=self.z_hyper,
+            target_model=model,
+            alpha=alpha_val,
+        )
+
+        if success:
+            self.distillations_count += 1
+            agent["hyperconnectome_distilled"] = True
+            agent["hyperconnectome_version"] = self.version
+            # Alignement du latent de l'agent
+            z_ag = agent.get("lu_latent")
+            if z_ag is not None:
+                z_new = (1.0 - alpha_val) * z_ag + alpha_val * self.z_hyper
+                norm_z = np.linalg.norm(z_new) + 1e-12
+                agent["lu_latent"] = (z_new / norm_z).astype(np.float32)
+
+        return success, fid, details
+
+    def get_hyperconnectome_spec(self) -> Dict[str, Any]:
+        """Retourne la spécification spectrale et métrologique de l'Hyper-Connectome."""
+        try:
+            ev = np.linalg.eigvals(self.W_hyper.astype(np.complex64))
+            rho = float(np.max(np.abs(ev)))
+        except Exception:
+            rho = float(np.linalg.norm(self.W_hyper, ord=2))
+
+        return {
+            "version": self.version,
+            "spectral_radius": round(rho, 4),
+            "frobenius_norm": round(float(np.linalg.norm(self.W_hyper)), 4),
+            "distillations_count": self.distillations_count,
+            "history_size": len(self.synarchic_history),
+            "latent_norm": round(float(np.linalg.norm(self.z_hyper)), 4),
+        }
+
 
 
 

@@ -65,6 +65,28 @@ class LUEpistemicInsight:
 
 
 @dataclass
+class LUNoogeneticField:
+    """Modèle de persistance pour un champ de morphogenèse noogénétique de Turing (Phase 13 M3)."""
+    id: str
+    pde_energy: float = 0.0
+    morphogen_entropy: float = 0.0
+    focal_points_count: int = 0
+    grid_size: int = 16
+    tick: int = 0
+
+
+@dataclass
+class LUHyperConnectome:
+    """Modèle de persistance pour l'Hyper-Connectome fédéral distribué (Phase 13 M3)."""
+    id: str
+    spectral_radius: float = 0.0
+    compression_ratio: float = 1.0
+    distillations_count: int = 0
+    version: int = 1
+    tick: int = 0
+
+
+@dataclass
 class LUSymbolicBridgeConfig:
     """Configuration du pont symbolique-neuronal LU."""
     dim: int = 16
@@ -1757,10 +1779,13 @@ class FederalDiplomaticBridge:
     T_A_to_B: R^{D_A} -> R^{D_B} et T_B_to_A: R^{D_B} -> R^{D_A}.
     """
 
-    def __init__(self, seed: int = 42, db: Optional[Any] = None):
+    def __init__(self, seed: int = 42, db: Optional[Any] = None, grammar: Optional[Any] = None):
         self.rng = np.random.default_rng(seed)
         self.projections: Dict[Tuple[int, int], np.ndarray] = {}
         self.db = db
+        self.grammar = grammar
+        self.lattice_nodes: Dict[str, Any] = {}
+        self.lattice_edges: List[Dict[str, Any]] = []
 
     def get_or_create_projection(self, dim_in: int, dim_out: int) -> np.ndarray:
         key = (dim_in, dim_out)
@@ -1962,4 +1987,74 @@ class FederalDiplomaticBridge:
             except Exception:
                 pass
         return insight
+
+    def record_pde_morphogenesis(
+        self,
+        pde_field: Optional[LUNoogeneticField] = None,
+        pde_id: Optional[str] = None,
+        pde_energy: float = 0.0,
+        entropy: float = 0.0,
+        focal_points_count: int = 0,
+        grid_size: int = 16,
+        tick: int = 0,
+        **kwargs: Any
+    ) -> LUNoogeneticField:
+        """Enregistre un snapshot de morphogenèse noogénétique de Turing dans KuzuDB si disponible."""
+        if pde_field is None:
+            f_id = pde_id or f"pde_{tick}_1"
+            pde_field = LUNoogeneticField(
+                id=f_id,
+                pde_energy=float(pde_energy),
+                morphogen_entropy=float(entropy),
+                focal_points_count=int(focal_points_count),
+                grid_size=int(grid_size),
+                tick=int(tick),
+            )
+
+        self.lattice_nodes[pde_field.id] = pde_field
+
+        if self.db is not None:
+            try:
+                self.db.execute_cypher(
+                    f"CREATE (p:LUNoogeneticField {{id: '{pde_field.id}', energy: {pde_field.pde_energy}, "
+                    f"entropy: {pde_field.morphogen_entropy}, focal_points: {pde_field.focal_points_count}, tick: {pde_field.tick}}})"
+                )
+            except Exception:
+                pass
+        return pde_field
+
+    def record_hyperconnectome_snapshot(
+        self,
+        hyperconnectome: Optional[LUHyperConnectome] = None,
+        snapshot_id: Optional[str] = None,
+        spectral_radius: float = 0.0,
+        version: int = 1,
+        distillations_count: int = 0,
+        tick: int = 0,
+        **kwargs: Any
+    ) -> LUHyperConnectome:
+        """Enregistre un snapshot de l'Hyper-Connectome fédéral distribué dans KuzuDB si disponible."""
+        if hyperconnectome is None:
+            h_id = snapshot_id or f"hyper_{tick}_{version}"
+            hyperconnectome = LUHyperConnectome(
+                id=h_id,
+                spectral_radius=float(spectral_radius),
+                compression_ratio=1.0,
+                distillations_count=int(distillations_count),
+                version=int(version),
+                tick=int(tick),
+            )
+
+        self.lattice_nodes[hyperconnectome.id] = hyperconnectome
+
+        if self.db is not None:
+            try:
+                self.db.execute_cypher(
+                    f"CREATE (h:LUHyperConnectome {{id: '{hyperconnectome.id}', spectral_radius: {hyperconnectome.spectral_radius}, "
+                    f"version: {hyperconnectome.version}, distillations: {hyperconnectome.distillations_count}, tick: {hyperconnectome.tick}}})"
+                )
+            except Exception:
+                pass
+        return hyperconnectome
+
 

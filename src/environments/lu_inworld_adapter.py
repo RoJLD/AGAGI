@@ -51,12 +51,16 @@ from src.metaprog.lu_algebra import (
     LatentDreamEngine,
     EpistemicUncertaintyEngine,
     spherical_sinkhorn_barycenter,
+    LatentReactionDiffusionPDE,
+    HyperConnectomeSynthesizer,
 )
 from src.metaprog.lu_symbolic_bridge import (
     MultiTribalTranslator,
     FederalDiplomaticBridge,
     LUNoosphereField,
     LUEpistemicInsight,
+    LUNoogeneticField,
+    LUHyperConnectome,
 )
 from src.agents.dream_replay import SharedDreamExperience, SharedDreamPool
 from src.graph_rag.async_logger import logger
@@ -211,6 +215,13 @@ class LUInWorldConfig:
     epistemic_confidence_threshold: float = 0.45
     sinkhorn_regularization: float = 0.05
     noosphere_dividend: float = 8.0
+    # Phase 13 : Morphogenèse Noogénétique, Réaction-Diffusion Latente & Hyper-Connectome Distribué
+    enable_reaction_diffusion_pde: bool = True
+    pde_diffusion_coef: float = 0.15
+    pde_reaction_rate: float = 0.25
+    enable_hyperconnectome_distillation: bool = True
+    hyperconnectome_learning_rate: float = 0.10
+    noogenetic_rebirth_bonus: float = 12.0
 
 
 class LUInWorldAdapter:
@@ -345,6 +356,25 @@ class LUInWorldAdapter:
         self.synarchic_councils_count: int = 0
         self.synarchic_ratifications_count: int = 0
         self.recent_noosphere_broadcasts: List[Dict[str, Any]] = []
+        # Phase 13 : Morphogenèse Noogénétique, Réaction-Diffusion & Hyper-Connectome Fédéral
+        self.pde_engine = LatentReactionDiffusionPDE(
+            grid_size=16,
+            dim=self.dim,
+            diffusion_coef=float(self.config.pde_diffusion_coef),
+            reaction_rate=float(self.config.pde_reaction_rate),
+            grammar=self.grammar,
+            seed=getattr(self.config, "seed", 42),
+        )
+        self.hyperconnectome_synthesizer = HyperConnectomeSynthesizer(
+            dim=self.dim,
+            connectome_size=16,
+            grammar=self.grammar,
+            seed=getattr(self.config, "seed", 42),
+        )
+        self.pde_steps_count: int = 0
+        self.hyperconnectome_updates_count: int = 0
+        self.noogenetic_distillations_count: int = 0
+        self.recent_pde_snapshots: List[Dict[str, Any]] = []
         if getattr(self.config, "enable_diplomacy", True):
             self._init_federal_monument()
 
@@ -1851,6 +1881,141 @@ class LUInWorldAdapter:
         }
 
     # =========================================================================
+    # Phase 13 : Morphogenèse Noogénétique, Réaction-Diffusion Latente
+    #            & Hyper-Connectome Distribué (Arc 7)
+    # =========================================================================
+
+    def step_reaction_diffusion_field(self, dt: float = 0.20) -> np.ndarray:
+        """
+        Résout une itération temporelle de l'équation de Turing-FitzHugh-Nagumo vectorisée
+        sur le tore 16x16 de la Noosphère.
+        Injecte les stèles, le Monument Fédéral et les agents comme sources d'activation locales.
+        Maintient l'Hyper-Connectome synchronisé avec l'historique des barycentres synarchiques.
+        """
+        if not getattr(self.config, "enable_reaction_diffusion_pde", True):
+            if self.pde_engine is not None:
+                return self.pde_engine.phi
+            return np.zeros((16, 16, self.dim), dtype=np.float32)
+
+        sources: List[Tuple[int, int, np.ndarray, float]] = []
+        # Sources des stèles
+        if self.steles:
+            for s in self.steles.values():
+                v = s.content_vector
+                if v is not None and len(v) == self.dim:
+                    gx = int(np.clip(float(s.x), 0, 15))
+                    gy = int(np.clip(float(s.y), 0, 15))
+                    sources.append((gx, gy, v.astype(np.float32), 0.5))
+
+        # Sources du Monument Fédéral
+        if self.federal_monument is not None and self.federal_monument.constitution_vector is not None:
+            mx = int(np.clip(float(self.federal_monument.x), 0, 15))
+            my = int(np.clip(float(self.federal_monument.y), 0, 15))
+            sources.append((mx, my, self.federal_monument.constitution_vector.astype(np.float32), 0.8))
+
+        # Sources des agents
+        agents = getattr(self.world, "agents", [])
+        for ag in agents[:8]:
+            z = ag.get("lu_latent")
+            if z is not None and len(z) == self.dim:
+                ax = int(np.clip(float(ag.get("x", 0)), 0, 15))
+                ay = int(np.clip(float(ag.get("y", 0)), 0, 15))
+                sources.append((ax, ay, z.astype(np.float32), 0.3))
+
+        # Résolution PDE
+        field = self.pde_engine.step(dt=dt, external_sources=sources)
+        self.pde_steps_count += 1
+
+        # Enregistrement Lattice & snapshots
+        pde_energy = self.pde_engine.compute_pde_energy()
+        entropy = self.pde_engine.compute_morphogen_entropy()
+        focal_points = self.pde_engine.get_focal_points(threshold=0.60)
+        tick = getattr(self.world, "tick", getattr(self.world, "ticks", 0)) if self.world is not None else 0
+
+        # Mise à jour de l'Hyper-Connectome fédéral si activé et barycentres récents disponibles
+        if getattr(self.config, "enable_hyperconnectome_distillation", True) and self.recent_noosphere_broadcasts:
+            recent_barycenters = [
+                b["barycenter"] for b in self.recent_noosphere_broadcasts[-5:]
+                if "barycenter" in b and b["barycenter"] is not None
+            ]
+            if recent_barycenters:
+                self.hyperconnectome_synthesizer.condense_synarchic_history_to_hyperconnectome(
+                    barycenters=recent_barycenters,
+                    learning_rate=float(self.config.hyperconnectome_learning_rate),
+                )
+                self.hyperconnectome_updates_count += 1
+
+        if hasattr(self, "diplomatic_bridge") and self.diplomatic_bridge is not None:
+            self.diplomatic_bridge.record_pde_morphogenesis(
+                pde_id=f"pde_{tick}_{self.pde_steps_count}",
+                pde_energy=pde_energy,
+                entropy=entropy,
+                focal_points_count=len(focal_points),
+                tick=tick,
+            )
+            spec = self.hyperconnectome_synthesizer.get_hyperconnectome_spec()
+            self.diplomatic_bridge.record_hyperconnectome_snapshot(
+                snapshot_id=f"hc_{tick}_{spec['version']}",
+                spectral_radius=float(spec["spectral_radius"]),
+                version=int(spec["version"]),
+                distillations_count=int(spec["distillations_count"]),
+                tick=tick,
+            )
+
+        self.recent_pde_snapshots.append({
+            "tick": tick,
+            "energy": pde_energy,
+            "entropy": entropy,
+            "focal_points_count": len(focal_points),
+        })
+        if len(self.recent_pde_snapshots) > 20:
+            self.recent_pde_snapshots.pop(0)
+
+        return field
+
+    def distill_noogenetic_prior_to_agent(
+        self,
+        agent: Dict[str, Any],
+        alpha: float = 0.35,
+    ) -> Tuple[bool, float]:
+        """
+        Distille chirurgicalement le prior noosphérique fédéral de l'Hyper-Connectome dans un agent.
+        Confère une calibration épistémique, aligne le latent et dote l'agent d'un bonus énergétique
+        de renaissance noogénétique (+12.0 E).
+        """
+        if not getattr(self.config, "enable_hyperconnectome_distillation", True):
+            return False, 0.0
+
+        success, fid, details = self.hyperconnectome_synthesizer.project_hyperconnectome_prior(
+            agent=agent,
+            alpha=alpha,
+        )
+
+        bonus = float(self.config.noogenetic_rebirth_bonus)
+        if success:
+            agent["energy"] = min(100.0, agent.get("energy", 0.0) + bonus)
+            agent["noogenetic_rebirth_count"] = agent.get("noogenetic_rebirth_count", 0) + 1
+            self.noogenetic_distillations_count += 1
+            agent["lu_needs_noosphere_confirmation"] = False
+            return True, bonus
+        else:
+            # Même si le modèle physique neural n'est pas présent (ex: agent dict synthétique),
+            # on aligne le vecteur latent de l'agent
+            z_ag = agent.get("lu_latent")
+            if z_ag is None:
+                z_ag = self.encode_agent_latent(agent)
+            z_hyper = self.hyperconnectome_synthesizer.z_hyper
+            alpha_val = float(np.clip(alpha, 0.05, 0.50))
+            z_new = (1.0 - alpha_val) * z_ag + alpha_val * z_hyper
+            norm_z = np.linalg.norm(z_new) + 1e-12
+            agent["lu_latent"] = (z_new / norm_z).astype(np.float32)
+            agent["energy"] = min(100.0, agent.get("energy", 0.0) + bonus)
+            agent["noogenetic_rebirth_count"] = agent.get("noogenetic_rebirth_count", 0) + 1
+            self.noogenetic_distillations_count += 1
+            agent["lu_needs_noosphere_confirmation"] = False
+            return True, bonus
+
+    # =========================================================================
     # Spéciation Dialectale & Contrats de Troc Décentralisés (Phase 4 M1 & M2)
     # =========================================================================
 
@@ -2790,6 +2955,26 @@ class LUInWorldAdapter:
                         tick_synarchic_councils += 1
                         tick_noosphere_broadcasts += council_res.get("participants_count", 0)
 
+        # 16. Morphogenèse Noogénétique, Réaction-Diffusion & Hyper-Connectome Distribué (Phase 13 M2)
+        tick_pde_steps = 0
+        tick_hyperconnectome_updates = 0
+        tick_noogenetic_distillations = 0
+        if getattr(self.config, "enable_reaction_diffusion_pde", True) and self.world is not None:
+            tick_now = getattr(self.world, "tick", getattr(self.world, "ticks", 0))
+            if tick_now % 3 == 0:
+                self.step_reaction_diffusion_field(dt=0.20)
+                tick_pde_steps += 1
+                if getattr(self.config, "enable_hyperconnectome_distillation", True):
+                    tick_hyperconnectome_updates += 1
+                    for ag in agents:
+                        is_newborn = ag.get("age", 999) <= 5
+                        in_distress = ag.get("energy", 50.0) < 25.0
+                        if (is_newborn or in_distress) and not ag.get("hyperconnectome_distilled_this_era", False):
+                            succ, _ = self.distill_noogenetic_prior_to_agent(ag, alpha=0.35)
+                            if succ:
+                                tick_noogenetic_distillations += 1
+                                ag["hyperconnectome_distilled_this_era"] = True
+
         self.total_transmissions += tick_transmissions
         self.successful_alignments += tick_alignments
         self.pack_coordinations_count += tick_coordinations
@@ -2859,6 +3044,13 @@ class LUInWorldAdapter:
             "synarchic_ratifications": self.synarchic_ratifications_count,
             "tick_noosphere_broadcasts": tick_noosphere_broadcasts,
             "tick_synarchic_councils": tick_synarchic_councils,
+            "pde_steps": self.pde_steps_count,
+            "hyperconnectome_updates": self.hyperconnectome_updates_count,
+            "noogenetic_distillations": self.noogenetic_distillations_count,
+            "pde_energy": round(self.pde_engine.compute_pde_energy(), 4) if self.pde_engine is not None else 0.0,
+            "tick_pde_steps": tick_pde_steps,
+            "tick_hyperconnectome_updates": tick_hyperconnectome_updates,
+            "tick_noogenetic_distillations": tick_noogenetic_distillations,
         }
 
 
