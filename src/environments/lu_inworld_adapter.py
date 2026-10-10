@@ -53,6 +53,8 @@ from src.metaprog.lu_algebra import (
     spherical_sinkhorn_barycenter,
     LatentReactionDiffusionPDE,
     HyperConnectomeSynthesizer,
+    AutopoieticSingularityEngine,
+    HolographicBoundaryProjector,
 )
 from src.metaprog.lu_symbolic_bridge import (
     MultiTribalTranslator,
@@ -61,6 +63,8 @@ from src.metaprog.lu_symbolic_bridge import (
     LUEpistemicInsight,
     LUNoogeneticField,
     LUHyperConnectome,
+    LUAutopoieticSingularity,
+    LUHolographicBoundary,
 )
 from src.agents.dream_replay import SharedDreamExperience, SharedDreamPool
 from src.graph_rag.async_logger import logger
@@ -222,6 +226,12 @@ class LUInWorldConfig:
     enable_hyperconnectome_distillation: bool = True
     hyperconnectome_learning_rate: float = 0.10
     noogenetic_rebirth_bonus: float = 12.0
+    # Phase 14 : Singularité Autopoïétique, Méta-Langage Holographique Universel & Clôture Téléologique
+    enable_autopoietic_singularity: bool = True
+    holographic_projection_ratio: float = 0.40
+    teleological_attractor_force: float = 0.25
+    autopoietic_entropy_threshold: float = 0.65
+    singularity_dividend_bonus: float = 20.0
 
 
 class LUInWorldAdapter:
@@ -375,6 +385,25 @@ class LUInWorldAdapter:
         self.hyperconnectome_updates_count: int = 0
         self.noogenetic_distillations_count: int = 0
         self.recent_pde_snapshots: List[Dict[str, Any]] = []
+        # Phase 14 : Singularité Autopoïétique, Méta-Langage Holographique & Clôture Téléologique
+        self.autopoietic_engine = AutopoieticSingularityEngine(
+            dim=self.dim,
+            grammar=self.grammar,
+            seed=getattr(self.config, "seed", 42),
+            gamma=0.25,
+            kappa=float(self.config.teleological_attractor_force),
+        )
+        self.holographic_projector = HolographicBoundaryProjector(
+            dim=self.dim,
+            boundary_dim=16,
+            grammar=self.grammar,
+            seed=getattr(self.config, "seed", 42),
+        )
+        self.autopoietic_steps_count: int = 0
+        self.holographic_projections_count: int = 0
+        self.teleological_convergences_count: int = 0
+        self.singularity_dividends_count: int = 0
+        self.recent_autopoietic_snapshots: List[Dict[str, Any]] = []
         if getattr(self.config, "enable_diplomacy", True):
             self._init_federal_monument()
 
@@ -2016,6 +2045,117 @@ class LUInWorldAdapter:
             return True, bonus
 
     # =========================================================================
+    # Phase 14 : Singularité Autopoïétique, Méta-Langage Holographique Universel
+    #            & Clôture Téléologique (Arc 8 : L'Omniconscience)
+    # =========================================================================
+
+    def step_autopoietic_singularity(self) -> Dict[str, Any]:
+        """
+        Résout une itération de la Singularité Autopoïétique et de la Projection Holographique.
+        Couple les états volumiques des 3 Mondes au Gigatoken frontière unifié Z_holo.
+        Génère l'attracteur téléologique et stabilise la clôture homéostatique.
+        """
+        if not getattr(self.config, "enable_autopoietic_singularity", True):
+            return {"status": "disabled"}
+
+        agents = getattr(self.world, "agents", [])
+        world_states: List[np.ndarray] = []
+
+        # États latents des agents
+        for ag in agents[:12]:
+            z = ag.get("lu_latent")
+            if z is not None and len(z) == self.dim:
+                world_states.append(z)
+
+        # États des stèles
+        if self.steles:
+            for s in self.steles.values():
+                v = s.content_vector
+                if v is not None and len(v) == self.dim:
+                    world_states.append(v)
+
+        # 1. Étape autopoïétique
+        phi_auto = self.autopoietic_engine.step(world_states=world_states, dt=0.15)
+        self.autopoietic_steps_count += 1
+
+        # 2. Projection holographique frontière
+        z_holo = self.holographic_projector.project_bulk_to_boundary(world_states=world_states)
+        self.holographic_projections_count += 1
+        fidelity = self.holographic_projector.compute_holographic_fidelity(world_states, z_holo)
+
+        # 3. Métriques et traçabilité
+        entropy = self.autopoietic_engine.compute_bekenstein_entropy()
+        spec = self.autopoietic_engine.get_singularity_spec()
+        tick = getattr(self.world, "tick", getattr(self.world, "ticks", 0)) if self.world is not None else 0
+
+        if hasattr(self, "diplomatic_bridge") and self.diplomatic_bridge is not None:
+            self.diplomatic_bridge.record_autopoietic_event(
+                singularity_id=f"auto_{tick}_{self.autopoietic_steps_count}",
+                attractor_energy=float(np.sum(phi_auto ** 2)),
+                entropy=entropy,
+                alignment=float(spec["attractor_alignment"]),
+                tick=tick,
+            )
+            self.diplomatic_bridge.record_holographic_snapshot(
+                boundary_id=f"holo_{tick}_{self.holographic_projections_count}",
+                fidelity=fidelity,
+                compression_ratio=float(len(world_states)) / max(1.0, float(self.holographic_projector.boundary_dim)),
+                bulk_nodes_count=len(world_states),
+                version=self.autopoietic_steps_count,
+                tick=tick,
+            )
+
+        snapshot = {
+            "tick": tick,
+            "entropy": entropy,
+            "alignment": spec["attractor_alignment"],
+            "fidelity": fidelity,
+            "bulk_states_count": len(world_states),
+        }
+        self.recent_autopoietic_snapshots.append(snapshot)
+        if len(self.recent_autopoietic_snapshots) > 20:
+            self.recent_autopoietic_snapshots.pop(0)
+
+        return snapshot
+
+    def resonate_teleological_convergence(
+        self,
+        agents: Optional[List[Dict[str, Any]]] = None,
+    ) -> Tuple[bool, float]:
+        """
+        Harmonise les connectomes de la population vers l'attracteur téléologique universel.
+        Aligne les vecteurs latents sur le phare finaliste et octroie le Grand Dividende
+        de Singularité (+20.0 E) aux agents alignés.
+        """
+        if not getattr(self.config, "enable_autopoietic_singularity", True):
+            return False, 0.0
+
+        target_agents = agents or getattr(self.world, "agents", [])
+        if not target_agents:
+            return False, 0.0
+
+        bonus = float(self.config.singularity_dividend_bonus)
+        force = float(self.config.teleological_attractor_force)
+        attractor = self.autopoietic_engine.phi_attractor
+
+        for ag in target_agents:
+            z_ag = ag.get("lu_latent")
+            if z_ag is None:
+                z_ag = self.encode_agent_latent(ag)
+
+            z_new = (1.0 - force) * z_ag + force * attractor
+            norm_z = np.linalg.norm(z_new) + 1e-12
+            ag["lu_latent"] = (z_new / norm_z).astype(np.float32)
+
+            ag["energy"] = min(100.0, ag.get("energy", 0.0) + bonus)
+            ag["teleological_alignment_count"] = ag.get("teleological_alignment_count", 0) + 1
+            ag["singularity_attuned"] = True
+            self.singularity_dividends_count += 1
+
+        self.teleological_convergences_count += 1
+        return True, bonus
+
+    # =========================================================================
     # Spéciation Dialectale & Contrats de Troc Décentralisés (Phase 4 M1 & M2)
     # =========================================================================
 
@@ -2975,6 +3115,21 @@ class LUInWorldAdapter:
                                 tick_noogenetic_distillations += 1
                                 ag["hyperconnectome_distilled_this_era"] = True
 
+        # 17. Singularité Autopoïétique & Méta-Langage Holographique (Phase 14 M2)
+        tick_autopoietic_steps = 0
+        tick_teleological_convergences = 0
+        tick_singularity_dividends = 0
+        if getattr(self.config, "enable_autopoietic_singularity", True) and self.world is not None:
+            tick_now = getattr(self.world, "tick", getattr(self.world, "ticks", 0))
+            if tick_now % 5 == 0:
+                self.step_autopoietic_singularity()
+                tick_autopoietic_steps += 1
+                if len(agents) >= 2:
+                    succ, _ = self.resonate_teleological_convergence(agents)
+                    if succ:
+                        tick_teleological_convergences += 1
+                        tick_singularity_dividends += len(agents)
+
         self.total_transmissions += tick_transmissions
         self.successful_alignments += tick_alignments
         self.pack_coordinations_count += tick_coordinations
@@ -3051,6 +3206,14 @@ class LUInWorldAdapter:
             "tick_pde_steps": tick_pde_steps,
             "tick_hyperconnectome_updates": tick_hyperconnectome_updates,
             "tick_noogenetic_distillations": tick_noogenetic_distillations,
+            "autopoietic_steps": self.autopoietic_steps_count,
+            "holographic_projections": self.holographic_projections_count,
+            "teleological_convergences": self.teleological_convergences_count,
+            "singularity_dividends": self.singularity_dividends_count,
+            "bekenstein_entropy": round(self.autopoietic_engine.compute_bekenstein_entropy(), 4) if self.autopoietic_engine is not None else 0.0,
+            "tick_autopoietic_steps": tick_autopoietic_steps,
+            "tick_teleological_convergences": tick_teleological_convergences,
+            "tick_singularity_dividends": tick_singularity_dividends,
         }
 
 

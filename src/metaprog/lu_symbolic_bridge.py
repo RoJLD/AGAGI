@@ -87,6 +87,27 @@ class LUHyperConnectome:
 
 
 @dataclass
+class LUAutopoieticSingularity:
+    """Modèle de persistance pour la Singularité Autopoïétique et Clôture Téléologique (Phase 14 M3)."""
+    id: str
+    attractor_energy: float = 0.0
+    bekenstein_entropy: float = 0.0
+    teleological_alignment: float = 0.0
+    tick: int = 0
+
+
+@dataclass
+class LUHolographicBoundary:
+    """Modèle de persistance pour la Frontière Holographique AdS/CFT Sémantique (Phase 14 M3)."""
+    id: str
+    compression_ratio: float = 1.0
+    bulk_nodes_count: int = 0
+    boundary_fidelity: float = 1.0
+    version: int = 1
+    tick: int = 0
+
+
+@dataclass
 class LUSymbolicBridgeConfig:
     """Configuration du pont symbolique-neuronal LU."""
     dim: int = 16
@@ -2056,5 +2077,73 @@ class FederalDiplomaticBridge:
             except Exception:
                 pass
         return hyperconnectome
+
+    def record_autopoietic_event(
+        self,
+        singularity: Optional[LUAutopoieticSingularity] = None,
+        singularity_id: Optional[str] = None,
+        attractor_energy: float = 0.0,
+        entropy: float = 0.0,
+        alignment: float = 0.0,
+        tick: int = 0,
+        **kwargs: Any
+    ) -> LUAutopoieticSingularity:
+        """Enregistre un événement de singularité autopoïétique dans le Lattice et KuzuDB si disponible."""
+        if singularity is None:
+            s_id = singularity_id or f"auto_{tick}_1"
+            singularity = LUAutopoieticSingularity(
+                id=s_id,
+                attractor_energy=float(attractor_energy),
+                bekenstein_entropy=float(entropy),
+                teleological_alignment=float(alignment),
+                tick=int(tick),
+            )
+
+        self.lattice_nodes[singularity.id] = singularity
+
+        if self.db is not None:
+            try:
+                self.db.execute_cypher(
+                    f"CREATE (s:LUAutopoieticSingularity {{id: '{singularity.id}', energy: {singularity.attractor_energy}, "
+                    f"entropy: {singularity.bekenstein_entropy}, alignment: {singularity.teleological_alignment}, tick: {singularity.tick}}})"
+                )
+            except Exception:
+                pass
+        return singularity
+
+    def record_holographic_snapshot(
+        self,
+        boundary: Optional[LUHolographicBoundary] = None,
+        boundary_id: Optional[str] = None,
+        fidelity: float = 1.0,
+        compression_ratio: float = 1.0,
+        bulk_nodes_count: int = 0,
+        version: int = 1,
+        tick: int = 0,
+        **kwargs: Any
+    ) -> LUHolographicBoundary:
+        """Enregistre un instantané de frontière holographique dans le Lattice et KuzuDB si disponible."""
+        if boundary is None:
+            b_id = boundary_id or f"holo_{tick}_{version}"
+            boundary = LUHolographicBoundary(
+                id=b_id,
+                compression_ratio=float(compression_ratio),
+                bulk_nodes_count=int(bulk_nodes_count),
+                boundary_fidelity=float(fidelity),
+                version=int(version),
+                tick=int(tick),
+            )
+
+        self.lattice_nodes[boundary.id] = boundary
+
+        if self.db is not None:
+            try:
+                self.db.execute_cypher(
+                    f"CREATE (b:LUHolographicBoundary {{id: '{boundary.id}', fidelity: {boundary.boundary_fidelity}, "
+                    f"compression: {boundary.compression_ratio}, version: {boundary.version}, tick: {boundary.tick}}})"
+                )
+            except Exception:
+                pass
+        return boundary
 
 

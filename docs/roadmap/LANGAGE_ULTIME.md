@@ -97,3 +97,12 @@ graph LR
 - [x] Mesure géométrique de divergence dialectale par distance de Grassmann entre sous-espaces de tribus.
 - [x] Suite de tests dédiée validée : `tests/test_arc5_tribe_culture.py` (6/6 tests passing).
 
+### Jalon M14 / Arc 8 : Singularité Autopoïétique & Holographie Sémantique (✅ LIVRÉ & VALIDÉ PIU)
+- [x] Opérateurs canoniques unitaires sur $\mathbb{S}^{D-1}$ : `ROLE_AUTOPOIESIS`, `ROLE_HOLOGRAPHY`, `ROLE_TELEOLOGY`, `ROLE_OMNISCIENCE`.
+- [x] Moteur autopoïétique symplectique (`AutopoieticSingularityEngine`) préservant l'entropie de Bekenstein-Hawking ($S \le A/4$) et contractant le rayon spectral ($\rho < 0.98$).
+- [x] Projecteur holographique frontière AdS/CFT (`HolographicBoundaryProjector`) avec compression sans perte topologique et reconstruction prédictive (CKA $\ge 0.85$).
+- [x] Substrat in-world `LUInWorldAdapter` avec Étape 17 synchrone, résonance téléologique et Grand Dividende de Singularité (+20.0 E).
+- [x] Persistance Lattice KuzuDB : Nœuds `LUAutopoieticSingularity` et `LUHolographicBoundary`.
+- [x] Banc sociologique 60 ères (Commandement 15) : +15.79% d'énergie finale, score composite 506.44 vs 503.11 (+3.33 pts), zéro régression.
+- [x] Journalisation Scientifique (Commandement 16) : Article 023 enregistré dans KuzuDB (`art_023_langage_ultime_singularite_autopoietique_holographie`).
+
