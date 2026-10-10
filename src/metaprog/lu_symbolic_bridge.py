@@ -133,6 +133,13 @@ class LUSymbolicBridge:
             "CONSTITUTION": ("TREATY", 1.0),
             "PEACE": ("TREATY", 1.0),
             "FEDERATION": ("TREATY", 1.0),
+            # Phase 8 : Neural VM, Do-Calculus & Consensus BFT
+            "EXECUTE_CONTRACT": ("ACTION", 1.0),
+            "DO_INTERVENE": ("CAUSAL", 1.0),
+            "CAUSAL_TEST": ("CAUSAL", 1.0),
+            "BFT_CONSENSUS": ("CONSENSUS", 1.0),
+            "ESCROW": ("TARGET", 1.0),
+            "NEURAL_VM": ("META", 1.0),
         }
         
         for name, (cat, weight) in concepts.items():
@@ -933,6 +940,209 @@ class LUSymbolicBridge:
             "clause_dsl": clause_decomp.get("dsl", ""),
             "matched_signatories": matched_signatories,
         }
+
+    # =========================================================================
+    # Méthodes Neural VM, Do-Calculus & Consensus BFT (LU Phase 8 M1)
+    # =========================================================================
+
+    def register_neural_vm_state(
+        self,
+        vm_id: str,
+        state_label: str,
+        trigger_label: str,
+        target_state_label: str,
+        escrow_action: Optional[str] = None
+    ) -> bool:
+        """
+        Consigne un état ou transition de la Machine Virtuelle Latente dans LUNeuralVM.
+        """
+        if self.db is not None:
+            try:
+                self.db.execute_cypher(
+                    "CREATE NODE TABLE LUNeuralVM (id STRING, state_label STRING, "
+                    "trigger_label STRING, target_state_label STRING, escrow_action STRING, PRIMARY KEY (id))"
+                )
+            except Exception:
+                pass
+            try:
+                esc_str = escrow_action or "NONE"
+                q = (
+                    f"CREATE (vm:LUNeuralVM {{id: '{vm_id}', state_label: '{state_label}', "
+                    f"trigger_label: '{trigger_label}', target_state_label: '{target_state_label}', "
+                    f"escrow_action: '{esc_str}'}})"
+                )
+                self.db.execute_cypher(q)
+                return True
+            except Exception as e:
+                logger.debug(f"Persistence LUNeuralVM ignorée : {e}")
+        return False
+
+    def register_causal_inference(
+        self,
+        inference_id: str,
+        cause_label: str,
+        effect_label: str,
+        ate_score: float,
+        r_obs: float,
+        discrepancy: float
+    ) -> bool:
+        """
+        Consigne une inférence ou test expérimental causal dans LUCausalInference.
+        """
+        if self.db is not None:
+            try:
+                self.db.execute_cypher(
+                    "CREATE NODE TABLE LUCausalInference (id STRING, cause_label STRING, "
+                    "effect_label STRING, ate_score DOUBLE, r_obs DOUBLE, discrepancy DOUBLE, PRIMARY KEY (id))"
+                )
+            except Exception:
+                pass
+            try:
+                q = (
+                    f"CREATE (ci:LUCausalInference {{id: '{inference_id}', cause_label: '{cause_label}', "
+                    f"effect_label: '{effect_label}', ate_score: {ate_score}, r_obs: {r_obs}, discrepancy: {discrepancy}}})"
+                )
+                self.db.execute_cypher(q)
+                return True
+            except Exception as e:
+                logger.debug(f"Persistence LUCausalInference ignorée : {e}")
+        return False
+
+    def register_bft_consensus(
+        self,
+        consensus_id: str,
+        topic: str,
+        agreement_score: float,
+        honest_count: int,
+        byzantine_count: int,
+        byzantine_ids: str
+    ) -> bool:
+        """
+        Consigne un résultat de consensus sphérique byzantin dans LUBFTConsensus.
+        """
+        if self.db is not None:
+            try:
+                self.db.execute_cypher(
+                    "CREATE NODE TABLE LUBFTConsensus (id STRING, topic STRING, "
+                    "agreement_score DOUBLE, honest_count INT64, byzantine_count INT64, byzantine_ids STRING, PRIMARY KEY (id))"
+                )
+            except Exception:
+                pass
+            try:
+                q = (
+                    f"CREATE (bc:LUBFTConsensus {{id: '{consensus_id}', topic: '{topic}', "
+                    f"agreement_score: {agreement_score}, honest_count: {honest_count}, "
+                    f"byzantine_count: {byzantine_count}, byzantine_ids: '{byzantine_ids}'}})"
+                )
+                self.db.execute_cypher(q)
+                return True
+            except Exception as e:
+                logger.debug(f"Persistence LUBFTConsensus ignorée : {e}")
+        return False
+
+    def compile_smart_contract_directive(
+        self,
+        initial_state_label: str,
+        trigger_label: str,
+        target_state_label: str,
+        escrow_label: Optional[str] = None
+    ) -> np.ndarray:
+        """
+        Compile un contrat intelligent symbolique en Gigatoken FSM vectoriel.
+        """
+        def get_v(lbl: str) -> np.ndarray:
+            key = lbl.upper()
+            if key in self.lexicon:
+                return self.lexicon[key]["vector"]
+            rng = np.random.default_rng(abs(hash(key)) % (2**31 - 1))
+            return self.grammar._generate_canonical_unit_vector(rng)
+
+        v_init = get_v(initial_state_label)
+        v_trig = get_v(trigger_label)
+        v_target = get_v(target_state_label)
+        v_escrow = get_v(escrow_label) if escrow_label else None
+
+        return self.grammar.compose_smart_contract(v_init, v_trig, v_target, v_escrow)
+
+    def decode_smart_contract_vector(self, contract_vector: np.ndarray) -> Dict[str, Any]:
+        """
+        Décompile un vecteur de Smart Contract FSM en labels compréhensibles.
+        """
+        parts = self.grammar.extract_smart_contract_parts(contract_vector)
+
+        def best_match(qv: np.ndarray) -> Tuple[str, float]:
+            best_label = "UNKNOWN"
+            best_sim = -1.0
+            for name, data in self.lexicon.items():
+                sim = float(cosine_similarity(qv, data["vector"]))
+                if sim > best_sim:
+                    best_sim = sim
+                    best_label = name
+            return best_label, best_sim
+
+        init_name, init_sim = best_match(parts["initial_state"])
+        trig_name, trig_sim = best_match(parts["trigger"])
+        tgt_name, tgt_sim = best_match(parts["target_state"])
+        esc_name, esc_sim = best_match(parts["escrow"])
+
+        return {
+            "initial_state": init_name,
+            "initial_state_sim": round(init_sim, 3),
+            "trigger": trig_name,
+            "trigger_sim": round(trig_sim, 3),
+            "target_state": tgt_name,
+            "target_state_sim": round(tgt_sim, 3),
+            "escrow": esc_name,
+            "escrow_sim": round(esc_sim, 3),
+            "is_valid": (init_sim >= 0.30 and trig_sim >= 0.30 and tgt_sim >= 0.30),
+        }
+
+    def compile_causal_test_directive(
+        self,
+        cause_label: str,
+        effect_label: str
+    ) -> np.ndarray:
+        """
+        Compile une directive d'hypothèse causale symbolique en Gigatoken formel.
+        """
+        def get_v(lbl: str) -> np.ndarray:
+            key = lbl.upper()
+            if key in self.lexicon:
+                return self.lexicon[key]["vector"]
+            rng = np.random.default_rng(abs(hash(key)) % (2**31 - 1))
+            return self.grammar._generate_canonical_unit_vector(rng)
+
+        v_cause = get_v(cause_label)
+        v_effect = get_v(effect_label)
+        return self.grammar.compose_causal_statement(v_cause, v_effect)
+
+    def decode_causal_statement_vector(self, causal_vector: np.ndarray) -> Dict[str, Any]:
+        """
+        Décompile une assertion causale formelle en labels symboliques.
+        """
+        parts = self.grammar.extract_causal_parts(causal_vector)
+
+        def best_match(qv: np.ndarray) -> Tuple[str, float]:
+            best_label = "UNKNOWN"
+            best_sim = -1.0
+            for name, data in self.lexicon.items():
+                sim = float(cosine_similarity(qv, data["vector"]))
+                if sim > best_sim:
+                    best_sim = sim
+                    best_label = name
+            return best_label, best_sim
+
+        c_name, c_sim = best_match(parts["cause"])
+        e_name, e_sim = best_match(parts["effect"])
+
+        return {
+            "cause": c_name,
+            "cause_sim": round(c_sim, 3),
+            "effect": e_name,
+            "effect_sim": round(e_sim, 3),
+            "is_valid": (c_sim >= 0.35 and e_sim >= 0.35),
+        }
+
 
 class MultiTribalTranslator:
     """

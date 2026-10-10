@@ -440,6 +440,15 @@ Le franchissement du seuil constitutionnel et trans-dimensionnel unifiant les ci
 - **Persistance Lattice KuzuDB (`LUMetaGrammar`, `LUProofCheck`, `LUFederalTreaty`)** : Archivage immuable de la Constitution, des vérifications formelles et des signatures diplomatiques dans le graphe de connaissances.
 - **Clôture & Journalisation** : Validé par le banc sociologique PIU de 60 ères sous Commandement 15 (delta énergie $+1.32$ pts, delta survie $+0.10$ ticks, score composite $+1.37$ pts, $19.23$ traités ratifiés par ère) et consigné dans KuzuDB sous l'identifiant `art_016_langage_ultime_metalangage_diplomatie` (Article 016).
 
+## ⚡ Langage Ultime Phase 8 : Machine Virtuelle Latente Auto-Exécutable, Causalité Formelle Do-Calculus et Consensus Byzantin Sphérique (Article 017)
+
+Le franchissement du seuil d'exécution matérielle programmable, d'expérimentation causale active et d'immunité byzantine (G8) :
+- **Machine Virtuelle Vectorielle Latente (`LatentNeuralVM`)** : Machine à états finis continue $S_{t+1} = \sigma_{\mathbb{S}}(S_t \circledast R_{\text{op}} \circledast \text{Input})$ opérant sur la sphère $\mathbb{S}^{D-1}$ avec rôles unitaires d'état, de transition, de trigger et d'escrow calorique sans tiers de confiance. Auto-exécution in-world au `FederalMonument` garantissant la libération conditionnelle de ressources dès apport du trigger adéquat.
+- **Causalité Formelle & Do-Calculus Vectoriel** : Opérateur d'intervention unitaire $do(X) = R_{do} \circledast X$ orthogonal aux corrélations passives. Algèbre de découverte mesurant l'Effet Moyen de Traitement $\text{ATE} = \|\mathbb{E}[Y \mid do(X)] - \mathbb{E}[Y \mid do(\neg X)]\|_2$, permettant à l'Académie scientifique d'intervenir activement pour valider de vraies lois techniques et réfuter les superstitions.
+- **Consensus Byzantin Sphérique (BFT Géométrique de Weiszfeld)** : Agrégation robuste sur $\mathbb{S}^{D-1}$ via la médiane géométrique de Weiszfeld régularisée. Identification et élimination automatique des vecteurs adversariaux antipodaux ou bruités jusqu'à $f < n/3$ déviations, garantissant l'alignement unanime de meute ($\langle \mu^*, V_{\text{true}} \rangle \ge 0.90$).
+- **Persistance Lattice KuzuDB (`LUNeuralVM`, `LUCausalInference`, `LUBFTConsensus`)** : Traçabilité immuable des transitions d'états de contrats, inférences causales et votes byzantins dans le graphe de connaissances universel.
+- **Clôture & Journalisation** : Validé par le banc sociologique PIU de 60 ères sous Commandement 15 (delta énergie loyaux $+6.80$ pts, score composite $+6.80$ pts, $14.37$ tentatives de poisoning neutralisées par ère) et consigné dans KuzuDB sous l'identifiant `art_017_langage_ultime_neural_vm_causalite_bft` (Article 017).
+
 ## Comment lire les preuves
 
 Chaque affirmation ci-dessus pointe vers son EDR (`docs/EDR/NNN_*.md`), qui contient le protocole, les

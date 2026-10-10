@@ -137,6 +137,14 @@ class LUCompositionalGrammar:
         self.ROLE_TREATY_SIGNATORY = self._generate_canonical_unit_vector(rng)
         self.ROLE_PROOF_PREMISE = self._generate_canonical_unit_vector(rng)
         self.ROLE_PROOF_CONCLUSION = self._generate_canonical_unit_vector(rng)
+        # Rôles pour Machine Virtuelle Latente, Do-Calculus & Consensus BFT (Phase 8)
+        self.ROLE_VM_STATE = self._generate_canonical_unit_vector(rng)
+        self.ROLE_VM_TRANSITION = self._generate_canonical_unit_vector(rng)
+        self.ROLE_VM_TRIGGER = self._generate_canonical_unit_vector(rng)
+        self.ROLE_VM_ESCROW = self._generate_canonical_unit_vector(rng)
+        self.ROLE_DO = self._generate_canonical_unit_vector(rng)
+        self.ROLE_CAUSAL_CAUSE = self._generate_canonical_unit_vector(rng)
+        self.ROLE_CAUSAL_EFFECT = self._generate_canonical_unit_vector(rng)
 
     def _generate_canonical_unit_vector(self, rng: np.random.Generator) -> np.ndarray:
         """
@@ -492,6 +500,64 @@ class LUCompositionalGrammar:
         sig_clause = self.query_role(treaty_vector, self.ROLE_TREATY_SIGNATORY)
         sim = float(cosine_similarity(sig_clause, signatory_vector))
         return (sim >= threshold), sim
+
+    # =========================================================================
+    # Méthodes Smart Contracts & Causalité Vectorielle (LU Phase 8 M1)
+    # =========================================================================
+
+    def compose_smart_contract(
+        self,
+        initial_state: np.ndarray,
+        trigger_vector: np.ndarray,
+        target_state: np.ndarray,
+        escrow_action: Optional[np.ndarray] = None,
+    ) -> np.ndarray:
+        """
+        Compose un contrat intelligent auto-exécutable vectoriel (LU Phase 8 M1) :
+        Z_contract = bundle(ROLE_VM_STATE ⊛ s_init, ROLE_VM_TRIGGER ⊛ trig,
+                            ROLE_VM_TRANSITION ⊛ s_target [, ROLE_VM_ESCROW ⊛ escrow]).
+        """
+        parts = [
+            circular_convolution(self.ROLE_VM_STATE, initial_state),
+            circular_convolution(self.ROLE_VM_TRIGGER, trigger_vector),
+            circular_convolution(self.ROLE_VM_TRANSITION, target_state),
+        ]
+        weights = [1.0, 1.0, 1.0]
+        if escrow_action is not None:
+            parts.append(circular_convolution(self.ROLE_VM_ESCROW, escrow_action))
+            weights.append(1.0)
+        return bundle_vectors(parts, weights)
+
+    def extract_smart_contract_parts(self, contract_vector: np.ndarray) -> Dict[str, np.ndarray]:
+        """Extrait les composantes fonctionnelles d'un contrat intelligent vectoriel."""
+        return {
+            "initial_state": self.query_role(contract_vector, self.ROLE_VM_STATE),
+            "trigger": self.query_role(contract_vector, self.ROLE_VM_TRIGGER),
+            "target_state": self.query_role(contract_vector, self.ROLE_VM_TRANSITION),
+            "escrow": self.query_role(contract_vector, self.ROLE_VM_ESCROW),
+        }
+
+    def compose_causal_statement(
+        self,
+        cause_vector: np.ndarray,
+        effect_vector: np.ndarray,
+    ) -> np.ndarray:
+        """
+        Compose une assertion causale formelle :
+        Z_causal = bundle(ROLE_CAUSAL_CAUSE ⊛ cause, ROLE_CAUSAL_EFFECT ⊛ effect).
+        """
+        parts = [
+            circular_convolution(self.ROLE_CAUSAL_CAUSE, cause_vector),
+            circular_convolution(self.ROLE_CAUSAL_EFFECT, effect_vector),
+        ]
+        return bundle_vectors(parts, [1.0, 1.0])
+
+    def extract_causal_parts(self, causal_vector: np.ndarray) -> Dict[str, np.ndarray]:
+        """Extrait la cause et l'effet d'une assertion causale formelle."""
+        return {
+            "cause": self.query_role(causal_vector, self.ROLE_CAUSAL_CAUSE),
+            "effect": self.query_role(causal_vector, self.ROLE_CAUSAL_EFFECT),
+        }
 
 
 
@@ -902,5 +968,246 @@ def verify_propositional_consistency(
 
     is_consistent = (len(conflicts) == 0)
     return is_consistent, min_sim, conflicts
+
+
+# =========================================================================
+# Machine Virtuelle Latente, Do-Calculus & Consensus BFT (LU Phase 8 M1)
+# =========================================================================
+
+class LatentNeuralVM:
+    """
+    Machine Virtuelle Vectorielle Latente (LU Phase 8 M1).
+    Machine à états finis continue opérant strictement sur la sphère S^{D-1}.
+    Supporte les transitions d'état pilotées par Gigatokens (Smart Contracts auto-exécutables) :
+    S_{t+1} = σ(S_t ⊛ R_transition ⊛ Input) ou saut d'état conditionné.
+    Garantit ||S_t|| = 1 et le déclenchement décentralisé d'escrow (libération de ressource/énergie).
+    """
+
+    def __init__(self, dim: int = 16, config: Optional[LUAlgebraConfig] = None, seed: int = 42):
+        self.config = config or LUAlgebraConfig(dim=dim, seed=seed)
+        self.dim = self.config.dim
+        self.grammar = LUCompositionalGrammar(self.config)
+        rng = np.random.default_rng(seed)
+        self.current_state = self.grammar._generate_canonical_unit_vector(rng)
+        self.transitions: List[Dict[str, Any]] = []
+
+    def set_state(self, state_vector: np.ndarray) -> None:
+        """Définit manuellement l'état interne de la VM sur la sphère unitaire."""
+        v = np.asarray(state_vector, dtype=np.float32)
+        norm = np.linalg.norm(v) + 1e-12
+        self.current_state = (v / norm).astype(np.float32)
+
+    def register_transition(
+        self,
+        from_state: np.ndarray,
+        trigger_vector: np.ndarray,
+        to_state: np.ndarray,
+        escrow_action: Optional[np.ndarray] = None,
+        threshold: float = 0.40,
+        contract_id: str = "contract_default"
+    ) -> np.ndarray:
+        """
+        Enregistre une transition et génère le Gigatoken du Smart Contract associé.
+        """
+        v_from = (from_state / (np.linalg.norm(from_state) + 1e-12)).astype(np.float32)
+        v_trig = (trigger_vector / (np.linalg.norm(trigger_vector) + 1e-12)).astype(np.float32)
+        v_to = (to_state / (np.linalg.norm(to_state) + 1e-12)).astype(np.float32)
+        v_escrow = None
+        if escrow_action is not None:
+            v_escrow = (escrow_action / (np.linalg.norm(escrow_action) + 1e-12)).astype(np.float32)
+
+        contract_vec = self.grammar.compose_smart_contract(v_from, v_trig, v_to, v_escrow)
+        self.transitions.append({
+            "contract_id": contract_id,
+            "from_state": v_from,
+            "trigger": v_trig,
+            "to_state": v_to,
+            "escrow": v_escrow,
+            "threshold": threshold,
+            "contract_vec": contract_vec,
+        })
+        return contract_vec
+
+    def step(
+        self,
+        input_vector: np.ndarray,
+        custom_threshold: Optional[float] = None
+    ) -> Tuple[np.ndarray, bool, Optional[np.ndarray], float, Optional[str]]:
+        """
+        Cycle d'exécution de la VM :
+        Évalue si un trigger correspond à l'état courant.
+        Retourne : (new_state, transitioned, escrow_action, best_similarity, contract_id).
+        """
+        v_in = (input_vector / (np.linalg.norm(input_vector) + 1e-12)).astype(np.float32)
+        best_sim = -1.0
+        matching = []
+
+        for trans in self.transitions:
+            thresh = custom_threshold if custom_threshold is not None else trans["threshold"]
+            sim_state = float(cosine_similarity(self.current_state, trans["from_state"]))
+            sim_trig = float(cosine_similarity(v_in, trans["trigger"]))
+            joint_score = float((sim_state + sim_trig) / 2.0)
+            if joint_score > best_sim:
+                best_sim = joint_score
+
+            if sim_state >= thresh and sim_trig >= thresh:
+                matching.append((joint_score, trans))
+
+        if matching:
+            matching.sort(key=lambda x: x[0], reverse=True)
+            best_trans = matching[0][1]
+            self.current_state = best_trans["to_state"].copy()
+            return (
+                self.current_state,
+                True,
+                best_trans["escrow"],
+                best_sim,
+                best_trans["contract_id"]
+            )
+
+        return (self.current_state, False, None, max(0.0, best_sim), None)
+
+
+def apply_latent_do_operator(
+    state_vector: np.ndarray,
+    variable_vector: np.ndarray,
+    do_role: Optional[np.ndarray] = None
+) -> np.ndarray:
+    """
+    Opérateur d'intervention causale de Pearl dans l'espace latent vectoriel :
+    do(X) applique une chirurgie géométrique :
+    Z_do = circular_convolution(R_DO, variable)
+    Puis projette l'état en neutralisant la composante naturelle de X et en liant Z_do.
+    Garantit l'orthogonalité de l'intervention aux covariables latentes passives.
+    """
+    s = np.asarray(state_vector, dtype=np.float32)
+    x = np.asarray(variable_vector, dtype=np.float32)
+    s_norm = s / (np.linalg.norm(s) + 1e-12)
+    x_norm = x / (np.linalg.norm(x) + 1e-12)
+
+    r_do = do_role
+    if r_do is None:
+        rng = np.random.default_rng(202608)
+        dim = s.shape[-1]
+        phases = rng.uniform(-np.pi, np.pi, dim)
+        phases[0] = 0.0
+        if dim % 2 == 0:
+            phases[dim // 2] = 0.0
+            phases[dim // 2 + 1:] = -phases[1:dim // 2][::-1]
+        else:
+            phases[(dim + 1) // 2:] = -phases[1:(dim + 1) // 2][::-1]
+        spectrum = np.exp(1j * phases)
+        r_do = np.fft.ifft(spectrum).real
+        r_do = (r_do / (np.linalg.norm(r_do) + 1e-12)).astype(np.float32)
+
+    # Chirurgie de Pearl : soustraire la projection observationnelle de x
+    proj_coeff = float(np.dot(s_norm, x_norm))
+    ortho_state = s_norm - proj_coeff * x_norm
+
+    # Lier l'intervention do(X)
+    z_do = circular_convolution(r_do, x_norm)
+
+    # Superposition de l'état purgé et de l'intervention unitaire
+    res = ortho_state + z_do
+    res_norm = res / (np.linalg.norm(res) + 1e-12)
+    return res_norm.astype(np.float32)
+
+
+def compute_latent_causal_effect(
+    factual_states: List[np.ndarray],
+    counterfactual_states: List[np.ndarray],
+    treatment_variable: np.ndarray,
+    outcome_variable: np.ndarray
+) -> Tuple[float, float, float]:
+    """
+    Calcule l'Effet Moyen de Traitement Causal (ATE) dans l'espace de Hilbert :
+    ATE = || E[Y | do(X)] - E[Y | do(~X)] ||_2
+    Comparé à la corrélation observationnelle brute r_obs = <X, Y>.
+    Retourne : (ate_score, observational_correlation, causal_discrepancy).
+    """
+    if not factual_states or not counterfactual_states:
+        return 0.0, 0.0, 0.0
+
+    x_norm = treatment_variable / (np.linalg.norm(treatment_variable) + 1e-12)
+    y_norm = outcome_variable / (np.linalg.norm(outcome_variable) + 1e-12)
+
+    # Observational correlation
+    r_obs = float(cosine_similarity(x_norm, y_norm))
+
+    # Causal outcomes
+    fact_mean = np.mean([s / (np.linalg.norm(s) + 1e-12) for s in factual_states], axis=0)
+    cf_mean = np.mean([s / (np.linalg.norm(s) + 1e-12) for s in counterfactual_states], axis=0)
+
+    # Projection sur la variable d'effet outcome_variable
+    y_fact = float(np.dot(fact_mean, y_norm))
+    y_cf = float(np.dot(cf_mean, y_norm))
+
+    ate = float(abs(y_fact - y_cf))
+    discrepancy = float(abs(ate - abs(r_obs)))
+
+    return ate, r_obs, discrepancy
+
+
+def spherical_weiszfeld_bft_consensus(
+    vectors: List[np.ndarray],
+    max_byzantine_ratio: float = 0.33,
+    max_iters: int = 50,
+    tol: float = 1e-5
+) -> Tuple[np.ndarray, float, List[int]]:
+    """
+    Consensus Byzantin Sphérique (BFT Géométrique - LU Phase 8 M1).
+    Calcule la médiane géométrique robuste sur la variété sphérique S^{D-1} via l'algorithme
+    de Weiszfeld régularisé, avec élagage des f <= floor(n * max_byzantine_ratio) outliers.
+    Immunisé contre le poisoning de signaux contradictoires ou antipodaux.
+    Retourne : (consensus_vector, agreement_score, byzantine_indices).
+    """
+    if not vectors:
+        raise ValueError("spherical_weiszfeld_bft_consensus requiert au moins un vecteur.")
+
+    n = len(vectors)
+    arrs = [np.asarray(v, dtype=np.float32) / (np.linalg.norm(v) + 1e-12) for v in vectors]
+    dim = arrs[0].shape[-1]
+
+    if n == 1:
+        return arrs[0].copy(), 1.0, []
+
+    # Initialisation : moyenne Fréchet non pondérée normalisée
+    m = np.sum(arrs, axis=0)
+    m = (m / (np.linalg.norm(m) + 1e-12)).astype(np.float32)
+
+    max_f = int(np.floor(n * max_byzantine_ratio))
+    byzantine_indices: List[int] = []
+
+    for _ in range(max_iters):
+        sims = [float(np.clip(np.dot(m, v), -1.0, 1.0)) for v in arrs]
+        dists = [float(np.arccos(s)) for s in sims]
+
+        if max_f > 0 and n >= 4:
+            sorted_indices = np.argsort(dists)
+            honest_indices = sorted_indices[:-max_f]
+            byzantine_indices = sorted_indices[-max_f:].tolist()
+        else:
+            honest_indices = np.arange(n)
+            byzantine_indices = []
+
+        weights = [1.0 / max(1e-4, dists[i]) for i in honest_indices]
+        total_w = sum(weights) + 1e-12
+
+        new_m = np.zeros(dim, dtype=np.float64)
+        for idx, w in zip(honest_indices, weights):
+            new_m += float(w) * arrs[idx].astype(np.float64)
+
+        new_m = (new_m / (np.linalg.norm(new_m) + 1e-12)).astype(np.float32)
+
+        diff = float(np.linalg.norm(new_m - m))
+        m = new_m
+        if diff < tol:
+            break
+
+    honest_sims = [float(np.dot(m, arrs[i])) for i in honest_indices]
+    agreement_score = float(np.mean(honest_sims)) if len(honest_sims) > 0 else float("nan")
+
+    return m, agreement_score, byzantine_indices
+
 
 

@@ -38,6 +38,10 @@ from src.metaprog.lu_algebra import (
     validate_recipe_ratio,
     derive_macro_role,
     verify_propositional_consistency,
+    LatentNeuralVM,
+    apply_latent_do_operator,
+    compute_latent_causal_effect,
+    spherical_weiszfeld_bft_consensus,
 )
 from src.metaprog.lu_symbolic_bridge import MultiTribalTranslator, FederalDiplomaticBridge
 from src.graph_rag.async_logger import logger
@@ -78,7 +82,7 @@ class SlateTablet:
 
 @dataclass
 class FederalMonument:
-    """Monument fédéral inter-mondes (LU Phase 7 M2)."""
+    """Monument fédéral inter-mondes (LU Phase 7 M2, Phase 8 M2)."""
     id: str
     x: float
     y: float
@@ -87,6 +91,8 @@ class FederalMonument:
     meta_rules: List[Dict[str, Any]] = field(default_factory=list)
     constitution_vector: Optional[np.ndarray] = None
     contradiction_rejections_count: int = 0
+    smart_contracts: List[Dict[str, Any]] = field(default_factory=list)
+    active_escrows: Dict[str, Dict[str, Any]] = field(default_factory=dict)
 
 
 @dataclass
@@ -151,6 +157,14 @@ class LUInWorldConfig:
     federation_monument_y: float = 6.0
     contradiction_threshold: float = -0.50
     treaty_cooperation_bonus: float = 2.0
+    # Phase 8 : Machine Virtuelle Latente, Do-Calculus & Consensus BFT
+    enable_neural_vm: bool = True
+    enable_causal_inference: bool = True
+    enable_bft_consensus: bool = True
+    neural_vm_activation_threshold: float = 0.35
+    causal_ate_threshold: float = 0.40
+    byzantine_tolerance_ratio: float = 0.33
+    escrow_release_energy_bonus: float = 3.0
 
 
 class LUInWorldAdapter:
@@ -246,6 +260,14 @@ class LUInWorldAdapter:
         self.meta_rules_compiled_count: int = 0
         self.constitutional_protections_count: int = 0
         self.recent_treaties: List[Dict[str, Any]] = []
+        # Phase 8 : Machine Virtuelle Latente, Do-Calculus & Consensus BFT
+        self.neural_vm = LatentNeuralVM(dim=self.dim, config=getattr(self.grammar, "config", None))
+        self.smart_contracts_registered_count: int = 0
+        self.smart_contracts_executed_count: int = 0
+        self.causal_experiments_count: int = 0
+        self.causal_hypotheses_validated_count: int = 0
+        self.bft_consensus_events_count: int = 0
+        self.bft_byzantine_mitigated_count: int = 0
         if getattr(self.config, "enable_diplomacy", True):
             self._init_federal_monument()
 
@@ -453,6 +475,210 @@ class LUInWorldAdapter:
         self.federal_monument.meta_rules.append(entry)
         self.meta_rules_compiled_count += 1
         return True, "META_RULE_RATIFIED"
+
+    # =========================================================================
+    # Méthodes Smart Contracts In-World, Causalité & Consensus BFT (Phase 8 M2)
+    # =========================================================================
+
+    def register_inworld_smart_contract(
+        self,
+        creator_id: str,
+        contract_id: str,
+        from_state_label: str,
+        trigger_label: str,
+        to_state_label: str,
+        escrow_energy: float = 3.0,
+        activation_threshold: float = 0.35
+    ) -> bool:
+        """
+        Enregistre un Smart Contract programmable in-world au FederalMonument (LU Phase 8 M2).
+        Configure une transition d'état d'escrow vectorielle dans la Neural VM.
+        """
+        if self.grammar is None:
+            return False
+
+        def get_concept_vec(lbl: str) -> np.ndarray:
+            key = lbl.upper()
+            if key in ["STEEL", "TOOL", "PICKAXE"] and hasattr(self.grammar, "ROLE_FORGE_OUTPUT"):
+                return self.grammar.ROLE_FORGE_OUTPUT
+            if key in ["LAW"] and hasattr(self.grammar, "ROLE_TRUST"):
+                return self.grammar.ROLE_TRUST
+            if key in ["WOOD", "COAL"] and hasattr(self.grammar, "ROLE_SUPPLIER_WOOD"):
+                return self.grammar.ROLE_SUPPLIER_WOOD
+            if key in ["FOOD", "FRUIT"] and hasattr(self.grammar, "ROLE_SUPPLIER_FOOD"):
+                return self.grammar.ROLE_SUPPLIER_FOOD
+            if key in ["ORE", "IRON"] and hasattr(self.grammar, "ROLE_SMELTER_ORE"):
+                return self.grammar.ROLE_SMELTER_ORE
+            rng_c = np.random.default_rng(abs(hash(key)) % (2**31 - 1))
+            return self.grammar._generate_canonical_unit_vector(rng_c)
+
+        v_from = get_concept_vec(from_state_label)
+        v_trig = get_concept_vec(trigger_label)
+        v_to = get_concept_vec(to_state_label)
+
+        rng_esc = np.random.default_rng(abs(hash("ESCROW")) % (2**31 - 1))
+        v_esc = self.grammar._generate_canonical_unit_vector(rng_esc)
+
+        # Si premier contrat enregistré, initialiser l'état courant de la VM
+        if self.federal_monument is not None and len(self.federal_monument.smart_contracts) == 0:
+            self.neural_vm.set_state(v_from)
+
+        contract_vec = self.neural_vm.register_transition(
+            from_state=v_from,
+            trigger_vector=v_trig,
+            to_state=v_to,
+            escrow_action=v_esc,
+            threshold=activation_threshold,
+            contract_id=contract_id
+        )
+
+        record = {
+            "contract_id": contract_id,
+            "creator_id": creator_id,
+            "from_state": from_state_label.upper(),
+            "trigger": trigger_label.upper(),
+            "to_state": to_state_label.upper(),
+            "escrow_energy": escrow_energy,
+            "vector": contract_vec,
+            "tick": getattr(self.world, "ticks", 0)
+        }
+
+        if self.federal_monument is not None:
+            self.federal_monument.smart_contracts.append(record)
+            self.federal_monument.active_escrows[contract_id] = {
+                "creator_id": creator_id,
+                "energy_pool": escrow_energy,
+                "is_released": False
+            }
+
+        self.smart_contracts_registered_count += 1
+        return True
+
+    def execute_inworld_smart_contract(
+        self,
+        agent: Dict[str, Any],
+        trigger_vector: np.ndarray,
+        contract_id: Optional[str] = None
+    ) -> Tuple[bool, float, Optional[str]]:
+        """
+        Tente d'exécuter un Smart Contract en fournissant un Gigatoken d'entrée (Phase 8 M2).
+        Si la condition est satisfaite, l'escrow énergétique est libéré vers l'agent.
+        """
+        if not getattr(self.config, "enable_neural_vm", True):
+            return False, 0.0, None
+
+        thresh = float(getattr(self.config, "neural_vm_activation_threshold", 0.35))
+        new_state, transitioned, escrow_action, sim, triggered_cid = self.neural_vm.step(
+            input_vector=trigger_vector,
+            custom_threshold=thresh
+        )
+
+        if transitioned and triggered_cid:
+            bonus = float(getattr(self.config, "escrow_release_energy_bonus", 3.0))
+            agent["energy"] = min(100.0, float(agent.get("energy", 0.0)) + bonus)
+            self.smart_contracts_executed_count += 1
+
+            if self.federal_monument is not None and triggered_cid in self.federal_monument.active_escrows:
+                escrow_info = self.federal_monument.active_escrows[triggered_cid]
+                escrow_info["is_released"] = True
+
+            return True, sim, triggered_cid
+
+        return False, sim, None
+
+    def conduct_causal_experiment(
+        self,
+        agent: Dict[str, Any],
+        cause_label: str,
+        effect_label: str,
+        n_trials: int = 10
+    ) -> Dict[str, Any]:
+        """
+        Conduit une expérience scientifique causale active (Do-Calculus - Phase 8 M2).
+        Génère des états factuels do(Cause) et contrefactuels do(¬Cause) dans la biosphère.
+        Si l'ATE dépasse le seuil, l'agent valide une loi causale et reçoit un boost calorique.
+        """
+        if self.grammar is None:
+            return {"validated": False, "ate": 0.0, "r_obs": 0.0}
+
+        rng_c = np.random.default_rng(abs(hash(cause_label.upper())) % (2**31 - 1))
+        v_cause = self.grammar._generate_canonical_unit_vector(rng_c)
+
+        rng_e = np.random.default_rng(abs(hash(effect_label.upper())) % (2**31 - 1))
+        v_effect = self.grammar._generate_canonical_unit_vector(rng_e)
+
+        factuals = []
+        counterfactuals = []
+        rng = np.random.default_rng(getattr(self.world, "ticks", 42))
+
+        for _ in range(n_trials):
+            base_state = rng.standard_normal(self.dim).astype(np.float32)
+            base_state /= (np.linalg.norm(base_state) + 1e-12)
+
+            fact = apply_latent_do_operator(base_state, v_cause)
+            fact_y = 0.5 * fact + 0.5 * v_effect
+            fact_y /= (np.linalg.norm(fact_y) + 1e-12)
+            factuals.append(fact_y)
+
+            cf = apply_latent_do_operator(base_state, -v_cause)
+            counterfactuals.append(cf)
+
+        ate, r_obs, disc = compute_latent_causal_effect(
+            factual_states=factuals,
+            counterfactual_states=counterfactuals,
+            treatment_variable=v_cause,
+            outcome_variable=v_effect
+        )
+
+        thresh = float(getattr(self.config, "causal_ate_threshold", 0.40))
+        validated = (ate >= thresh)
+        self.causal_experiments_count += 1
+
+        if validated:
+            self.causal_hypotheses_validated_count += 1
+            agent["energy"] = min(100.0, float(agent.get("energy", 0.0)) + 4.0)
+
+        return {
+            "validated": validated,
+            "ate": round(ate, 4),
+            "r_obs": round(r_obs, 4),
+            "discrepancy": round(disc, 4),
+            "cause": cause_label.upper(),
+            "effect": effect_label.upper(),
+        }
+
+    def aggregate_bft_pack_deliberation(
+        self,
+        agents: List[Dict[str, Any]],
+        byzantine_ratio: Optional[float] = None
+    ) -> Tuple[np.ndarray, float, List[str]]:
+        """
+        Agrège les intentions délibératives d'une meute via le consensus sphérique de Weiszfeld BFT (Phase 8 M2).
+        Isole automatiquement les agents byzantins ou corrompus.
+        """
+        if len(agents) < 2:
+            dummy = np.ones(self.dim, dtype=np.float32) / np.sqrt(self.dim)
+            return dummy, 1.0, []
+
+        ratio = byzantine_ratio if byzantine_ratio is not None else float(getattr(self.config, "byzantine_tolerance_ratio", 0.33))
+        vectors = []
+        for ag in agents:
+            z = ag.get("lu_latent")
+            if z is None:
+                z = self.encode_agent_latent(ag)
+            vectors.append(z)
+
+        consensus_vec, score, byzantine_indices = spherical_weiszfeld_bft_consensus(
+            vectors=vectors,
+            max_byzantine_ratio=ratio
+        )
+
+        self.bft_consensus_events_count += 1
+        byzantine_ids = [str(agents[idx].get("id")) for idx in byzantine_indices]
+        if byzantine_ids:
+            self.bft_byzantine_mitigated_count += len(byzantine_ids)
+
+        return consensus_vec, score, byzantine_ids
 
     def _get_agent_projection(self, agent_id: str, input_dim: int) -> np.ndarray:
         """Garantit une matrice de projection orthogonale ou pseudo-aléatoire stable pour chaque agent."""
@@ -766,11 +992,20 @@ class LUInWorldAdapter:
 
         consensus_vec = np.zeros(self.dim, dtype=np.float32)
         for r in range(rounds):
-            accum = np.zeros(self.dim, dtype=np.float64)
-            for p, w in zip(propositions, weights):
-                accum += float(w) * p.astype(np.float64)
-            norm = np.linalg.norm(accum) + 1e-12
-            consensus_vec = (accum / norm).astype(np.float32)
+            if getattr(self.config, "enable_bft_consensus", False) and len(gathered_agents) >= 3:
+                ratio = float(getattr(self.config, "byzantine_tolerance_ratio", 0.33))
+                consensus_vec, _, byz_indices = spherical_weiszfeld_bft_consensus(
+                    vectors=propositions,
+                    max_byzantine_ratio=ratio
+                )
+                if r == 0 and byz_indices:
+                    self.bft_byzantine_mitigated_count += len(byz_indices)
+            else:
+                accum = np.zeros(self.dim, dtype=np.float64)
+                for p, w in zip(propositions, weights):
+                    accum += float(w) * p.astype(np.float64)
+                norm = np.linalg.norm(accum) + 1e-12
+                consensus_vec = (accum / norm).astype(np.float32)
 
             # Relaxation collective (gamma = 0.4)
             gamma = 0.4
@@ -782,9 +1017,11 @@ class LUInWorldAdapter:
         sims = [float(np.dot(p, consensus_vec)) for p in propositions]
         mean_sim = float(np.mean(sims)) if len(sims) > 0 else float('nan')
 
-        is_consensus = mean_sim >= self.config.deliberation_consensus_threshold
+        is_consensus = (not np.isnan(mean_sim)) and (mean_sim >= self.config.deliberation_consensus_threshold)
         if is_consensus:
             self.deliberation_consensus_count += 1
+            if getattr(self.config, "enable_bft_consensus", False):
+                self.bft_consensus_events_count += 1
             self.last_deliberated_consensus = consensus_vec.copy()
             for ag in gathered_agents:
                 ag["lu_deliberated_consensus"] = consensus_vec.copy()
@@ -1661,6 +1898,19 @@ class LUInWorldAdapter:
                                 tick_treaties += 1
                                 self.constitutional_protections_count += 1
 
+        # 11. Auto-exécution de Smart Contracts programmable (Phase 8 M2)
+        tick_smart_contracts = 0
+        if getattr(self.config, "enable_neural_vm", True) and self.federal_monument is not None and self.federal_monument.smart_contracts:
+            mon_x, mon_y = self.federal_monument.x, self.federal_monument.y
+            near_vm = [ag for ag in agents if (abs(ag.get("x", 0) - mon_x) + abs(ag.get("y", 0) - mon_y)) <= 3]
+            for ag in near_vm:
+                z = ag.get("lu_latent")
+                if z is None:
+                    z = self.encode_agent_latent(ag)
+                exec_ok, _, cid = self.execute_inworld_smart_contract(ag, z)
+                if exec_ok:
+                    tick_smart_contracts += 1
+
         self.total_transmissions += tick_transmissions
         self.successful_alignments += tick_alignments
         self.pack_coordinations_count += tick_coordinations
@@ -1698,6 +1948,13 @@ class LUInWorldAdapter:
             "meta_rules_compiled": self.meta_rules_compiled_count,
             "constitutional_protections": self.constitutional_protections_count,
             "tick_treaties": tick_treaties,
+            "smart_contracts_registered": self.smart_contracts_registered_count,
+            "smart_contracts_executed": self.smart_contracts_executed_count,
+            "tick_smart_contracts": tick_smart_contracts,
+            "causal_experiments": self.causal_experiments_count,
+            "causal_hypotheses_validated": self.causal_hypotheses_validated_count,
+            "bft_consensus_events": self.bft_consensus_events_count,
+            "bft_byzantine_mitigated": self.bft_byzantine_mitigated_count,
         }
 
 
