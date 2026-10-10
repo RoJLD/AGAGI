@@ -36,8 +36,10 @@ from src.metaprog.lu_algebra import (
     encode_fractional_power_number,
     decode_fractional_power_number,
     validate_recipe_ratio,
+    derive_macro_role,
+    verify_propositional_consistency,
 )
-from src.metaprog.lu_symbolic_bridge import MultiTribalTranslator
+from src.metaprog.lu_symbolic_bridge import MultiTribalTranslator, FederalDiplomaticBridge
 from src.graph_rag.async_logger import logger
 
 
@@ -72,6 +74,19 @@ class SlateTablet:
     creation_tick: int
     read_count: int = 0
     balance_entries: List[Dict[str, Any]] = field(default_factory=list)
+
+
+@dataclass
+class FederalMonument:
+    """Monument fédéral inter-mondes (LU Phase 7 M2)."""
+    id: str
+    x: float
+    y: float
+    z: float
+    ratified_treaties: List[Dict[str, Any]] = field(default_factory=list)
+    meta_rules: List[Dict[str, Any]] = field(default_factory=list)
+    constitution_vector: Optional[np.ndarray] = None
+    contradiction_rejections_count: int = 0
 
 
 @dataclass
@@ -129,6 +144,13 @@ class LUInWorldConfig:
     inscription_geological_decay_std: float = 1e-4
     epigenetic_prior_boost: float = 5.0
     epigenetic_age_limit: int = 50
+    # Phase 7 : Métalangage RSI, Preuve Formelle & Fédération Diplomatique
+    enable_diplomacy: bool = True
+    enable_meta_grammar: bool = True
+    federation_monument_x: float = 6.0
+    federation_monument_y: float = 6.0
+    contradiction_threshold: float = -0.50
+    treaty_cooperation_bonus: float = 2.0
 
 
 class LUInWorldAdapter:
@@ -204,7 +226,7 @@ class LUInWorldAdapter:
             self.grammar.ROLE_TRUST if self.grammar is not None
             else (np.ones(self.dim, dtype=np.float32) / np.sqrt(self.dim))
         )
-        self.neutral_reference_vector: np.ndarray = np.ones(self.dim, dtype=np.float32) / np.sqrt(self.dim)
+        self.neutral_reference_vector: np.ndarray = self.trust_reference_vector.copy()
 
         # Phase 6 : Écriture Stigmargique, Tablettes & Transmission Scientifique
         self.steles: Dict[str, InscriptionStone] = {}
@@ -216,6 +238,16 @@ class LUInWorldAdapter:
         self.recent_scriptures: List[Dict[str, Any]] = []
         if self.config.enable_writing:
             self._init_foundational_steles()
+
+        # Phase 7 : Métalangage, Preuve Formelle & Monument Fédéral
+        self.federal_monument: Optional[FederalMonument] = None
+        self.diplomatic_bridge: FederalDiplomaticBridge = FederalDiplomaticBridge(seed=getattr(self.config, 'seed', 42))
+        self.treaties_ratified_count: int = 0
+        self.meta_rules_compiled_count: int = 0
+        self.constitutional_protections_count: int = 0
+        self.recent_treaties: List[Dict[str, Any]] = []
+        if getattr(self.config, "enable_diplomacy", True):
+            self._init_federal_monument()
 
     def _init_foundational_steles(self) -> None:
         """Initialise les stèles fondatrices in-world (Académie Métallurgique et Carte des Ressources)."""
@@ -269,6 +301,158 @@ class LUInWorldAdapter:
             durability=1.0,
         )
         self.steles[stele_map.id] = stele_map
+
+    def _init_federal_monument(self) -> None:
+        """
+        Initialise le Monument Fédéral Inter-Mondes au cœur de la biosphère (LU Phase 7 M2).
+        Grave la Constitution Fédérale et le traité fondateur de non-agression et commerce pacifique.
+        """
+        if self.grammar is None:
+            return
+
+        # Clause constitutionnelle fondatrice : PAIX et COMMERCE pacifique
+        rng_peace = np.random.default_rng(abs(hash("PEACE")) % (2**31 - 1))
+        v_peace = self.grammar._generate_canonical_unit_vector(rng_peace)
+        rng_fed = np.random.default_rng(abs(hash("FEDERATION")) % (2**31 - 1))
+        v_fed = self.grammar._generate_canonical_unit_vector(rng_fed)
+
+        treaty_clause = self.grammar.compose(
+            subject=v_fed,
+            predicate=self.grammar.ROLE_TRUST,
+            target=v_peace
+        )
+
+        founder_sigs = [
+            self.grammar._generate_canonical_unit_vector(np.random.default_rng(101)),
+            self.grammar._generate_canonical_unit_vector(np.random.default_rng(202)),
+            self.grammar._generate_canonical_unit_vector(np.random.default_rng(303)),
+        ]
+
+        constitution_vec = self.grammar.compose_federal_treaty(treaty_clause, founder_sigs)
+
+        self.federal_monument = FederalMonument(
+            id="monument_federal_central",
+            x=float(getattr(self.config, "federation_monument_x", 6.0)),
+            y=float(getattr(self.config, "federation_monument_y", 6.0)),
+            z=0.0,
+            ratified_treaties=[{
+                "treaty_name": "TREATY_FOUNDING_CONSTITUTION",
+                "clause": "PEACE_AND_COMMERCE",
+                "signatories": ["WORLD1_TRIBE", "WORLD2_FARMERS", "WORLD3_SMELTERS"],
+                "tick": 0,
+            }],
+            meta_rules=[{
+                "rule_name": "RULE_CONSTITUTIONAL_SUPREMACY",
+                "input_role": "ROLE_LAW",
+                "operator": "SUPREME",
+                "output_role": "ROLE_PEACE",
+                "tick": 0,
+            }],
+            constitution_vector=constitution_vec,
+            contradiction_rejections_count=0
+        )
+
+    def ratify_federal_treaty(
+        self,
+        agent_a: Dict[str, Any],
+        agent_b: Dict[str, Any],
+        treaty_name: str = "TREATY_PEACE_AND_COMMERCE",
+        clause_vector: Optional[np.ndarray] = None
+    ) -> bool:
+        """
+        Ratification multilatérale d'un traité fédéral entre deux agents / clans (LU Phase 7 M2).
+        Les signataires scellent un pacte constitutionnel de non-agression et bénéficient
+        d'un bonus de coopération calorique.
+        """
+        if self.federal_monument is None or self.grammar is None:
+            return False
+
+        id_a = str(agent_a.get("id", "agent_a"))
+        id_b = str(agent_b.get("id", "agent_b"))
+
+        proj_a = self._get_agent_projection(id_a, 8)
+        sig_a = proj_a[0] / (np.linalg.norm(proj_a[0]) + 1e-12)
+
+        proj_b = self._get_agent_projection(id_b, 8)
+        sig_b = proj_b[0] / (np.linalg.norm(proj_b[0]) + 1e-12)
+
+        if clause_vector is None:
+            rng_p = np.random.default_rng(abs(hash("PEACE")) % (2**31 - 1))
+            clause_vector = self.grammar._generate_canonical_unit_vector(rng_p)
+
+        treaty_vec = self.grammar.compose_federal_treaty(clause_vector, [sig_a, sig_b])
+
+        record = {
+            "treaty_name": treaty_name,
+            "agent_a": id_a,
+            "agent_b": id_b,
+            "vector": treaty_vec,
+            "tick": getattr(self.world, "ticks", 0)
+        }
+        self.federal_monument.ratified_treaties.append(record)
+        self.recent_treaties.append(record)
+        self.treaties_ratified_count += 1
+
+        if "federal_treaties" not in agent_a:
+            agent_a["federal_treaties"] = set()
+        if "federal_treaties" not in agent_b:
+            agent_b["federal_treaties"] = set()
+        agent_a["federal_treaties"].add(id_b)
+        agent_b["federal_treaties"].add(id_a)
+
+        bonus = float(getattr(self.config, "treaty_cooperation_bonus", 2.0))
+        agent_a["energy"] = min(100.0, float(agent_a.get("energy", 0.0)) + bonus)
+        agent_b["energy"] = min(100.0, float(agent_b.get("energy", 0.0)) + bonus)
+        return True
+
+    def propose_meta_rule_to_monument(
+        self,
+        proposer_id: str,
+        rule_name: str,
+        input_role_vec: np.ndarray,
+        operator_vec: np.ndarray,
+        output_role_vec: np.ndarray,
+    ) -> Tuple[bool, str]:
+        """
+        Soumet une macro-règle sémantique (RSI Grammatical) pour gravure sur le FederalMonument.
+        Exécute d'abord une preuve de consistance vectorielle : si la règle contredit la Constitution
+        ou les lois existantes (antipodalité vectorielle < threshold), elle est rejetée formellement.
+        """
+        if self.federal_monument is None or self.grammar is None:
+            return False, "FEDERAL_MONUMENT_UNAVAILABLE"
+
+        rng_rule = np.random.default_rng(abs(hash(rule_name)) % (2**31 - 1))
+        rule_vec = self.grammar._generate_canonical_unit_vector(rng_rule)
+
+        meta_rule_vec = self.grammar.compose_meta_rule(
+            rule_name=rule_vec,
+            input_role=input_role_vec,
+            operator=operator_vec,
+            output_role=output_role_vec
+        )
+
+        threshold = float(getattr(self.config, "contradiction_threshold", -0.50))
+        # Extraire la clause constitutionnelle fondamentale du monument
+        const_clause = self.grammar.extract_treaty_clause(self.federal_monument.constitution_vector)
+        statements_to_check = [const_clause, output_role_vec]
+        is_consistent, min_sim, conflicts = verify_propositional_consistency(
+            statements=statements_to_check,
+            contradiction_threshold=threshold
+        )
+
+        if not is_consistent:
+            self.federal_monument.contradiction_rejections_count += 1
+            return False, f"CONTRADICTION_REJECTED (sim={min_sim:.3f})"
+
+        entry = {
+            "rule_name": rule_name,
+            "proposer_id": proposer_id,
+            "vector": meta_rule_vec,
+            "tick": getattr(self.world, "ticks", 0)
+        }
+        self.federal_monument.meta_rules.append(entry)
+        self.meta_rules_compiled_count += 1
+        return True, "META_RULE_RATIFIED"
 
     def _get_agent_projection(self, agent_id: str, input_dim: int) -> np.ndarray:
         """Garantit une matrice de projection orthogonale ou pseudo-aléatoire stable pour chaque agent."""
@@ -1460,6 +1644,23 @@ class LUInWorldAdapter:
                 if read_res is not None:
                     tick_steles_read += 1
 
+        # 10. Ratification de traités diplomatiques & protection fédérale (Phase 7 M2)
+        tick_treaties = 0
+        if getattr(self.config, "enable_diplomacy", True) and self.federal_monument is not None:
+            mon_x, mon_y = self.federal_monument.x, self.federal_monument.y
+            near_monument = [ag for ag in agents if (abs(ag.get("x", 0) - mon_x) + abs(ag.get("y", 0) - mon_y)) <= 3]
+            if len(near_monument) >= 2:
+                for i in range(len(near_monument)):
+                    for j in range(i + 1, min(len(near_monument), i + 3)):
+                        ag_i = near_monument[i]
+                        ag_j = near_monument[j]
+                        id_i = str(ag_i.get("id"))
+                        id_j = str(ag_j.get("id"))
+                        if id_j not in ag_i.get("federal_treaties", set()):
+                            if self.ratify_federal_treaty(ag_i, ag_j):
+                                tick_treaties += 1
+                                self.constitutional_protections_count += 1
+
         self.total_transmissions += tick_transmissions
         self.successful_alignments += tick_alignments
         self.pack_coordinations_count += tick_coordinations
@@ -1493,6 +1694,10 @@ class LUInWorldAdapter:
             "tick_steles_read": tick_steles_read,
             "epigenetic_boosts": self.epigenetic_boosts_count,
             "ledger_entries": self.arithmetic_ledger_entries_count,
+            "treaties_ratified": self.treaties_ratified_count,
+            "meta_rules_compiled": self.meta_rules_compiled_count,
+            "constitutional_protections": self.constitutional_protections_count,
+            "tick_treaties": tick_treaties,
         }
 
 

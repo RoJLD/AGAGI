@@ -128,6 +128,15 @@ class LUCompositionalGrammar:
         self.ROLE_INSCRIPTION_CONTENT = self._generate_canonical_unit_vector(rng)
         self.ROLE_INSCRIPTION_AUTHOR = self._generate_canonical_unit_vector(rng)
         self.UNIT_PHASOR = self._generate_canonical_unit_vector(rng)
+        # Rôles pour métalangage RSI, preuve formelle et diplomatie fédérale (Phase 7)
+        self.ROLE_META_RULE = self._generate_canonical_unit_vector(rng)
+        self.ROLE_META_SUBJECT = self._generate_canonical_unit_vector(rng)
+        self.ROLE_META_OPERATOR = self._generate_canonical_unit_vector(rng)
+        self.ROLE_META_RESULT = self._generate_canonical_unit_vector(rng)
+        self.ROLE_TREATY_CLAUSE = self._generate_canonical_unit_vector(rng)
+        self.ROLE_TREATY_SIGNATORY = self._generate_canonical_unit_vector(rng)
+        self.ROLE_PROOF_PREMISE = self._generate_canonical_unit_vector(rng)
+        self.ROLE_PROOF_CONCLUSION = self._generate_canonical_unit_vector(rng)
 
     def _generate_canonical_unit_vector(self, rng: np.random.Generator) -> np.ndarray:
         """
@@ -419,6 +428,70 @@ class LUCompositionalGrammar:
     def extract_inscription_author(self, inscription_vector: np.ndarray) -> np.ndarray:
         """Lit l'auteur ou le sceau d'une inscription."""
         return self.query_role(inscription_vector, self.ROLE_INSCRIPTION_AUTHOR)
+
+    # =========================================================================
+    # Méthodes Métasémantiques, Preuve et Traités Fédéraux (LU Phase 7 M1)
+    # =========================================================================
+
+    def compose_meta_rule(
+        self,
+        rule_name: np.ndarray,
+        input_role: np.ndarray,
+        operator: np.ndarray,
+        output_role: np.ndarray,
+    ) -> np.ndarray:
+        """
+        Compose une règle métagrammaticale d'ordre supérieur (RSI Grammatical) :
+        Z_meta = bundle(ROLE_META_RULE ⊛ rule_name, ROLE_META_SUBJECT ⊛ input_role,
+                        ROLE_META_OPERATOR ⊛ operator, ROLE_META_RESULT ⊛ output_role).
+        """
+        parts = [
+            circular_convolution(self.ROLE_META_RULE, rule_name),
+            circular_convolution(self.ROLE_META_SUBJECT, input_role),
+            circular_convolution(self.ROLE_META_OPERATOR, operator),
+            circular_convolution(self.ROLE_META_RESULT, output_role),
+        ]
+        return bundle_vectors(parts, [1.0, 1.0, 1.0, 1.0])
+
+    def extract_meta_rule_components(self, meta_rule_vector: np.ndarray) -> Dict[str, np.ndarray]:
+        """Extrait les composantes d'une métarègle vectorielle."""
+        return {
+            "rule": self.query_role(meta_rule_vector, self.ROLE_META_RULE),
+            "input": self.query_role(meta_rule_vector, self.ROLE_META_SUBJECT),
+            "operator": self.query_role(meta_rule_vector, self.ROLE_META_OPERATOR),
+            "output": self.query_role(meta_rule_vector, self.ROLE_META_RESULT),
+        }
+
+    def compose_federal_treaty(
+        self,
+        clause_vector: np.ndarray,
+        signatories: List[np.ndarray],
+    ) -> np.ndarray:
+        """
+        Compose un traité fédéral multilatéral (LU Phase 7 M2) :
+        Z_treaty = bundle(ROLE_TREATY_CLAUSE ⊛ clause, sum(ROLE_TREATY_SIGNATORY ⊛ sig_i)).
+        """
+        parts = [circular_convolution(self.ROLE_TREATY_CLAUSE, clause_vector)]
+        weights = [1.0]
+        for sig in signatories:
+            parts.append(circular_convolution(self.ROLE_TREATY_SIGNATORY, sig))
+            weights.append(1.0 / max(1, len(signatories)))
+        return bundle_vectors(parts, weights)
+
+    def extract_treaty_clause(self, treaty_vector: np.ndarray) -> np.ndarray:
+        """Dé-lie la clause constitutionnelle d'un traité fédéral."""
+        return self.query_role(treaty_vector, self.ROLE_TREATY_CLAUSE)
+
+    def verify_treaty_signature(
+        self,
+        treaty_vector: np.ndarray,
+        signatory_vector: np.ndarray,
+        threshold: float = 0.30
+    ) -> Tuple[bool, float]:
+        """Vérifie si un agent ou clan spécifique est co-signataire du traité."""
+        sig_clause = self.query_role(treaty_vector, self.ROLE_TREATY_SIGNATORY)
+        sim = float(cosine_similarity(sig_clause, signatory_vector))
+        return (sim >= threshold), sim
 
 
 
@@ -763,5 +836,71 @@ def validate_recipe_ratio(
     mean_score = float((sim_in + sim_out) / 2.0)
     agreed = (sim_in >= threshold) and (sim_out >= threshold)
     return agreed, mean_score
+
+
+# =========================================================================
+# Fonctions de Métalangage RSI & Preuve Formelle Vectorielle (LU Phase 7 M1)
+# =========================================================================
+
+def derive_macro_role(role_a: np.ndarray, role_b: np.ndarray) -> np.ndarray:
+    """
+    Dérive un macro-rôle unitaire d'ordre supérieur à spectre plat (|F(R)| = 1) :
+    R_macro = ifft( (F(R_A) * F(R_B)) / |F(R_A) * F(R_B)| )
+    Garantit que le nouveau foncteur créé par les agents conserve une fidélité spectrale exacte
+    et une dispersion unitaire sur la sphère unité S^{D-1}.
+    """
+    a_arr = np.asarray(role_a, dtype=np.float64)
+    b_arr = np.asarray(role_b, dtype=np.float64)
+    fa = np.fft.fft(a_arr, axis=-1)
+    fb = np.fft.fft(b_arr, axis=-1)
+    fab = fa * fb
+    mag = np.abs(fab) + 1e-12
+    spectrum = fab / mag
+    raw = np.fft.ifft(spectrum, axis=-1).real
+    norm = np.linalg.norm(raw, axis=-1, keepdims=True) + 1e-12
+    return (raw / norm).astype(np.float32)
+
+
+def verify_propositional_consistency(
+    statements: List[np.ndarray],
+    truth_subspace: Optional[np.ndarray] = None,
+    contradiction_threshold: float = -0.50
+) -> Tuple[bool, float, List[Tuple[int, int, float]]]:
+    """
+    Vérifie la consistance logique d'un ensemble d'assertions vectorielles.
+    Dans la géométrie du Langage Ultime, deux propositions contradictoires (P et ~P)
+    présentent une antipodalité angulaire (sim < contradiction_threshold).
+    Retourne:
+    - is_consistent: True si aucune paire ne viole le seuil
+    - min_similarity: Pire similarité cosinus observée
+    - conflicts: Liste de (idx_i, idx_j, sim) représentant les contradictions formelles.
+    """
+    if len(statements) < 2:
+        return True, 1.0, []
+
+    vectors = [np.asarray(s, dtype=np.float32) for s in statements]
+    if truth_subspace is not None:
+        u = np.asarray(truth_subspace, dtype=np.float32)
+        vectors = [np.dot(u, np.dot(u.T, v)) for v in vectors]
+
+    normed = []
+    for v in vectors:
+        n = np.linalg.norm(v) + 1e-12
+        normed.append(v / n)
+
+    min_sim = 1.0
+    conflicts = []
+    n_stmt = len(normed)
+
+    for i in range(n_stmt):
+        for j in range(i + 1, n_stmt):
+            sim = float(cosine_similarity(normed[i], normed[j]))
+            if sim < min_sim:
+                min_sim = sim
+            if sim < contradiction_threshold:
+                conflicts.append((i, j, sim))
+
+    is_consistent = (len(conflicts) == 0)
+    return is_consistent, min_sim, conflicts
 
 

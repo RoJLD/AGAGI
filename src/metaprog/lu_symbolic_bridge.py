@@ -124,6 +124,15 @@ class LUSymbolicBridge:
             "SCIENCE": ("TARGET", 1.0),
             "DEBT": ("TARGET", 1.0),
             "CREDIT": ("TARGET", 1.0),
+            # Phase 7 : Métalangage RSI, Preuve Formelle & Diplomatie Fédérale
+            "DEFINE_ROLE": ("META", 1.0),
+            "AXIOM": ("META", 1.0),
+            "THEOREM": ("META", 1.0),
+            "CONTRADICTION": ("META", 1.0),
+            "FEDERAL_TREATY": ("TREATY", 1.0),
+            "CONSTITUTION": ("TREATY", 1.0),
+            "PEACE": ("TREATY", 1.0),
+            "FEDERATION": ("TREATY", 1.0),
         }
         
         for name, (cat, weight) in concepts.items():
@@ -743,6 +752,188 @@ class LUSymbolicBridge:
             "matched_lexemes": content_decompiled.get("matched_lexemes", []),
         }
 
+    # =========================================================================
+    # Méthodes Métasémantiques, Preuve et Fédération KuzuDB (Phase 7 M1)
+    # =========================================================================
+
+    def register_meta_grammar_rule(
+        self,
+        rule_id: str,
+        rule_name: str,
+        input_role: str,
+        operator: str,
+        output_role: str,
+    ) -> bool:
+        """
+        Consigne une règle métagrammaticale d'ordre supérieur dans LUMetaGrammar (Phase 7 M1).
+        """
+        if self.db is not None:
+            try:
+                self.db.execute_cypher(
+                    "CREATE NODE TABLE LUMetaGrammar (id STRING, rule_name STRING, "
+                    "input_role STRING, operator STRING, output_role STRING, PRIMARY KEY (id))"
+                )
+            except Exception:
+                pass
+            try:
+                q = (
+                    f"CREATE (mg:LUMetaGrammar {{id: '{rule_id}', rule_name: '{rule_name}', "
+                    f"input_role: '{input_role}', operator: '{operator}', output_role: '{output_role}'}})"
+                )
+                self.db.execute_cypher(q)
+                return True
+            except Exception as e:
+                logger.debug(f"Persistence LUMetaGrammar ignorée : {e}")
+        return False
+
+    def register_proof_check(
+        self,
+        check_id: str,
+        theorem_id: str,
+        is_consistent: bool,
+        min_similarity: float,
+        conflict_count: int,
+    ) -> bool:
+        """
+        Consigne le résultat d'un contrôle de consistance logique vectoriel dans LUProofCheck.
+        """
+        if self.db is not None:
+            try:
+                self.db.execute_cypher(
+                    "CREATE NODE TABLE LUProofCheck (id STRING, theorem_id STRING, "
+                    "is_consistent BOOLEAN, min_similarity DOUBLE, conflict_count INT64, PRIMARY KEY (id))"
+                )
+            except Exception:
+                pass
+            try:
+                consistent_str = "true" if is_consistent else "false"
+                q = (
+                    f"CREATE (pc:LUProofCheck {{id: '{check_id}', theorem_id: '{theorem_id}', "
+                    f"is_consistent: {consistent_str}, min_similarity: {min_similarity}, conflict_count: {conflict_count}}})"
+                )
+                self.db.execute_cypher(q)
+                return True
+            except Exception as e:
+                logger.debug(f"Persistence LUProofCheck ignorée : {e}")
+        return False
+
+    def register_federal_treaty(
+        self,
+        treaty_id: str,
+        treaty_name: str,
+        clause_summary: str,
+        signatories: List[str],
+    ) -> bool:
+        """
+        Consigne un traité constitutionnel fédéral inter-mondes dans LUFederalTreaty.
+        """
+        if self.db is not None:
+            try:
+                self.db.execute_cypher(
+                    "CREATE NODE TABLE LUFederalTreaty (id STRING, treaty_name STRING, "
+                    "clause_summary STRING, signatories STRING, PRIMARY KEY (id))"
+                )
+            except Exception:
+                pass
+            try:
+                sigs_str = ";".join(signatories)
+                q = (
+                    f"CREATE (ft:LUFederalTreaty {{id: '{treaty_id}', treaty_name: '{treaty_name}', "
+                    f"clause_summary: '{clause_summary}', signatories: '{sigs_str}'}})"
+                )
+                self.db.execute_cypher(q)
+                return True
+            except Exception as e:
+                logger.debug(f"Persistence LUFederalTreaty ignorée : {e}")
+        return False
+
+    def compile_meta_rule_directive(
+        self,
+        rule_name: str,
+        input_role: str,
+        operator: str,
+        output_role: str,
+    ) -> np.ndarray:
+        """
+        Compile une règle métagrammaticale symbolique en Gigatoken d'ordre supérieur.
+        """
+        name_vec = self.lexicon.get(rule_name.upper(), {}).get("vector")
+        if name_vec is None:
+            name_vec = self.grammar._generate_canonical_unit_vector(np.random.default_rng(abs(hash(rule_name)) % (2**31 - 1)))
+
+        in_vec = self.lexicon.get(input_role.upper(), {}).get("vector")
+        if in_vec is None:
+            in_vec = self.grammar._generate_canonical_unit_vector(np.random.default_rng(abs(hash(input_role)) % (2**31 - 1)))
+
+        op_vec = self.lexicon.get(operator.upper(), {}).get("vector")
+        if op_vec is None:
+            op_vec = self.grammar._generate_canonical_unit_vector(np.random.default_rng(abs(hash(operator)) % (2**31 - 1)))
+
+        out_vec = self.lexicon.get(output_role.upper(), {}).get("vector")
+        if out_vec is None:
+            out_vec = self.grammar._generate_canonical_unit_vector(np.random.default_rng(abs(hash(output_role)) % (2**31 - 1)))
+
+        return self.grammar.compose_meta_rule(name_vec, in_vec, op_vec, out_vec)
+
+    def compile_federal_treaty_directive(
+        self,
+        clause_text: str,
+        signatory_names: List[str],
+    ) -> np.ndarray:
+        """
+        Compile un traité fédéral symbolique multilatéral en Gigatoken constitutionnel.
+        """
+        clause_vec = self.lexicon.get(clause_text.upper(), {}).get("vector")
+        if clause_vec is None:
+            clause_decomp = self.compile_directive_to_gigatoken(clause_text)
+            clause_vec = clause_decomp
+
+        sigs = []
+        for name in signatory_names:
+            sig_vec = self.lexicon.get(name.upper(), {}).get("vector")
+            if sig_vec is None:
+                sig_vec = self.grammar._generate_canonical_unit_vector(np.random.default_rng(abs(hash(name)) % (2**31 - 1)))
+            sigs.append(sig_vec)
+
+        return self.grammar.compose_federal_treaty(clause_vec, sigs)
+
+    def decode_meta_rule_vector(self, meta_rule_vector: np.ndarray) -> Dict[str, Any]:
+        """
+        Décompile une métarègle vectorielle en composantes symboliques.
+        """
+        comps = self.grammar.extract_meta_rule_components(meta_rule_vector)
+        res = {}
+        for k, v in comps.items():
+            best_label = "UNKNOWN"
+            best_sim = -1.0
+            for name, data in self.lexicon.items():
+                sim = float(cosine_similarity(v, data["vector"]))
+                if sim > best_sim:
+                    best_sim = sim
+                    best_label = name
+            res[k] = best_label
+            res[f"{k}_confidence"] = round(best_sim, 3)
+        return res
+
+    def decode_federal_treaty_vector(self, treaty_vector: np.ndarray) -> Dict[str, Any]:
+        """
+        Décompile un traité fédéral vectoriel : clause constitutionnelle et signataires reconnus.
+        """
+        clause_vec = self.grammar.extract_treaty_clause(treaty_vector)
+        clause_decomp = self.decompile_gigatoken_to_dsl(clause_vec)
+
+        signatory_clause = self.grammar.query_role(treaty_vector, self.grammar.ROLE_TREATY_SIGNATORY)
+        matched_signatories = []
+        for name, data in self.lexicon.items():
+            sim = float(cosine_similarity(signatory_clause, data["vector"]))
+            if sim >= self.config.similarity_match_threshold:
+                matched_signatories.append((name, round(sim, 3)))
+
+        return {
+            "clause_dsl": clause_decomp.get("dsl", ""),
+            "matched_signatories": matched_signatories,
+        }
+
 class MultiTribalTranslator:
     """
     Traducteur multi-variétés et pivot Lingua Franca pour clans hétérogènes (Phase 4 M3).
@@ -796,4 +987,75 @@ class MultiTribalTranslator:
             return vector.copy()
         pivot_vec = self.translate_to_pivot(vector, source_clan)
         return self.translate_from_pivot(pivot_vec, target_clan)
+
+
+class FederalDiplomaticBridge:
+    """
+    Pont Diplomatique Inter-Connectomes Asymétrique (LU Phase 7 M2).
+    Permet à des populations issues de connectomes à dimensions latentes différentes
+    (ex: D_A = 16, D_B = 32 ou 64) d'établir des accords et traités constitutionnels communs.
+    Utilise une projection de Procruste asymétrique avec complétion orthogonale SVD :
+    T_A_to_B: R^{D_A} -> R^{D_B} et T_B_to_A: R^{D_B} -> R^{D_A}.
+    """
+
+    def __init__(self, seed: int = 42):
+        self.rng = np.random.default_rng(seed)
+        self.projections: Dict[Tuple[int, int], np.ndarray] = {}
+
+    def get_or_create_projection(self, dim_in: int, dim_out: int) -> np.ndarray:
+        key = (dim_in, dim_out)
+        if key in self.projections:
+            return self.projections[key]
+
+        if dim_in == dim_out:
+            mat = np.eye(dim_in, dtype=np.float32)
+        else:
+            # Matrice d'isométrie partielle via SVD d'une matrice aléatoire
+            raw = self.rng.standard_normal((dim_out, dim_in))
+            u, _, vh = np.linalg.svd(raw, full_matrices=False)
+            mat = np.dot(u, vh).astype(np.float32)
+
+        self.projections[key] = mat
+        return mat
+
+    def project(self, vector: np.ndarray, target_dim: int) -> np.ndarray:
+        v = np.asarray(vector, dtype=np.float32)
+        source_dim = v.shape[-1]
+        if source_dim == target_dim:
+            return v.copy()
+
+        proj_mat = self.get_or_create_projection(source_dim, target_dim)
+        res = np.dot(proj_mat, v)
+        norm = np.linalg.norm(res, axis=-1, keepdims=True) + 1e-12
+        return (res / norm).astype(np.float32)
+
+    def compute_asymmetric_alignment_cka(
+        self,
+        vectors_a: np.ndarray,
+        vectors_b: np.ndarray
+    ) -> float:
+        """
+        Calcule le CKA linéaire (Centered Kernel Alignment) entre deux représentations
+        vectorielles hétérogènes pour évaluer la fidélité de l'accord diplomatique.
+        """
+        x = np.asarray(vectors_a, dtype=np.float64)
+        y = np.asarray(vectors_b, dtype=np.float64)
+        if x.shape[0] != y.shape[0]:
+            min_n = min(x.shape[0], y.shape[0])
+            x = x[:min_n]
+            y = y[:min_n]
+
+        # Centrage
+        x_c = x - np.mean(x, axis=0, keepdims=True)
+        y_c = y - np.mean(y, axis=0, keepdims=True)
+
+        k = np.dot(x_c, x_c.T)
+        l = np.dot(y_c, y_c.T)
+
+        hsic_xy = np.sum(k * l)
+        hsic_xx = np.sum(k * k)
+        hsic_yy = np.sum(l * l)
+
+        denom = np.sqrt(hsic_xx * hsic_yy) + 1e-12
+        return float(hsic_xy / denom)
 
