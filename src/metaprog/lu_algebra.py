@@ -167,6 +167,11 @@ class LUCompositionalGrammar:
         self.ROLE_WHAT_IF = self._generate_canonical_unit_vector(rng)
         self.ROLE_SCENARIO = self._generate_canonical_unit_vector(rng)
         self.ROLE_COUNTERFACTUAL_OUTCOME = self._generate_canonical_unit_vector(rng)
+        # Rôles pour La Noosphère Latente, Conscience Collective & Métacognition Épistémique (Phase 12)
+        self.ROLE_NOOSPHERE = self._generate_canonical_unit_vector(rng)
+        self.ROLE_RESONANCE = self._generate_canonical_unit_vector(rng)
+        self.ROLE_UNCERTAINTY = self._generate_canonical_unit_vector(rng)
+        self.ROLE_SYNARCHY = self._generate_canonical_unit_vector(rng)
 
     def _generate_canonical_unit_vector(self, rng: np.random.Generator) -> np.ndarray:
         """
@@ -711,6 +716,31 @@ class LUCompositionalGrammar:
         """Extrait le scénario sous-jacent délié d'une hypothèse de rêve."""
         prefix = circular_convolution(self.ROLE_DREAM, self.ROLE_WHAT_IF)
         return self.unbind(dream_token, prefix)
+
+    def compose_noosphere_broadcast(
+        self,
+        content_token: np.ndarray,
+        resonance_token: Optional[np.ndarray] = None,
+        author_clan_token: Optional[np.ndarray] = None
+    ) -> np.ndarray:
+        """
+        Compose une émission noosphérique à résonance harmonique globale (LU Phase 12 M1) :
+        Z_noo = bundle(ROLE_NOOSPHERE ⊛ content, ROLE_RESONANCE ⊛ resonance [, ROLE_SYNARCHY ⊛ author]).
+        """
+        res = resonance_token if resonance_token is not None else self.ROLE_RESONANCE
+        parts = [
+            circular_convolution(self.ROLE_NOOSPHERE, content_token),
+            circular_convolution(self.ROLE_RESONANCE, res),
+        ]
+        weights = [1.0, 1.0]
+        if author_clan_token is not None:
+            parts.append(circular_convolution(self.ROLE_SYNARCHY, author_clan_token))
+            weights.append(1.0)
+        return bundle_vectors(parts, weights)
+
+    def extract_noosphere_content(self, broadcast_token: np.ndarray) -> np.ndarray:
+        """Extrait le contenu sémantique sous-jacent délié d'une onde noosphérique."""
+        return self.query_role(broadcast_token, self.ROLE_NOOSPHERE)
 
     def extract_analogy_parts(self, analogy_vector: np.ndarray) -> Dict[str, np.ndarray]:
         """Extrait les 4 pôles A, B, C, D d'une analogie vectorielle."""
@@ -1858,6 +1888,187 @@ class LatentDreamEngine:
     ) -> float:
         """Calcule le surplus espéré contrefactuel CEG = E[R_dream] - E[R_baseline]."""
         return float(dream_trajectory_reward - baseline_reward)
+
+
+# =============================================================================
+# Métacognition Épistémique & Barycentre de Wasserstein-Sinkhorn (Phase 12 M1)
+# =============================================================================
+
+class EpistemicUncertaintyEngine:
+    """
+    Moteur de Métacognition Épistémique de second ordre (LU Phase 12 M1).
+    Permet à chaque connectome d'estimer l'incertitude subjective de ses simulations contrefactuelles,
+    de quantifier son propre doute ('savoir ce qu'on ne sait pas') et d'éradiquer l'effet Dunning-Kruger latent.
+    """
+    def __init__(self, dim: int = 64, config: Optional[LUAlgebraConfig] = None, seed: int = 42, beta: float = 1.0):
+        self.dim = dim
+        self.config = config or LUAlgebraConfig(dim=dim, seed=seed)
+        self.grammar = LUCompositionalGrammar(self.config)
+        self.seed = seed
+        self.beta = float(beta)
+        self.rng = np.random.default_rng(seed)
+
+    def estimate_epistemic_uncertainty(
+        self,
+        state: np.ndarray,
+        scenario_token: np.ndarray,
+        world_model: Optional[Any] = None,
+        perturbation_epsilon: float = 0.05,
+        confidence_threshold: float = 0.45
+    ) -> Tuple[np.ndarray, float, bool]:
+        """
+        Calcule le vecteur d'incertitude épistémique U_epistemic in S^(D-1) et le score de confiance scalaire.
+        Évalue la sensibilité locale de Lyapunov sous micro-perturbation orthogonale.
+        Retourne : (u_epistemic, confidence_score, is_high_uncertainty).
+        """
+        s0 = (state / (np.linalg.norm(state) + 1e-12)).astype(np.float32)
+        v_scen = (scenario_token / (np.linalg.norm(scenario_token) + 1e-12)).astype(np.float32)
+
+        # 1. Génération d'une perturbation orthogonale pseudo-aléatoire
+        delta = self.rng.standard_normal(self.dim).astype(np.float32)
+        delta = delta - np.dot(delta, s0) * s0
+        delta = (delta / (np.linalg.norm(delta) + 1e-12)).astype(np.float32)
+
+        eps = float(np.clip(perturbation_epsilon, 0.01, 0.20))
+        s_perturbed = (s0 + eps * delta).astype(np.float32)
+        s_perturbed = (s_perturbed / (np.linalg.norm(s_perturbed) + 1e-12)).astype(np.float32)
+
+        # 2. Simulation d'un pas sous dynamique de transition
+        gamma = 0.85
+        if world_model is not None and hasattr(world_model, "predict_next"):
+            try:
+                y0_raw = world_model.predict_next(s0, v_scen)
+                y1_raw = world_model.predict_next(s_perturbed, v_scen)
+                y0 = (y0_raw / (np.linalg.norm(y0_raw) + 1e-12)).astype(np.float32)
+                y1 = (y1_raw / (np.linalg.norm(y1_raw) + 1e-12)).astype(np.float32)
+            except Exception:
+                y0 = (1.0 - gamma) * s0 + gamma * circular_convolution(s0, v_scen)
+                y1 = (1.0 - gamma) * s_perturbed + gamma * circular_convolution(s_perturbed, v_scen)
+        else:
+            y0 = (1.0 - gamma) * s0 + gamma * circular_convolution(s0, v_scen)
+            y1 = (1.0 - gamma) * s_perturbed + gamma * circular_convolution(s_perturbed, v_scen)
+
+        y0 = (y0 / (np.linalg.norm(y0) + 1e-12)).astype(np.float32)
+        y1 = (y1 / (np.linalg.norm(y1) + 1e-12)).astype(np.float32)
+
+        # 3. Sensibilité spectrale de Lyapunov locale
+        diff = y1 - y0
+        lyapunov_dispersion = float(np.linalg.norm(diff) / eps)
+
+        # 4. Projection vectorielle U_epistemic in S^(D-1)
+        role_uncert = getattr(self.grammar, "ROLE_UNCERTAINTY", delta)
+        u_raw = circular_convolution(diff, role_uncert)
+        norm_u = np.linalg.norm(u_raw) + 1e-12
+        u_epistemic = (u_raw / norm_u).astype(np.float32)
+
+        # 5. Confiance scalaire : combinaison de Lyapunov et de la congruence directionnelle
+        cos_align = float(np.dot(s0, v_scen))
+        raw_conf = 0.5 * (1.0 + cos_align) / (1.0 + 0.3 * lyapunov_dispersion)
+        confidence = float(np.clip(raw_conf, 0.0, 1.0))
+        is_high_uncertainty = bool(confidence < confidence_threshold)
+
+        return u_epistemic, confidence, is_high_uncertainty
+
+    def evaluate_epistemic_calibration(
+        self,
+        predicted_outcome: Optional[np.ndarray] = None,
+        actual_outcome: Optional[np.ndarray] = None,
+        stated_confidence: Optional[float] = None,
+        state_token: Optional[np.ndarray] = None,
+        scenario_token: Optional[np.ndarray] = None,
+        threshold: float = 0.45,
+    ) -> Any:
+        """
+        Double interface :
+        1. Si (predicted_outcome, actual_outcome, stated_confidence) fournis -> erreur Brier.
+        2. Si (state_token, scenario_token, threshold) fournis -> (confidence, u_epistemic, is_high_uncertainty).
+        """
+        if predicted_outcome is not None and actual_outcome is not None and stated_confidence is not None:
+            p = (predicted_outcome / (np.linalg.norm(predicted_outcome) + 1e-12)).astype(np.float32)
+            a = (actual_outcome / (np.linalg.norm(actual_outcome) + 1e-12)).astype(np.float32)
+            actual_fidelity = float(cosine_similarity(p, a))
+            return float((actual_fidelity - stated_confidence) ** 2)
+
+        s = state_token if state_token is not None else predicted_outcome
+        if s is None:
+            s = np.ones(self.dim, dtype=np.float32) / np.sqrt(self.dim)
+        scen = scenario_token if scenario_token is not None else actual_outcome
+        if scen is None:
+            scen = s
+
+        u_epistemic, conf, is_high_unc = self.estimate_epistemic_uncertainty(
+            state=s,
+            scenario_token=scen,
+            confidence_threshold=threshold,
+        )
+        return conf, u_epistemic, is_high_unc
+
+
+def spherical_sinkhorn_barycenter(
+    vectors: Optional[List[np.ndarray]] = None,
+    weights: Optional[Any] = None,
+    max_iters: int = 15,
+    epsilon: float = 0.05,
+    tol: float = 1e-4,
+    distributions: Optional[List[np.ndarray]] = None,
+) -> Tuple[np.ndarray, float]:
+    """
+    Consensus Synarchique par Barycentre de Wasserstein-Sinkhorn sur S^(D-1) (LU Phase 12 M1).
+    Agrège les distributions de croyances multi-modales des différents clans (chasseurs, fermiers, forgerons)
+    sans écraser leur diversité dialectale spécifique par une moyenne naïve.
+    Retourne : (barycenter_vector, entropy).
+    """
+    vec_list = vectors if vectors is not None else distributions
+    if vec_list is None or len(vec_list) == 0:
+        raise ValueError("spherical_sinkhorn_barycenter requiert au moins un vecteur.")
+
+    arrs = [np.asarray(v, dtype=np.float32) / (np.linalg.norm(v) + 1e-12) for v in vec_list]
+    k = len(arrs)
+    dim = arrs[0].shape[-1]
+
+    if k == 1:
+        return arrs[0].copy(), 0.0
+
+    # Poids normalisés
+    if weights is None or len(weights) != k:
+        w = np.ones(k, dtype=np.float64) / k
+    else:
+        w = np.asarray(weights, dtype=np.float64)
+        w = w / (np.sum(w) + 1e-12)
+
+    # Initialisation par barycentre pondéré Fréchet
+    bary = np.zeros(dim, dtype=np.float64)
+    for i in range(k):
+        bary += w[i] * arrs[i].astype(np.float64)
+    bary = (bary / (np.linalg.norm(bary) + 1e-12)).astype(np.float64)
+
+    reg_eps = max(1e-3, float(epsilon))
+
+    for it in range(max_iters):
+        sims = np.array([float(np.clip(np.dot(bary, arrs[i]), -1.0, 1.0)) for i in range(k)], dtype=np.float64)
+        geodesic_costs = np.arccos(sims)
+
+        kernel_weights = np.exp(-geodesic_costs / reg_eps)
+        total_k = np.sum(kernel_weights * w) + 1e-12
+
+        new_bary = np.zeros(dim, dtype=np.float64)
+        for i in range(k):
+            coef = (kernel_weights[i] * w[i]) / total_k
+            new_bary += coef * arrs[i].astype(np.float64)
+
+        new_bary = (new_bary / (np.linalg.norm(new_bary) + 1e-12)).astype(np.float64)
+        diff = float(np.linalg.norm(new_bary - bary))
+        bary = new_bary
+
+        if diff < tol:
+            break
+
+    bary_out = (bary / (np.linalg.norm(bary) + 1e-12)).astype(np.float32)
+
+    p_sink = (kernel_weights * w) / (np.sum(kernel_weights * w) + 1e-12)
+    entropy = float(-np.sum(p_sink * np.log(p_sink + 1e-12)))
+
+    return bary_out, entropy
 
 
 

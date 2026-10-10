@@ -49,8 +49,15 @@ from src.metaprog.lu_algebra import (
     ConnectomeCompiler,
     verify_hoare_safety,
     LatentDreamEngine,
+    EpistemicUncertaintyEngine,
+    spherical_sinkhorn_barycenter,
 )
-from src.metaprog.lu_symbolic_bridge import MultiTribalTranslator, FederalDiplomaticBridge
+from src.metaprog.lu_symbolic_bridge import (
+    MultiTribalTranslator,
+    FederalDiplomaticBridge,
+    LUNoosphereField,
+    LUEpistemicInsight,
+)
 from src.agents.dream_replay import SharedDreamExperience, SharedDreamPool
 from src.graph_rag.async_logger import logger
 
@@ -198,6 +205,12 @@ class LUInWorldConfig:
     dream_rollout_horizon: int = 10
     dream_predictive_bonus: float = 6.0
     dream_min_gain_threshold: float = 0.05
+    # Phase 12 : La Noosphère Latente, Conscience Collective Trans-Mondes & Transport de Wasserstein
+    enable_noosphere_grid: bool = True
+    resonance_decay: float = 0.10
+    epistemic_confidence_threshold: float = 0.45
+    sinkhorn_regularization: float = 0.05
+    noosphere_dividend: float = 8.0
 
 
 class LUInWorldAdapter:
@@ -323,6 +336,15 @@ class LUInWorldAdapter:
         self.counterfactual_rollouts_count: int = 0
         self.counterfactual_gains_total: float = 0.0
         self.recent_shared_dreams: List[Dict[str, Any]] = []
+        # Phase 12 : La Noosphère Latente, Conscience Collective Trans-Mondes & Transport de Wasserstein
+        self.epistemic_engine = EpistemicUncertaintyEngine(dim=self.dim, config=getattr(self.grammar, "config", None))
+        self.noosphere_resonance_grid: Optional[np.ndarray] = None
+        self.noosphere_broadcasts_count: int = 0
+        self.epistemic_evaluations_count: int = 0
+        self.high_uncertainty_interventions_count: int = 0
+        self.synarchic_councils_count: int = 0
+        self.synarchic_ratifications_count: int = 0
+        self.recent_noosphere_broadcasts: List[Dict[str, Any]] = []
         if getattr(self.config, "enable_diplomacy", True):
             self._init_federal_monument()
 
@@ -1622,6 +1644,213 @@ class LUInWorldAdapter:
         return ratified_dreams
 
     # =========================================================================
+    # Phase 12 : La Noosphère Latente, Conscience Collective Trans-Mondes
+    #            & Transport Optimal de Wasserstein (Arc 7)
+    # =========================================================================
+
+    def update_noosphere_resonance_grid(self, grid_size: int = 16) -> np.ndarray:
+        """
+        Calcule le champ global de résonance noosphérique stigmargique Phi_noo(x, y) in S^(D-1).
+        Convolution harmonique inverse à atténuation douce à partir de toutes les stèles
+        et du Monument Fédéral.
+        Phi_noo(x, y) = sigma_S( sum_k Z_k / (1 + lambda_res * d((x, y), (x_k, y_k))) )
+        """
+        decay = float(self.config.resonance_decay)
+        sources: List[Tuple[float, float, np.ndarray]] = []
+        if self.steles:
+            for s in self.steles.values():
+                v = s.content_vector
+                if v is not None and len(v) == self.dim:
+                    sources.append((float(s.x), float(s.y), v.astype(np.float32)))
+
+        if self.federal_monument is not None and self.federal_monument.constitution_vector is not None:
+            sources.append((
+                float(self.federal_monument.x),
+                float(self.federal_monument.y),
+                self.federal_monument.constitution_vector.astype(np.float32)
+            ))
+
+        xs = np.arange(grid_size, dtype=np.float32)
+        ys = np.arange(grid_size, dtype=np.float32)
+        gx, gy = np.meshgrid(xs, ys, indexing="ij")
+
+        if not sources:
+            if self.grammar is not None and hasattr(self.grammar, "ROLE_NOOSPHERE"):
+                base_vec = self.grammar.ROLE_NOOSPHERE.copy()
+            else:
+                base_vec = np.ones(self.dim, dtype=np.float32) / np.sqrt(self.dim)
+            grid = np.tile(base_vec, (grid_size, grid_size, 1))
+            self.noosphere_resonance_grid = grid
+            return grid
+
+        acc_field = np.zeros((grid_size, grid_size, self.dim), dtype=np.float32)
+        for sx, sy, s_vec in sources:
+            d = np.sqrt((gx - sx)**2 + (gy - sy)**2)
+            weights = (1.0 / (1.0 + decay * d))[:, :, np.newaxis]
+            acc_field += weights * s_vec[np.newaxis, np.newaxis, :]
+
+        norms = np.linalg.norm(acc_field, axis=-1, keepdims=True) + 1e-12
+        grid = (acc_field / norms).astype(np.float32)
+        self.noosphere_resonance_grid = grid
+        return grid
+
+    def evaluate_agent_epistemic_confidence(
+        self,
+        agent: Dict[str, Any],
+        scenario_token: Optional[np.ndarray] = None,
+    ) -> Tuple[float, np.ndarray, bool]:
+        """
+        Évalue l'incertitude épistémique de second ordre U_epistemic in S^(D-1)
+        et le scalaire de confiance de l'agent.
+        Détecte le biais de Dunning-Kruger (haute incertitude masquée).
+        """
+        self.epistemic_evaluations_count += 1
+        z_state = agent.get("lu_latent")
+        if z_state is None:
+            z_state = self.encode_agent_latent(agent)
+
+        if scenario_token is None:
+            if self.grammar is not None and hasattr(self.grammar, "ROLE_TRUST"):
+                scenario_token = getattr(self.grammar, "ROLE_TRUST")
+            else:
+                scenario_token = z_state
+
+        conf, u_vec, high_uncertainty = self.epistemic_engine.evaluate_epistemic_calibration(
+            state_token=z_state,
+            scenario_token=scenario_token,
+            threshold=float(self.config.epistemic_confidence_threshold),
+        )
+
+        agent["epistemic_confidence"] = float(conf)
+        agent["epistemic_uncertainty_vector"] = u_vec
+        agent["high_uncertainty"] = bool(high_uncertainty)
+
+        if high_uncertainty:
+            self.high_uncertainty_interventions_count += 1
+            agent["lu_needs_noosphere_confirmation"] = True
+
+        return float(conf), u_vec, bool(high_uncertainty)
+
+    def convene_synarchic_noosphere_council(
+        self,
+        participating_agents: Optional[List[Dict[str, Any]]] = None,
+    ) -> Dict[str, Any]:
+        """
+        Conseil Synarchique de la Noosphère (Phase 12 M2) :
+        Connecte instantanément les champions des 3 Mondes à travers le réseau
+        de résonance stigmargique sans contrainte de portée acoustique.
+        Fusionne les distributions de croyances via le Barycentre de Wasserstein régularisé
+        (Sinkhorn sur S^(D-1)) préservant la diversité culturelle sans écrasement modal.
+        Attribue le Dividende Noosphérique (+8.0 E).
+        """
+        if not getattr(self.config, "enable_noosphere_grid", True):
+            return {"ratified": False, "reason": "disabled"}
+
+        all_agents = (participating_agents or getattr(self.world, "agents", []))[:4]
+        if len(all_agents) < 2:
+            return {"ratified": False, "reason": "insufficient_agents"}
+
+        self.synarchic_councils_count += 1
+
+        if self.noosphere_resonance_grid is None:
+            self.update_noosphere_resonance_grid()
+
+        grid = self.noosphere_resonance_grid
+        grid_size = grid.shape[0] if grid is not None else 16
+
+        candidate_vectors: List[np.ndarray] = []
+        weights: List[float] = []
+        qualified_agents: List[Dict[str, Any]] = []
+
+        for ag in all_agents:
+            z = ag.get("lu_latent")
+            if z is None:
+                z = self.encode_agent_latent(ag)
+
+            conf, u_vec, high_unc = self.evaluate_agent_epistemic_confidence(ag)
+
+            if high_unc and grid is not None:
+                ax = int(np.clip(float(ag.get("x", 0)), 0, grid_size - 1))
+                ay = int(np.clip(float(ag.get("y", 0)), 0, grid_size - 1))
+                phi_local = grid[ax, ay]
+                z_recalibrated = 0.6 * z + 0.4 * phi_local
+                norm = np.linalg.norm(z_recalibrated) + 1e-12
+                z = (z_recalibrated / norm).astype(np.float32)
+                ag["lu_latent"] = z
+
+            candidate_vectors.append(z)
+            w = max(0.1, float(conf))
+            weights.append(w)
+            qualified_agents.append(ag)
+
+        w_arr = np.array(weights, dtype=np.float32)
+        w_sum = np.sum(w_arr)
+        if w_sum > 0:
+            w_arr /= w_sum
+        else:
+            w_arr = np.ones(len(w_arr), dtype=np.float32) / len(w_arr)
+
+        barycenter, entropy = spherical_sinkhorn_barycenter(
+            distributions=candidate_vectors,
+            weights=w_arr,
+            max_iters=15,
+            epsilon=float(self.config.sinkhorn_regularization),
+        )
+
+        agreements = [float(np.dot(v, barycenter)) for v in candidate_vectors]
+        mean_agreement = float(np.mean(agreements)) if agreements else float('nan')
+
+        threshold = float(getattr(self.config, "deliberation_consensus_threshold", 0.35))
+        is_ratified = bool(not np.isnan(mean_agreement) and mean_agreement >= threshold)
+
+        tick = getattr(self.world, "tick", getattr(self.world, "ticks", 0)) if self.world is not None else 0
+
+        if is_ratified:
+            self.synarchic_ratifications_count += 1
+            dividend = float(self.config.noosphere_dividend)
+
+            for ag in qualified_agents:
+                ag["energy"] = min(100.0, ag.get("energy", 0.0) + dividend)
+                ag["noosphere_ratified"] = True
+                ag["lu_deliberated_consensus"] = barycenter.copy()
+                ag["lu_steer_bias"] = (float(barycenter[0]), float(barycenter[1]))
+                self.noosphere_broadcasts_count += 1
+
+            if hasattr(self, "diplomatic_bridge") and self.diplomatic_bridge is not None:
+                self.diplomatic_bridge.record_noosphere_broadcast(
+                    broadcast_id=f"noo_{tick}_{self.synarchic_ratifications_count}",
+                    content_vector=barycenter,
+                    resonance_freq=float(np.dot(barycenter, self.grammar.ROLE_NOOSPHERE)) if (self.grammar is not None and hasattr(self.grammar, "ROLE_NOOSPHERE")) else 1.0,
+                    sender_id=str(qualified_agents[0].get("id", "synarchy")),
+                    tick=tick,
+                )
+
+            if self.federal_monument is not None and self.federal_monument.constitution_vector is not None:
+                self.federal_monument.constitution_vector = (
+                    0.8 * self.federal_monument.constitution_vector + 0.2 * barycenter
+                ).astype(np.float32)
+                norm_c = np.linalg.norm(self.federal_monument.constitution_vector) + 1e-12
+                self.federal_monument.constitution_vector /= norm_c
+
+            self.recent_noosphere_broadcasts.append({
+                "tick": tick,
+                "ratified": True,
+                "barycenter": barycenter,
+                "entropy": float(entropy),
+                "agreement": mean_agreement,
+                "participants_count": len(qualified_agents),
+            })
+
+        return {
+            "ratified": is_ratified,
+            "barycenter": barycenter,
+            "entropy": float(entropy),
+            "agreement": mean_agreement,
+            "participants_count": len(qualified_agents),
+            "dividend": float(self.config.noosphere_dividend) if is_ratified else 0.0,
+        }
+
+    # =========================================================================
     # Spéciation Dialectale & Contrats de Troc Décentralisés (Phase 4 M1 & M2)
     # =========================================================================
 
@@ -2548,6 +2777,19 @@ class LUInWorldAdapter:
                         tick_dreams_ratified = len(ratified)
                         tick_shared_dreams = len(ratified)
 
+        # 15. La Noosphère Latente & Conseil Synarchique Trans-Mondes (Phase 12 M2)
+        tick_noosphere_broadcasts = 0
+        tick_synarchic_councils = 0
+        if getattr(self.config, "enable_noosphere_grid", True) and self.world is not None:
+            tick_now = getattr(self.world, "tick", getattr(self.world, "ticks", 0))
+            if tick_now % 5 == 0:
+                self.update_noosphere_resonance_grid()
+                if len(agents) >= 2:
+                    council_res = self.convene_synarchic_noosphere_council(agents)
+                    if council_res.get("ratified", False):
+                        tick_synarchic_councils += 1
+                        tick_noosphere_broadcasts += council_res.get("participants_count", 0)
+
         self.total_transmissions += tick_transmissions
         self.successful_alignments += tick_alignments
         self.pack_coordinations_count += tick_coordinations
@@ -2610,6 +2852,13 @@ class LUInWorldAdapter:
             "counterfactual_gains_total": round(self.counterfactual_gains_total, 4),
             "tick_shared_dreams": tick_shared_dreams,
             "tick_dreams_ratified": tick_dreams_ratified,
+            "noosphere_broadcasts": self.noosphere_broadcasts_count,
+            "epistemic_evaluations": self.epistemic_evaluations_count,
+            "high_uncertainty_interventions": self.high_uncertainty_interventions_count,
+            "synarchic_councils": self.synarchic_councils_count,
+            "synarchic_ratifications": self.synarchic_ratifications_count,
+            "tick_noosphere_broadcasts": tick_noosphere_broadcasts,
+            "tick_synarchic_councils": tick_synarchic_councils,
         }
 
 

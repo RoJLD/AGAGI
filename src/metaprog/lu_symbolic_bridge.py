@@ -42,6 +42,29 @@ class LUCounterfactualRollout:
 
 
 @dataclass
+class LUNoosphereField:
+    """Modèle de persistance pour un champ de résonance noosphérique global (Phase 12 M1)."""
+    id: str
+    origin_stele_id: str
+    content_topic: str
+    resonance_intensity: float
+    author_clan: str = "FEDERATION"
+    tick: int = 0
+
+
+@dataclass
+class LUEpistemicInsight:
+    """Modèle de persistance pour une évaluation de métacognition épistémique (Phase 12 M1)."""
+    id: str
+    agent_id: str
+    plan_name: str
+    confidence_score: float
+    is_high_uncertainty: bool
+    brier_error: float = 0.0
+    tick: int = 0
+
+
+@dataclass
 class LUSymbolicBridgeConfig:
     """Configuration du pont symbolique-neuronal LU."""
     dim: int = 16
@@ -1734,9 +1757,10 @@ class FederalDiplomaticBridge:
     T_A_to_B: R^{D_A} -> R^{D_B} et T_B_to_A: R^{D_B} -> R^{D_A}.
     """
 
-    def __init__(self, seed: int = 42):
+    def __init__(self, seed: int = 42, db: Optional[Any] = None):
         self.rng = np.random.default_rng(seed)
         self.projections: Dict[Tuple[int, int], np.ndarray] = {}
+        self.db = db
 
     def get_or_create_projection(self, dim_in: int, dim_out: int) -> np.ndarray:
         key = (dim_in, dim_out)
@@ -1813,4 +1837,129 @@ class FederalDiplomaticBridge:
             "expected_gain": gain,
             "confidence": 0.85
         }
+
+    def compile_noosphere_broadcast_directive(
+        self,
+        topic_or_field: Any = "HARMONY",
+        frequency: float = 1.0,
+        author_clan: str = "FEDERATION"
+    ) -> str:
+        """Compile une directive symbolique / Cypher d'émission noosphérique (Phase 12 M1)."""
+        if isinstance(topic_or_field, LUNoosphereField):
+            b_id = getattr(topic_or_field, "id", getattr(topic_or_field, "broadcast_id", "noo_0"))
+            t_name = getattr(topic_or_field, "content_topic", "NOOSPHERE")
+            freq = getattr(topic_or_field, "resonance_intensity", getattr(topic_or_field, "resonance_frequency", frequency))
+            clan = getattr(topic_or_field, "author_clan", author_clan)
+            return (
+                f"CREATE (n:NoosphereField {{broadcast_id: '{b_id}', topic: '{t_name}', "
+                f"frequency: {freq:.2f}, clan: '{clan}', tick: {topic_or_field.tick}}})"
+            )
+        return f"NOOSPHERE_BROADCAST({topic_or_field}) ⊛ RESONANCE(freq={frequency:.2f}) [CLAN={author_clan}]"
+
+    def compile_epistemic_query_directive(
+        self,
+        plan_or_insight: Any = "PLAN",
+        confidence: float = 0.5
+    ) -> str:
+        """Compile une directive symbolique / Cypher d'interrogation métacognitive (Phase 12 M1)."""
+        if isinstance(plan_or_insight, LUEpistemicInsight):
+            ins_id = plan_or_insight.id
+            ag_id = plan_or_insight.agent_id
+            conf = plan_or_insight.confidence_score
+            is_high = str(plan_or_insight.is_high_uncertainty).lower()
+            return (
+                f"CREATE (e:EpistemicInsight {{insight_id: '{ins_id}', agent_id: '{ag_id}', "
+                f"confidence: {conf:.2f}, high_uncertainty: {is_high}, tick: {plan_or_insight.tick}}})"
+            )
+        return f"EPISTEMIC_QUERY({plan_or_insight}) [CONFIDENCE={confidence:.2f}, THRESHOLD=0.45]"
+
+    def compile_sinkhorn_ratification_directive(
+        self,
+        topic_or_council_id: str = "SYNARCHY",
+        entropy: float = 1.0,
+        council_id: Optional[str] = None,
+        barycenter_vector: Optional[np.ndarray] = None,
+        participant_ids: Optional[List[str]] = None,
+        tick: int = 0
+    ) -> str:
+        """Compile une directive symbolique / Cypher de ratification synarchique par Sinkhorn (Phase 12 M1)."""
+        c_id = council_id or topic_or_council_id
+        parts = participant_ids or []
+        parts_str = "[" + ", ".join(f"'{p}'" for p in parts) + "]"
+        return (
+            f"CREATE (c:SynarchicCouncil {{council_id: '{c_id}', entropy: {entropy:.2f}, "
+            f"participants: {parts_str}, converged: true, tick: {tick}}})"
+        )
+
+    def record_noosphere_broadcast(
+        self,
+        broadcast_field: Optional[LUNoosphereField] = None,
+        broadcast_id: Optional[str] = None,
+        content_vector: Optional[np.ndarray] = None,
+        resonance_freq: float = 1.0,
+        sender_id: str = "synarchy",
+        tick: int = 0,
+        **kwargs: Any
+    ) -> LUNoosphereField:
+        """Enregistre un événement d'émission noosphérique dans KuzuDB si disponible et retourne le champ."""
+        if broadcast_field is None:
+            b_id = broadcast_id or f"noo_{tick}_1"
+            broadcast_field = LUNoosphereField(
+                id=b_id,
+                origin_stele_id=sender_id,
+                content_topic="NOOSPHERE_BROADCAST",
+                resonance_intensity=resonance_freq,
+                author_clan="FEDERATION",
+                tick=tick,
+            )
+            # Attributs dynamiques de compatibilité
+            broadcast_field.broadcast_id = b_id
+            broadcast_field.resonance_frequency = resonance_freq
+            broadcast_field.content_vector = content_vector
+
+        if self.db is not None:
+            try:
+                self.db.execute_cypher(
+                    f"CREATE (n:LUNoosphereField {{id: '{broadcast_field.id}', origin: '{broadcast_field.origin_stele_id}', "
+                    f"topic: '{broadcast_field.content_topic}', intensity: {broadcast_field.resonance_intensity}, tick: {broadcast_field.tick}}})"
+                )
+            except Exception:
+                pass
+        return broadcast_field
+
+    def record_epistemic_insight(
+        self,
+        insight: Optional[LUEpistemicInsight] = None,
+        insight_id: Optional[str] = None,
+        agent_id: str = "agent",
+        confidence_scalar: float = 0.5,
+        uncertainty_vector: Optional[np.ndarray] = None,
+        high_uncertainty: bool = False,
+        tick: int = 0,
+        **kwargs: Any
+    ) -> LUEpistemicInsight:
+        """Enregistre un insight de métacognition épistémique dans KuzuDB si disponible et retourne l'insight."""
+        if insight is None:
+            ins_id = insight_id or f"ins_{tick}_1"
+            insight = LUEpistemicInsight(
+                id=ins_id,
+                agent_id=agent_id,
+                plan_name="PLAN",
+                confidence_score=confidence_scalar,
+                is_high_uncertainty=high_uncertainty,
+                tick=tick,
+            )
+            insight.high_uncertainty = high_uncertainty
+            insight.uncertainty_vector = uncertainty_vector
+
+        if self.db is not None:
+            try:
+                self.db.execute_cypher(
+                    f"CREATE (e:LUEpistemicInsight {{id: '{insight.id}', agent_id: '{insight.agent_id}', "
+                    f"plan: '{insight.plan_name}', confidence: {insight.confidence_score}, "
+                    f"is_high_uncertainty: {str(insight.is_high_uncertainty).lower()}, tick: {insight.tick}}})"
+                )
+            except Exception:
+                pass
+        return insight
 
