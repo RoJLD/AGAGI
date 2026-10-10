@@ -403,6 +403,16 @@ Le saut scientifique de la Phase 3 franchit le mur du dialogue et de la délibé
 - **Auditabilité Graph-RAG KuzuDB (`LUDeliberation`)** : Décompilation symbolique ascendante des débats de meute et archivage immuable des consensus dans la table KuzuDB dédiée.
 - **Clôture & Journalisation** : Validé par le banc sociologique de 30 ères (Commandement 15 : delta énergie $+14.98$, delta survie $+0.33$, delta chasses $+0.57$) et consigné dans KuzuDB sous l'identifiant `art_012_langage_ultime_tom_deliberation` (Article 012).
 
+## ⚖️ Langage Ultime Phase 4 : Spéciation Dialectale, Contrats Latents de Troc et Marché Décentralisé (Article 013)
+
+L'émergence des institutions économiques décentralisées franchit le mur de l'autarcie (G4) :
+- **Variétés de Grassmann $Gr(k, D)$ & Distance Géodésique** : Modélisation continue de la dérive dialectale inter-clans par sous-espaces orthonormés $U_{\text{clan}} \in \mathbb{R}^{D \times k}$. La distance $d_G(U_A, U_B) = \|\vec{\theta}\|_2$ quantifie la divergence culturelle et module le coût et le bruit de communication inter-tribus.
+- **Algèbre de Contrats Latents & Réciprocité de Nash** : Formulation d'engagements bilatéraux unitaires (`ROLE_GIVE`, `ROLE_DEMAND`, `ROLE_QUORUM`) et validation automatique des offres de troc par complémentarité vectorielle de Nash (seuil $\ge 0.60$).
+- **Médiation Tri-Partite (`MultiTribalTranslator`) & Lingua Franca** : Mise en place d'un sous-espace pivot commun $U_{\text{pivot}}$ à la Place du Marché permettant la traduction et la synchronisation des clans sans dictionnaire bilatéral lourd.
+- **Résolution Écologique in-world (Monde 2 Agricole)** : Le troc de denrées (Fruits vs Lances/Outils) compense l'asymétrie de spécialisation, éradiquant les disettes de fin de saison (+2.80 ticks de survie moyenne, 24.30 contrats scellés par ère).
+- **Clôture & Journalisation** : Validé par le banc sociologique de 30 ères (Commandement 15 : delta énergie $+2.50$, delta survie $+2.80$, $100\%$ de survie) et certifié dans KuzuDB sous l'identifiant `art_013_langage_ultime_speciation_contrats` (Article 013).
+
+
 ## Comment lire les preuves
 
 Chaque affirmation ci-dessus pointe vers son EDR (`docs/EDR/NNN_*.md`), qui contient le protocole, les

@@ -18,7 +18,17 @@ import numpy as np
 from src.metaprog.lu_auto_translator import MutualLatentTranslator, AutoTranslatorConfig
 from src.metaprog.lu_state_bridge import LUStateBridge
 from src.metaprog.lu_human_explainer import LUHumanExplainer
-from src.metaprog.lu_algebra import LUCompositionalGrammar, LUAlgebraConfig
+from src.metaprog.lu_algebra import (
+    LUCompositionalGrammar,
+    LUAlgebraConfig,
+    grassmann_distance,
+    orthonormal_subspace,
+    drift_subspace,
+    linear_cka,
+    match_contract_trade,
+    cosine_similarity,
+)
+from src.metaprog.lu_symbolic_bridge import MultiTribalTranslator
 from src.graph_rag.async_logger import logger
 
 
@@ -59,6 +69,13 @@ class LUInWorldConfig:
     enable_deliberation: bool = True
     deliberation_rounds: int = 3
     deliberation_consensus_threshold: float = 0.65
+    # Phase 4 : Spéciation Dialectale, Contrats Latents & Troc Décentralisé
+    enable_dialects: bool = True
+    dialect_drift_rate: float = 0.05
+    enable_trade_contracts: bool = True
+    trade_agreement_threshold: float = 0.60
+    market_radius: int = 4
+    market_point: Tuple[int, int] = (8, 8)
 
 
 class LUInWorldAdapter:
@@ -114,6 +131,13 @@ class LUInWorldAdapter:
             self.grammar = LUCompositionalGrammar(LUAlgebraConfig(dim=self.dim))
         else:
             self.grammar = None
+
+        # Phase 4 : Spéciation Dialectale, Contrats Latents & Troc
+        self.clan_subspaces: Dict[str, np.ndarray] = {}
+        self.multi_translator = MultiTribalTranslator(dim=self.dim, k=4)
+        self.contracts_settled_count: int = 0
+        self.trade_transfers_count: int = 0
+        self.recent_contracts: List[Dict[str, Any]] = []
 
     def _get_agent_projection(self, agent_id: str, input_dim: int) -> np.ndarray:
         """Garantit une matrice de projection orthogonale ou pseudo-aléatoire stable pour chaque agent."""
@@ -459,6 +483,155 @@ class LUInWorldAdapter:
             "participants": len(gathered_agents),
         }
 
+    # =========================================================================
+    # Spéciation Dialectale & Contrats de Troc Décentralisés (Phase 4 M1 & M2)
+    # =========================================================================
+
+    def get_agent_clan(self, agent: Dict[str, Any]) -> str:
+        """Détermine le clan ou la tribu d'un agent."""
+        if "clan" in agent:
+            return str(agent["clan"])
+        # Inférence géographique par quadrant si non spécifié explicitement
+        world_size = getattr(self.world, "size", 16)
+        mid = world_size / 2.0
+        x = float(agent.get("x", 0))
+        y = float(agent.get("y", 0))
+        h_part = "North" if y < mid else "South"
+        w_part = "West" if x < mid else "East"
+        return f"Clan_{h_part}_{w_part}"
+
+    def get_clan_subspace(self, clan_id: str) -> np.ndarray:
+        """Récupère ou initialise la base orthonormale U in Gr(4, D) du clan."""
+        if clan_id not in self.clan_subspaces:
+            # Graine déterministe par clan pour reproductibilité
+            rng = np.random.default_rng(abs(hash(clan_id)) % (2**31 - 1))
+            raw = rng.standard_normal((self.dim, 4)).astype(np.float32)
+            q, _ = np.linalg.qr(raw)
+            subspace = q[:, :4].astype(np.float32)
+            self.clan_subspaces[clan_id] = subspace
+            self.multi_translator.register_clan(clan_id, subspace)
+        return self.clan_subspaces[clan_id]
+
+    def evolve_clan_dialects(self, agents: List[Dict[str, Any]]) -> None:
+        """Fait dériver le sous-espace dialectal de chaque clan par co-exposition locale."""
+        clan_tokens: Dict[str, List[np.ndarray]] = {}
+        for ag in agents:
+            cid = self.get_agent_clan(ag)
+            tok = ag.get("lu_latent")
+            if tok is not None:
+                clan_tokens.setdefault(cid, []).append(tok)
+
+        for cid, toks in clan_tokens.items():
+            if len(toks) >= 2:
+                u_base = self.get_clan_subspace(cid)
+                stim = np.stack(toks, axis=0)
+                u_new = drift_subspace(u_base, stim, drift_rate=self.config.dialect_drift_rate)
+                self.clan_subspaces[cid] = u_new
+                self.multi_translator.register_clan(cid, u_new)
+
+    def negotiate_trade_contracts(self, agents: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+        """
+        Négociation de troc décentralisée par contrats latents (Phase 4 M2).
+        Exécute le troc effectif d'objets (nourriture/graines vs lances/bois/outils).
+        """
+        settled_trades = []
+        if self.grammar is None or len(agents) < 2:
+            return settled_trades
+
+        mx, my = self.config.market_point
+        mr = self.config.market_radius
+
+        # Filtrer agents à proximité du marché ou à portée d'échange
+        market_agents = [
+            ag for ag in agents
+            if abs(ag.get("x", 0) - mx) + abs(ag.get("y", 0) - my) <= mr
+        ]
+        if len(market_agents) < 2:
+            market_agents = agents  # Si pas de regroupement marché, troc de proximité directe
+
+        for i, a in enumerate(market_agents):
+            inv_a = a.setdefault("inventory", [])
+            for j, b in enumerate(market_agents):
+                if i >= j:
+                    continue
+                inv_b = b.setdefault("inventory", [])
+                dist = abs(a.get("x", 0) - b.get("x", 0)) + abs(a.get("y", 0) - b.get("y", 0))
+                if dist > self.config.hear_radius + 2:
+                    continue
+
+                # Identification des offres et besoins d'échange
+                # A offre ce qu'il a en abondance et cherche ce qui lui manque
+                has_food_a = any(str(it.get("type", "")).lower() in ["fruit", "food", "seed"] for it in inv_a)
+                has_tool_a = any(str(it.get("type", "")).lower() in ["spear", "tool", "wood", "stone"] for it in inv_a)
+                has_food_b = any(str(it.get("type", "")).lower() in ["fruit", "food", "seed"] for it in inv_b)
+                has_tool_b = any(str(it.get("type", "")).lower() in ["spear", "tool", "wood", "stone"] for it in inv_b)
+
+                # Cas 1 : A offre nourriture contre outil de B
+                trade_case = None
+                if (has_food_a and not has_tool_a) and (has_tool_b and not has_food_b):
+                    trade_case = ("FOOD", "TOOL")
+                # Cas 2 : B offre nourriture contre outil de A
+                elif (has_tool_a and not has_food_a) and (has_food_b and not has_tool_b):
+                    trade_case = ("TOOL", "FOOD")
+                # Cas 3 : Troc de complémentarité générale si deux items distincts
+                elif len(inv_a) > 0 and len(inv_b) > 0:
+                    it_a_name = str(inv_a[0].get("type", "FOOD")).upper()
+                    it_b_name = str(inv_b[0].get("type", "TOOL")).upper()
+                    if it_a_name != it_b_name:
+                        trade_case = (it_a_name, it_b_name)
+
+                if trade_case is None:
+                    continue
+
+                item_a_offer, item_b_demand = trade_case
+                # A émet un contrat : offre item_a_offer, demande item_b_demand
+                # B émet un contrat symétrique : offre item_b_demand, demande item_a_offer
+                rng_a = np.random.default_rng(abs(hash(item_a_offer.upper())) % (2**31 - 1))
+                vec_offer_a = self.grammar._generate_canonical_unit_vector(rng_a)
+
+                rng_b = np.random.default_rng(abs(hash(item_b_demand.upper())) % (2**31 - 1))
+                vec_demand_a = self.grammar._generate_canonical_unit_vector(rng_b)
+
+                # Contrats latents bilatéraux
+                contract_token_a = self.grammar.compose_contract(vec_offer_a, vec_demand_a)
+                contract_token_b = self.grammar.compose_contract(vec_demand_a, vec_offer_a)
+
+                agreed, score = match_contract_trade(
+                    contract_token_a,
+                    contract_token_b,
+                    self.grammar,
+                    threshold=self.config.trade_agreement_threshold
+                )
+
+                if agreed:
+                    # Échange physique d'objets dans les inventaires
+                    item_from_a = inv_a.pop(0) if len(inv_a) > 0 else {"type": item_a_offer}
+                    item_from_b = inv_b.pop(0) if len(inv_b) > 0 else {"type": item_b_demand}
+                    inv_a.append(item_from_b)
+                    inv_b.append(item_from_a)
+
+                    # Prime calorique mutuelle de transaction réussie (surplus de commerce)
+                    a["energy"] = min(100.0, a.get("energy", 0.0) + 2.0)
+                    b["energy"] = min(100.0, b.get("energy", 0.0) + 2.0)
+
+                    self.contracts_settled_count += 1
+                    self.trade_transfers_count += 1
+
+                    trade_info = {
+                        "party_a": str(a.get("id")),
+                        "party_b": str(b.get("id")),
+                        "give_a": item_a_offer,
+                        "give_b": item_b_demand,
+                        "agreement_score": round(score, 3),
+                        "clan_a": self.get_agent_clan(a),
+                        "clan_b": self.get_agent_clan(b),
+                    }
+                    settled_trades.append(trade_info)
+                    if len(self.recent_contracts) < 30:
+                        self.recent_contracts.append(trade_info)
+
+        return settled_trades
+
     def step(self) -> Dict[str, Any]:
         """
         Cycle de communication continue in-world pour le tick actuel :
@@ -486,6 +659,10 @@ class LUInWorldAdapter:
             ag["lu_multi_hop_relayed"] = False
             ag["cooperative_hunt_active"] = False
             self.encode_agent_latent(ag)
+
+        # Dérive géométrique locale des dialectes claniques (Phase 4 M1)
+        if self.config.enable_dialects:
+            self.evolve_clan_dialects(agents)
 
         tick_transmissions = 0
         tick_alignments = 0
@@ -568,6 +745,16 @@ class LUInWorldAdapter:
 
                 # Ajout de bruit physique d'atténuation
                 effective_noise = self.config.noise_level * (1.0 + float(dist) / max(1, R))
+                # Pénalité de bruit géométrique inter-clans (Phase 4 M1)
+                if self.config.enable_dialects:
+                    clan_a = self.get_agent_clan(a)
+                    clan_b = self.get_agent_clan(b)
+                    if clan_a != clan_b:
+                        u_a = self.get_clan_subspace(clan_a)
+                        u_b = self.get_clan_subspace(clan_b)
+                        d_g = grassmann_distance(u_a, u_b)
+                        effective_noise *= (1.0 + float(d_g) * 0.4)
+
                 if near_fire:
                     effective_noise *= 0.2
                     self.campfire_transmissions_count += 1
@@ -673,6 +860,12 @@ class LUInWorldAdapter:
                         self.multi_hop_relays_count += 1
                         c["energy"] = min(100.0, c.get("energy", 0.0) + self.config.alignment_reward)
 
+        # 7. Négociation de contrats de troc décentralisés (Phase 4 M2)
+        tick_trades = 0
+        if self.config.enable_trade_contracts:
+            trades = self.negotiate_trade_contracts(agents)
+            tick_trades = len(trades)
+
         self.total_transmissions += tick_transmissions
         self.successful_alignments += tick_alignments
         self.pack_coordinations_count += tick_coordinations
@@ -694,6 +887,9 @@ class LUInWorldAdapter:
             "tom_energy_saved": round(self.tom_energy_saved, 4),
             "deliberation_events": self.deliberation_events_count,
             "deliberation_consensuses": self.deliberation_consensus_count,
+            "contracts_settled": self.contracts_settled_count,
+            "trade_transfers": self.trade_transfers_count,
+            "tick_trades": tick_trades,
         }
 
 

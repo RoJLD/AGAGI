@@ -109,6 +109,10 @@ class LUCompositionalGrammar:
         self.ROLE_TARGET = self._generate_canonical_unit_vector(rng)
         self.ROLE_MODIFIER = self._generate_canonical_unit_vector(rng)
         self.ROLE_CLAUSE = self._generate_canonical_unit_vector(rng)  # Rôle pour récursion syntaxique (Phase 3)
+        # Rôles pour contrats de troc et engagements bilatéraux (Phase 4)
+        self.ROLE_GIVE = self._generate_canonical_unit_vector(rng)
+        self.ROLE_DEMAND = self._generate_canonical_unit_vector(rng)
+        self.ROLE_QUORUM = self._generate_canonical_unit_vector(rng)
 
     def _generate_canonical_unit_vector(self, rng: np.random.Generator) -> np.ndarray:
         """
@@ -235,3 +239,185 @@ class LUCompositionalGrammar:
         p_out = self.extract_predicate(composite_message)
         c_in = self.extract_clause(composite_message)
         return s_out, p_out, c_in
+
+    def compose_contract(
+        self,
+        give_item: np.ndarray,
+        demand_item: np.ndarray,
+        quorum: Optional[np.ndarray] = None
+    ) -> np.ndarray:
+        """
+        Compose un token d'engagement contractuel (LU Phase 4 M2) :
+        Z_contract = bundle(ROLE_GIVE ⊛ give_item, ROLE_DEMAND ⊛ demand_item [, ROLE_QUORUM ⊛ quorum])
+        """
+        parts = []
+        weights = []
+
+        bound_give = circular_convolution(self.ROLE_GIVE, give_item)
+        parts.append(bound_give)
+        weights.append(1.0)
+
+        bound_demand = circular_convolution(self.ROLE_DEMAND, demand_item)
+        parts.append(bound_demand)
+        weights.append(1.0)
+
+        if quorum is not None:
+            bound_quorum = circular_convolution(self.ROLE_QUORUM, quorum)
+            parts.append(bound_quorum)
+            weights.append(0.5)
+
+        return bundle_vectors(parts, weights)
+
+    def extract_give(self, contract_message: np.ndarray) -> np.ndarray:
+        """Extrait la ressource ou l'engagement offert par l'émetteur."""
+        return self.query_role(contract_message, self.ROLE_GIVE)
+
+    def extract_demand(self, contract_message: np.ndarray) -> np.ndarray:
+        """Extrait la contrepartie exigée en retour."""
+        return self.query_role(contract_message, self.ROLE_DEMAND)
+
+    def extract_quorum(self, contract_message: np.ndarray) -> np.ndarray:
+        """Extrait la clause de quorum/durée du contrat."""
+        return self.query_role(contract_message, self.ROLE_QUORUM)
+
+    def extract_contract(self, contract_message: np.ndarray) -> Tuple[np.ndarray, np.ndarray]:
+        """Décompose le contrat en (give_item, demand_item)."""
+        g = self.extract_give(contract_message)
+        d = self.extract_demand(contract_message)
+        return g, d
+
+
+# =========================================================================
+# Fonctions de Variété de Grassmann & Dynamique Dialectale (Phase 4 M1)
+# =========================================================================
+
+def grassmann_distance(U_A: np.ndarray, U_B: np.ndarray) -> float:
+    """
+    Calcule la distance géodésique canonique sur la variété de Grassmann Gr(k, D).
+    d_G(U_A, U_B) = ||arccos(SVD(U_A^T U_B))||_2.
+    U_A, U_B doivent être des bases orthonormales (D x k) ou (k x D).
+    """
+    ua = np.asarray(U_A, dtype=np.float64)
+    ub = np.asarray(U_B, dtype=np.float64)
+
+    # Assurer format (D, k) avec k <= D
+    if ua.shape[0] < ua.shape[1]:
+        ua = ua.T
+    if ub.shape[0] < ub.shape[1]:
+        ub = ub.T
+
+    # Tronquer k au minimum commun
+    k = min(ua.shape[1], ub.shape[1])
+    ua_k = ua[:, :k]
+    ub_k = ub[:, :k]
+
+    # Matrice de projection croisée
+    cross_mat = np.dot(ua_k.T, ub_k)
+    s = np.linalg.svd(cross_mat, compute_uv=False)
+    s = np.clip(s, -1.0, 1.0)
+    thetas = np.arccos(s)
+    dist = float(np.sqrt(np.sum(thetas ** 2)))
+    return dist
+
+
+def orthonormal_subspace(vectors: np.ndarray, k: int = 4) -> np.ndarray:
+    """
+    Extrait une base orthonormale U in Gr(k, D) à partir d'un ensemble de vecteurs.
+    vectors: (N, D) ou (D, N). Retourne (D, k).
+    """
+    arr = np.asarray(vectors, dtype=np.float64)
+    if arr.ndim == 1:
+        arr = arr.reshape(1, -1)
+    if arr.shape[0] < arr.shape[1]:
+        # N x D -> décomposition SVD sur N échantillons en dimension D
+        _, _, vh = np.linalg.svd(arr, full_matrices=False)
+        u_base = vh[:min(k, vh.shape[0]), :].T
+    else:
+        # D x N
+        u, _, _ = np.linalg.svd(arr, full_matrices=False)
+        u_base = u[:, :min(k, u.shape[1])]
+
+    # Si k > rang réel, compléter par Gram-Schmidt
+    d = u_base.shape[0]
+    curr_k = u_base.shape[1]
+    if curr_k < k:
+        pad = np.random.randn(d, k - curr_k)
+        for i in range(pad.shape[1]):
+            v = pad[:, i]
+            for j in range(curr_k):
+                v -= np.dot(u_base[:, j], v) * u_base[:, j]
+            norm = np.linalg.norm(v) + 1e-12
+            u_base = np.column_stack([u_base, v / norm])
+            curr_k += 1
+
+    return u_base.astype(np.float32)
+
+
+def drift_subspace(
+    U_base: np.ndarray,
+    stimulus_vectors: np.ndarray,
+    drift_rate: float = 0.05
+) -> np.ndarray:
+    """
+    Applique une dérive géométrique locale au sous-espace de projection clanique U.
+    U_new = normalize_subspace((1 - drift_rate) * U_base + drift_rate * U_stimulus).
+    """
+    d = U_base.shape[0]
+    k = U_base.shape[1]
+    u_stim = orthonormal_subspace(stimulus_vectors, k=k)
+
+    combined = (1.0 - drift_rate) * U_base.astype(np.float64) + drift_rate * u_stim.astype(np.float64)
+    q, _ = np.linalg.qr(combined)
+    return q[:, :k].astype(np.float32)
+
+
+def linear_cka(X: np.ndarray, Y: np.ndarray) -> float:
+    """
+    Calcule le Centred Kernel Alignment (Linear CKA) entre deux matrices de représentations.
+    X: (N, D1), Y: (N, D2).
+    """
+    x = np.asarray(X, dtype=np.float64)
+    y = np.asarray(Y, dtype=np.float64)
+    if len(x) == 0 or len(y) == 0 or len(x) != len(y):
+        return float('nan')
+
+    # Centrage des matrices
+    x = x - np.mean(x, axis=0, keepdims=True)
+    y = y - np.mean(y, axis=0, keepdims=True)
+
+    # Gram matrices
+    gram_x = np.dot(x, x.T)
+    gram_y = np.dot(y, y.T)
+
+    tr_xy = float(np.sum(gram_x * gram_y))
+    tr_xx = float(np.sum(gram_x * gram_x))
+    tr_yy = float(np.sum(gram_y * gram_y))
+
+    denom = np.sqrt(tr_xx * tr_yy) + 1e-12
+    return float(np.clip(tr_xy / denom, 0.0, 1.0))
+
+
+def match_contract_trade(
+    contract_A: np.ndarray,
+    contract_B: np.ndarray,
+    grammar: LUCompositionalGrammar,
+    threshold: float = 0.70
+) -> Tuple[bool, float]:
+    """
+    Vérifie la réciprocité de Nash entre deux tokens de contrat :
+    L'offre de A doit satisfaire la demande de B (give_A ≈ demand_B)
+    ET l'offre de B doit satisfaire la demande de A (give_B ≈ demand_A).
+    """
+    give_a = grammar.extract_give(contract_A)
+    demand_a = grammar.extract_demand(contract_A)
+
+    give_b = grammar.extract_give(contract_B)
+    demand_b = grammar.extract_demand(contract_B)
+
+    sim_ab = cosine_similarity(give_a, demand_b)
+    sim_ba = cosine_similarity(give_b, demand_a)
+
+    reciprocity_score = float((sim_ab + sim_ba) / 2.0)
+    agreed = (sim_ab >= threshold) and (sim_ba >= threshold)
+    return agreed, reciprocity_score
+
