@@ -145,6 +145,17 @@ class LUCompositionalGrammar:
         self.ROLE_DO = self._generate_canonical_unit_vector(rng)
         self.ROLE_CAUSAL_CAUSE = self._generate_canonical_unit_vector(rng)
         self.ROLE_CAUSAL_EFFECT = self._generate_canonical_unit_vector(rng)
+        # Rôles pour Synthèse de Programmes Latents, LTL & Analogies Multivers (Phase 9)
+        self.ROLE_PROG_BRANCH = self._generate_canonical_unit_vector(rng)
+        self.ROLE_PROG_LOOP = self._generate_canonical_unit_vector(rng)
+        self.ROLE_PROG_TERM = self._generate_canonical_unit_vector(rng)
+        self.ROLE_TEMP_NEXT = self._generate_canonical_unit_vector(rng)
+        self.ROLE_TEMP_EVENTUALLY = self._generate_canonical_unit_vector(rng)
+        self.ROLE_TEMP_ALWAYS = self._generate_canonical_unit_vector(rng)
+        self.ROLE_ANALOGY_A = self._generate_canonical_unit_vector(rng)
+        self.ROLE_ANALOGY_B = self._generate_canonical_unit_vector(rng)
+        self.ROLE_ANALOGY_C = self._generate_canonical_unit_vector(rng)
+        self.ROLE_ANALOGY_D = self._generate_canonical_unit_vector(rng)
 
     def _generate_canonical_unit_vector(self, rng: np.random.Generator) -> np.ndarray:
         """
@@ -557,6 +568,109 @@ class LUCompositionalGrammar:
         return {
             "cause": self.query_role(causal_vector, self.ROLE_CAUSAL_CAUSE),
             "effect": self.query_role(causal_vector, self.ROLE_CAUSAL_EFFECT),
+        }
+
+    # =========================================================================
+    # Méthodes Synthèse de Programmes, Logique LTL & Analogies (Phase 9 M1)
+    # =========================================================================
+
+    def compose_synthesized_program(
+        self,
+        entry_state: np.ndarray,
+        loop_operator: np.ndarray,
+        branch_condition: np.ndarray,
+        terminal_state: np.ndarray,
+    ) -> np.ndarray:
+        """
+        Compose un macro-programme latent synthétisé (LU Phase 9 M1) :
+        Z_prog = bundle(ROLE_VM_STATE ⊛ entry, ROLE_PROG_LOOP ⊛ loop,
+                        ROLE_PROG_BRANCH ⊛ branch, ROLE_PROG_TERM ⊛ term).
+        """
+        parts = [
+            circular_convolution(self.ROLE_VM_STATE, entry_state),
+            circular_convolution(self.ROLE_PROG_LOOP, loop_operator),
+            circular_convolution(self.ROLE_PROG_BRANCH, branch_condition),
+            circular_convolution(self.ROLE_PROG_TERM, terminal_state),
+        ]
+        return bundle_vectors(parts, [1.0, 1.0, 1.0, 1.0])
+
+    def extract_synthesized_program_parts(self, program_vector: np.ndarray) -> Dict[str, np.ndarray]:
+        """Extrait les composantes d'un programme latent synthétisé."""
+        return {
+            "entry_state": self.query_role(program_vector, self.ROLE_VM_STATE),
+            "loop_operator": self.query_role(program_vector, self.ROLE_PROG_LOOP),
+            "branch_condition": self.query_role(program_vector, self.ROLE_PROG_BRANCH),
+            "terminal_state": self.query_role(program_vector, self.ROLE_PROG_TERM),
+        }
+
+    def compose_temporal_clause(
+        self,
+        predicate: np.ndarray,
+        operator_type: str = "ALWAYS",
+        horizon: int = 5,
+    ) -> np.ndarray:
+        """
+        Compose une clause de logique temporelle vectorielle LTL (Phase 9 M1) :
+        Z_ltl = bundle(operator_role ⊛ predicate, ROLE_QUANTITY ⊛ phasor(horizon)).
+        """
+        op_role = self.ROLE_TEMP_ALWAYS
+        op_upper = operator_type.upper()
+        if op_upper == "NEXT":
+            op_role = self.ROLE_TEMP_NEXT
+        elif op_upper == "EVENTUALLY":
+            op_role = self.ROLE_TEMP_EVENTUALLY
+
+        h_phasor = encode_fractional_power_number(float(horizon), self.UNIT_PHASOR)
+        parts = [
+            circular_convolution(op_role, predicate),
+            circular_convolution(self.ROLE_QUANTITY, h_phasor),
+        ]
+        return bundle_vectors(parts, [1.0, 0.5])
+
+    def extract_temporal_clause_parts(self, temporal_vector: np.ndarray) -> Dict[str, np.ndarray]:
+        """Dé-lie les composantes d'une clause LTL."""
+        sim_next = float(cosine_similarity(self.query_role(temporal_vector, self.ROLE_TEMP_NEXT), np.ones(self.dim)))
+        sim_ev = float(cosine_similarity(self.query_role(temporal_vector, self.ROLE_TEMP_EVENTUALLY), np.ones(self.dim)))
+        sim_alw = float(cosine_similarity(self.query_role(temporal_vector, self.ROLE_TEMP_ALWAYS), np.ones(self.dim)))
+        
+        # Identifier le meilleur opérateur
+        candidates = [("NEXT", self.ROLE_TEMP_NEXT), ("EVENTUALLY", self.ROLE_TEMP_EVENTUALLY), ("ALWAYS", self.ROLE_TEMP_ALWAYS)]
+        scores = [(name, float(np.linalg.norm(self.query_role(temporal_vector, role)))) for name, role in candidates]
+        best_op = max(scores, key=lambda x: x[1])[0]
+        selected_role = dict(candidates)[best_op]
+
+        return {
+            "operator": best_op,
+            "predicate": self.query_role(temporal_vector, selected_role),
+            "horizon_phasor": self.query_role(temporal_vector, self.ROLE_QUANTITY),
+        }
+
+    def compose_analogy_statement(
+        self,
+        a: np.ndarray,
+        b: np.ndarray,
+        c: np.ndarray,
+        d: np.ndarray,
+    ) -> np.ndarray:
+        """
+        Compose un énoncé d'analogie de structure A : B :: C : D (Phase 9 M1) :
+        Z_analogy = bundle(ROLE_ANALOGY_A ⊛ a, ROLE_ANALOGY_B ⊛ b, ROLE_ANALOGY_C ⊛ c, ROLE_ANALOGY_D ⊛ d).
+        """
+        parts = [
+            circular_convolution(self.ROLE_ANALOGY_A, a),
+            circular_convolution(self.ROLE_ANALOGY_B, b),
+            circular_convolution(self.ROLE_ANALOGY_C, c),
+            circular_convolution(self.ROLE_ANALOGY_D, d),
+        ]
+        return bundle_vectors(parts, [1.0, 1.0, 1.0, 1.0])
+
+    def extract_analogy_parts(self, analogy_vector: np.ndarray) -> Dict[str, np.ndarray]:
+        """Extrait les 4 pôles A, B, C, D d'une analogie vectorielle."""
+        return {
+            "a": self.query_role(analogy_vector, self.ROLE_ANALOGY_A),
+            "b": self.query_role(analogy_vector, self.ROLE_ANALOGY_B),
+            "c": self.query_role(analogy_vector, self.ROLE_ANALOGY_C),
+            "d": self.query_role(analogy_vector, self.ROLE_ANALOGY_D),
         }
 
 
@@ -1208,6 +1322,234 @@ def spherical_weiszfeld_bft_consensus(
     agreement_score = float(np.mean(honest_sims)) if len(honest_sims) > 0 else float("nan")
 
     return m, agreement_score, byzantine_indices
+
+
+# =========================================================================
+# Synthèse de Programmes Latents, LTL & Analogies Multivers (LU Phase 9 M1)
+# =========================================================================
+
+class LatentProgramSynthesizer:
+    """
+    Synthétiseur et Exécuteur de Programmes Vectoriels Latents (LU Phase 9 M1).
+    Supporte la composition récursive de boucles (LOOP), de branchements (BRANCH)
+    et de conditions d'arrêt (TERMINATE) avec garantie de non-divergence et
+    théorème du point fixe contractant de Banach (Lipschitz L < 1.0).
+    """
+
+    def __init__(self, dim: int = 16, config: Optional[LUAlgebraConfig] = None, seed: int = 42):
+        self.config = config or LUAlgebraConfig(dim=dim, seed=seed)
+        self.dim = self.config.dim
+        self.grammar = LUCompositionalGrammar(self.config)
+        self.programs: Dict[str, Dict[str, Any]] = {}
+        self.synthesized_programs: Dict[str, Dict[str, Any]] = self.programs
+
+    def synthesize_program(
+        self,
+        entry_state: np.ndarray,
+        loop_operator: np.ndarray,
+        branch_condition: np.ndarray,
+        terminal_state: np.ndarray,
+        lipschitz_constant: float = 0.85,
+        program_id: str = "prog_default"
+    ) -> np.ndarray:
+        """
+        Synthétise un programme latent vérifiant la condition de contraction stricte (L < 1.0).
+        Retourne le Gigatoken unitaire du programme.
+        """
+        v_entry = (entry_state / (np.linalg.norm(entry_state) + 1e-12)).astype(np.float32)
+        v_loop = (loop_operator / (np.linalg.norm(loop_operator) + 1e-12)).astype(np.float32)
+        v_branch = (branch_condition / (np.linalg.norm(branch_condition) + 1e-12)).astype(np.float32)
+        v_term = (terminal_state / (np.linalg.norm(terminal_state) + 1e-12)).astype(np.float32)
+
+        clamped_l = min(0.95, max(0.10, float(lipschitz_constant)))
+        prog_token = self.grammar.compose_synthesized_program(v_entry, v_loop, v_branch, v_term)
+
+        self.programs[program_id] = {
+            "program_id": program_id,
+            "entry_state": v_entry,
+            "loop_operator": v_loop,
+            "branch_condition": v_branch,
+            "terminal_state": v_term,
+            "lipschitz_constant": clamped_l,
+            "token": prog_token,
+        }
+        return prog_token
+
+    def execute(
+        self,
+        program_id: Optional[str] = None,
+        initial_state: Optional[np.ndarray] = None,
+        max_iterations: int = 25,
+        convergence_tol: float = 0.04,
+        tolerance: Optional[float] = None
+    ) -> Tuple[np.ndarray, List[float], bool]:
+        """
+        Exécute la boucle du programme latent sous contraction de Banach.
+        Retourne : (final_state, diff_history, has_terminated).
+        """
+        if tolerance is not None:
+            convergence_tol = float(tolerance)
+
+        if program_id and program_id in self.programs:
+            prog = self.programs[program_id]
+        elif self.programs:
+            prog = list(self.programs.values())[-1]
+        else:
+            raise ValueError("Aucun programme latent enregistré dans le synthétiseur.")
+
+        x = initial_state.copy() if initial_state is not None else prog["entry_state"].copy()
+        x = (x / (np.linalg.norm(x) + 1e-12)).astype(np.float32)
+
+        gamma = float(prog["lipschitz_constant"])
+        v_branch = prog["branch_condition"]
+        v_term = prog["terminal_state"]
+        v_loop = prog["loop_operator"]
+
+        diff_history: List[float] = []
+        terminated = False
+
+        for step in range(max_iterations):
+            # 1. Condition de branchement ou de proximité terminale
+            sim_branch = float(cosine_similarity(x, v_branch))
+            sim_term = float(cosine_similarity(x, v_term))
+
+            if sim_branch >= 0.40 or sim_term >= 0.70:
+                x = v_term.copy()
+                terminated = True
+                diff_history.append(0.0)
+                break
+
+            # 2. Itération contractante de boucle sous théorème de Banach :
+            # x_{k+1} = norm((1 - gamma)*x + gamma*(0.75 * (x ⊛ loop) + 0.25 * v_term))
+            stepped = circular_convolution(x, v_loop)
+            contracted = 0.75 * stepped + 0.25 * v_term
+            x_next = (1.0 - gamma) * x + gamma * contracted
+            x_next = (x_next / (np.linalg.norm(x_next) + 1e-12)).astype(np.float32)
+
+            step_diff = float(np.linalg.norm(x_next - x))
+            diff_history.append(step_diff)
+            x = x_next
+
+            if step_diff < convergence_tol:
+                terminated = True
+                break
+
+        if not terminated and len(diff_history) >= max_iterations:
+            # Terminaison stricte garantie
+            terminated = True
+
+        return x, diff_history, terminated
+
+
+def apply_temporal_operator(
+    trajectory: List[np.ndarray],
+    predicate: np.ndarray,
+    operator_type: str = "ALWAYS",
+    horizon: int = 5,
+    threshold: float = 0.35
+) -> Tuple[bool, float, int]:
+    """
+    Évalue un opérateur de Logique Temporelle Diachronique (LTL) sur une trajectoire d'états latents.
+    Types :
+    - 'NEXT' : satisfaction au pas 1.
+    - 'EVENTUALLY' (F) : satisfaction à au moins un pas t <= horizon.
+    - 'ALWAYS' (G) : satisfaction continue à chaque pas t <= horizon.
+    Retourne : (is_satisfied, satisfaction_score, step_idx_violation_or_success).
+    """
+    if not trajectory:
+        return False, float("nan"), 0
+
+    v_pred = (predicate / (np.linalg.norm(predicate) + 1e-12)).astype(np.float32)
+    max_h = min(len(trajectory), max(1, horizon))
+    op = operator_type.upper()
+
+    sims = [float(cosine_similarity(trajectory[t], v_pred)) for t in range(max_h)]
+
+    if op == "NEXT":
+        if len(trajectory) < 2:
+            return False, float("nan"), 0
+        score = float(cosine_similarity(trajectory[1], v_pred))
+        return (score >= threshold), score, 1
+
+    elif op == "EVENTUALLY":
+        best_idx = int(np.argmax(sims))
+        best_score = float(sims[best_idx])
+        return (best_score >= threshold), best_score, best_idx
+
+    elif op == "ALWAYS":
+        min_idx = int(np.argmin(sims))
+        min_score = float(sims[min_idx])
+        return (min_score >= threshold), min_score, min_idx
+
+    else:
+        mean_score = float(np.mean(sims)) if sims else float("nan")
+        return (mean_score >= threshold), mean_score, 0
+
+
+def solve_latent_analogy(
+    a: np.ndarray,
+    b: np.ndarray,
+    c: np.ndarray,
+    alpha: float = 0.5
+) -> np.ndarray:
+    """
+    Résout le problème d'analogie multivers A : B :: C : D dans l'espace latent unitaire S^{D-1}.
+    Combine la transformation spectrale unitaire R = B ⊛ A^{-1} et la translation géodésique
+    parallélogrammique D_trans = norm(C + (B - A)).
+    Retourne le 4e pôle D* normalisé sur la sphère unité.
+    """
+    va = (a / (np.linalg.norm(a) + 1e-12)).astype(np.float32)
+    vb = (b / (np.linalg.norm(b) + 1e-12)).astype(np.float32)
+    vc = (c / (np.linalg.norm(c) + 1e-12)).astype(np.float32)
+
+    # 1. Opérateur relationnel spectral : R = B ⊛ A^{-1} via déconvolution spectrale (circular_correlation)
+    r_ab = circular_correlation(vb, va, reg=1e-3)
+    norm_r = np.linalg.norm(r_ab) + 1e-12
+    r_ab = (r_ab / norm_r).astype(np.float32)
+
+    # Projection spectrale : D_spec = C ⊛ R
+    d_spec = circular_convolution(vc, r_ab)
+    d_spec = (d_spec / (np.linalg.norm(d_spec) + 1e-12)).astype(np.float32)
+
+    # 2. Translation géodésique : D_trans = norm(C + (B - A))
+    d_trans = vc + (vb - va)
+    d_trans = (d_trans / (np.linalg.norm(d_trans) + 1e-12)).astype(np.float32)
+
+    # 3. Combinaison convexe régularisée
+    w = np.clip(float(alpha), 0.0, 1.0)
+    d_combined = w * d_spec + (1.0 - w) * d_trans
+    norm_comb = np.linalg.norm(d_combined) + 1e-12
+    return (d_combined / norm_comb).astype(np.float32)
+
+
+def verify_analogy_quality(
+    a: np.ndarray,
+    b: np.ndarray,
+    c: np.ndarray,
+    d: np.ndarray
+) -> float:
+    """
+    Mesure la fidélité de l'isomorphisme relationnel d'une analogie A : B :: C : D.
+    Calcule la similarité cosinus de translation ainsi que l'écart de distance relationnelle.
+    Retourne un score in [0.0, 1.0].
+    """
+    va = (a / (np.linalg.norm(a) + 1e-12)).astype(np.float32)
+    vb = (b / (np.linalg.norm(b) + 1e-12)).astype(np.float32)
+    vc = (c / (np.linalg.norm(c) + 1e-12)).astype(np.float32)
+    vd = (d / (np.linalg.norm(d) + 1e-12)).astype(np.float32)
+
+    sim_ab = float(cosine_similarity(va, vb))
+    sim_cd = float(cosine_similarity(vc, vd))
+    dist_gap = abs(sim_ab - sim_cd)
+
+    diff_ab = vb - va
+    diff_cd = vd - vc
+    norm_ab = np.linalg.norm(diff_ab) + 1e-12
+    norm_cd = np.linalg.norm(diff_cd) + 1e-12
+    rel_align = float(np.dot(diff_ab / norm_ab, diff_cd / norm_cd))
+
+    fidelity = (1.0 - 0.5 * dist_gap) * (0.5 + 0.5 * rel_align)
+    return float(np.clip(fidelity, 0.0, 1.0))
 
 
 

@@ -42,6 +42,10 @@ from src.metaprog.lu_algebra import (
     apply_latent_do_operator,
     compute_latent_causal_effect,
     spherical_weiszfeld_bft_consensus,
+    LatentProgramSynthesizer,
+    apply_temporal_operator,
+    solve_latent_analogy,
+    verify_analogy_quality,
 )
 from src.metaprog.lu_symbolic_bridge import MultiTribalTranslator, FederalDiplomaticBridge
 from src.graph_rag.async_logger import logger
@@ -82,7 +86,7 @@ class SlateTablet:
 
 @dataclass
 class FederalMonument:
-    """Monument fédéral inter-mondes (LU Phase 7 M2, Phase 8 M2)."""
+    """Monument fédéral inter-mondes (LU Phase 7 M2, Phase 8 M2, Phase 9 M2)."""
     id: str
     x: float
     y: float
@@ -93,6 +97,10 @@ class FederalMonument:
     contradiction_rejections_count: int = 0
     smart_contracts: List[Dict[str, Any]] = field(default_factory=list)
     active_escrows: Dict[str, Dict[str, Any]] = field(default_factory=dict)
+    # Phase 9 M2 : Programmes synthétisés, contrats temporels & analogies
+    synthesized_programs: List[Dict[str, Any]] = field(default_factory=list)
+    temporal_escrows: Dict[str, Dict[str, Any]] = field(default_factory=dict)
+    analogies_repository: List[Dict[str, Any]] = field(default_factory=list)
 
 
 @dataclass
@@ -165,6 +173,13 @@ class LUInWorldConfig:
     causal_ate_threshold: float = 0.40
     byzantine_tolerance_ratio: float = 0.33
     escrow_release_energy_bonus: float = 3.0
+    # Phase 9 : Synthèse de Programmes Latents, LTL & Analogies Multivers
+    enable_program_synthesis: bool = True
+    enable_ltl_temporal_logic: bool = True
+    enable_analogy_transfer: bool = True
+    temporal_horizon_ticks: int = 5
+    analogy_fidelity_threshold: float = 0.50
+    program_execution_energy_bonus: float = 4.0
 
 
 class LUInWorldAdapter:
@@ -268,8 +283,20 @@ class LUInWorldAdapter:
         self.causal_hypotheses_validated_count: int = 0
         self.bft_consensus_events_count: int = 0
         self.bft_byzantine_mitigated_count: int = 0
+        # Phase 9 : Synthèse de Programmes Latents, LTL & Analogies Multivers
+        self.program_synthesizer = LatentProgramSynthesizer(dim=self.dim, config=getattr(self.grammar, "config", None))
+        self.synthesized_programs_count: int = 0
+        self.programs_synthesized_count: int = 0
+        self.programs_executed_count: int = 0
+        self.temporal_clauses_evaluated_count: int = 0
+        self.temporal_escrows_released_count: int = 0
+        self.analogy_transfers_count: int = 0
         if getattr(self.config, "enable_diplomacy", True):
             self._init_federal_monument()
+
+    def bootstrap_federal_monument(self) -> None:
+        """Alias public pour initialiser ou réinitialiser le FederalMonument."""
+        self._init_federal_monument()
 
     def _init_foundational_steles(self) -> None:
         """Initialise les stèles fondatrices in-world (Académie Métallurgique et Carte des Ressources)."""
@@ -679,6 +706,265 @@ class LUInWorldAdapter:
             self.bft_byzantine_mitigated_count += len(byzantine_ids)
 
         return consensus_vec, score, byzantine_ids
+
+    # =========================================================================
+    # Méthodes Synthèse de Programmes, LTL & Analogies Multivers (Phase 9 M2)
+    # =========================================================================
+
+    def register_temporal_smart_contract(
+        self,
+        creator_id: str,
+        contract_id: str,
+        trigger_label: str,
+        target_label: str,
+        delay_ticks: int = 5,
+        escrow_energy: float = 4.0,
+        condition_type: str = "ALWAYS"
+    ) -> bool:
+        """
+        Enregistre un Smart Contract temporel LTL au FederalMonument (Phase 9 M2).
+        L'escrow est libéré uniquement si la clause temporelle (ex: ALWAYS condition)
+        est vérifiée tout au long de l'horizon de délai.
+        """
+        if self.grammar is None:
+            return False
+
+        rng_trig = np.random.default_rng(abs(hash(trigger_label.upper())) % (2**31 - 1))
+        v_trig = self.grammar._generate_canonical_unit_vector(rng_trig)
+
+        rng_tgt = np.random.default_rng(abs(hash(target_label.upper())) % (2**31 - 1))
+        v_tgt = self.grammar._generate_canonical_unit_vector(rng_tgt)
+
+        clause_token = self.grammar.compose_temporal_clause(v_trig, operator_type=condition_type, horizon=delay_ticks)
+
+        record = {
+            "contract_id": contract_id,
+            "creator_id": creator_id,
+            "trigger_label": trigger_label.upper(),
+            "target_label": target_label.upper(),
+            "trigger_vector": v_trig,
+            "target_vector": v_tgt,
+            "delay_ticks": delay_ticks,
+            "remaining_ticks": delay_ticks,
+            "escrow_energy": escrow_energy,
+            "condition_type": condition_type.upper(),
+            "clause_token": clause_token,
+            "trajectory_history": [],
+            "is_released": False,
+            "creation_tick": getattr(self.world, "ticks", 0)
+        }
+
+        if self.federal_monument is not None:
+            self.federal_monument.temporal_escrows[contract_id] = record
+
+        self.temporal_clauses_evaluated_count += 1
+        return True
+
+    def step_temporal_escrows(self, agents: List[Dict[str, Any]]) -> int:
+        """
+        Met à jour les contrats temporels d'escrow actifs :
+        Décrémente les ticks restants, évalue le prédicat temporel LTL et
+        libère l'énergie si l'échéance est atteinte sans violation.
+        """
+        if not getattr(self.config, "enable_ltl_temporal_logic", True):
+            return 0
+        if self.federal_monument is None or not self.federal_monument.temporal_escrows:
+            return 0
+
+        released_count = 0
+        for cid, contract in list(self.federal_monument.temporal_escrows.items()):
+            if contract.get("is_released", False):
+                continue
+
+            mon_x, mon_y = self.federal_monument.x, self.federal_monument.y
+            near_monument = [ag for ag in agents if (abs(ag.get("x", 0) - mon_x) + abs(ag.get("y", 0) - mon_y)) <= 4]
+            if near_monument:
+                z_list = []
+                for ag in near_monument:
+                    if ag.get("lu_latent") is not None:
+                        z_list.append(ag["lu_latent"])
+                    else:
+                        z_list.append(self.encode_agent_latent(ag))
+                mean_z = np.mean(z_list, axis=0)
+                mean_z = (mean_z / (np.linalg.norm(mean_z) + 1e-12)).astype(np.float32)
+            else:
+                mean_z = contract["trigger_vector"].copy()
+
+            contract["trajectory_history"].append(mean_z)
+            contract["remaining_ticks"] -= 1
+
+            if contract["remaining_ticks"] <= 0:
+                satisfied, score, _ = apply_temporal_operator(
+                    trajectory=contract["trajectory_history"],
+                    predicate=contract["trigger_vector"],
+                    operator_type=contract["condition_type"],
+                    horizon=contract["delay_ticks"],
+                    threshold=0.30
+                )
+                if satisfied:
+                    contract["is_released"] = True
+                    bonus = float(contract["escrow_energy"])
+                    if near_monument:
+                        per_agent = bonus / len(near_monument)
+                        for ag in near_monument:
+                            ag["energy"] = min(100.0, float(ag.get("energy", 0.0)) + per_agent)
+                    self.temporal_escrows_released_count += 1
+                    released_count += 1
+
+        return released_count
+
+    def synthesize_and_register_program(
+        self,
+        creator_id: str,
+        program_id: str,
+        entry_label: str = "ENTRY",
+        loop_label: Optional[str] = None,
+        branch_label: Optional[str] = None,
+        term_label: Optional[str] = None,
+        lipschitz_l: float = 0.85,
+        loop_operator: Optional[str] = None,
+        branch_condition: Optional[str] = None,
+        terminal_state: Optional[str] = None
+    ) -> bool:
+        """
+        Synthétise et enregistre un macro-programme latent au FederalMonument (Phase 9 M2).
+        """
+        if self.grammar is None:
+            return False
+
+        loop_name = loop_label or loop_operator or "LOOP"
+        branch_name = branch_label or branch_condition or "BRANCH"
+        term_name = term_label or terminal_state or "TERMINAL"
+
+        def get_v(lbl: str) -> np.ndarray:
+            key = lbl.upper()
+            rng = np.random.default_rng(abs(hash(key)) % (2**31 - 1))
+            return self.grammar._generate_canonical_unit_vector(rng)
+
+        v_entry = get_v(entry_label)
+        v_loop = get_v(loop_name)
+        v_branch = get_v(branch_name)
+        v_term = get_v(term_name)
+
+        prog_token = self.program_synthesizer.synthesize_program(
+            entry_state=v_entry,
+            loop_operator=v_loop,
+            branch_condition=v_branch,
+            terminal_state=v_term,
+            lipschitz_constant=lipschitz_l,
+            program_id=program_id
+        )
+
+        record = {
+            "program_id": program_id,
+            "creator_id": creator_id,
+            "entry_label": entry_label.upper(),
+            "loop_label": loop_name.upper(),
+            "branch_label": branch_name.upper(),
+            "term_label": term_name.upper(),
+            "token": prog_token,
+            "lipschitz_l": lipschitz_l,
+            "tick": getattr(self.world, "ticks", 0)
+        }
+
+        if self.federal_monument is not None:
+            self.federal_monument.synthesized_programs.append(record)
+
+        self.synthesized_programs_count += 1
+        self.programs_synthesized_count += 1
+        return True
+
+    def execute_inworld_program(
+        self,
+        agent: Dict[str, Any],
+        program_id: Optional[str] = None
+    ) -> Dict[str, Any]:
+        """
+        Exécute un macro-programme latent pour un agent in-world.
+        Si la contraction converge, l'agent reçoit un dividende d'efficience programmatique.
+        """
+        if not getattr(self.config, "enable_program_synthesis", True):
+            return {"converged": False, "steps": 0, "final_state": np.zeros(self.dim, dtype=np.float32)}
+
+        z_init = agent.get("lu_latent")
+        if z_init is None:
+            z_init = self.encode_agent_latent(agent)
+
+        try:
+            final_state, diff_history, terminated = self.program_synthesizer.execute(
+                program_id=program_id,
+                initial_state=z_init,
+                max_iterations=15
+            )
+        except Exception:
+            return {"converged": False, "steps": 0, "final_state": z_init}
+
+        if terminated:
+            bonus = float(getattr(self.config, "program_execution_energy_bonus", 4.0))
+            agent["energy"] = min(100.0, float(agent.get("energy", 0.0)) + bonus)
+            agent["lu_latent"] = final_state.copy()
+            self.programs_executed_count += 1
+            return {"converged": True, "steps": len(diff_history), "final_state": final_state}
+
+        return {"converged": False, "steps": len(diff_history), "final_state": final_state}
+
+    def conduct_analogy_transfer(
+        self,
+        agent: Dict[str, Any],
+        a_label: str,
+        b_label: str,
+        c_label: str,
+        d_target_label: Optional[str] = None
+    ) -> Dict[str, Any]:
+        """
+        Résout une analogie sémantique multivers A : B :: C : D (Phase 9 M2).
+        Permet le transfert de savoir technique entre les 3 Mondes.
+        Si la fidélité de l'analogie >= seuil, l'agent gagne un dividende d'accélération d'apprentissage (+3.0 E).
+        """
+        if self.grammar is None:
+            return {"transferred": False, "fidelity": 0.0, "d_label": "UNKNOWN"}
+
+        def get_v(lbl: str) -> np.ndarray:
+            key = lbl.upper()
+            rng = np.random.default_rng(abs(hash(key)) % (2**31 - 1))
+            return self.grammar._generate_canonical_unit_vector(rng)
+
+        va = get_v(a_label)
+        vb = get_v(b_label)
+        vc = get_v(c_label)
+
+        d_solved = solve_latent_analogy(va, vb, vc)
+
+        if d_target_label:
+            vd_expected = get_v(d_target_label)
+            fidelity = verify_analogy_quality(va, vb, vc, vd_expected)
+        else:
+            fidelity = float(np.clip(float(cosine_similarity(d_solved, vc + (vb - va))), 0.0, 1.0))
+
+        thresh = float(getattr(self.config, "analogy_fidelity_threshold", 0.50))
+        transferred = (fidelity >= thresh)
+
+        if transferred:
+            self.analogy_transfers_count += 1
+            agent["energy"] = min(100.0, float(agent.get("energy", 0.0)) + 3.0)
+
+            record = {
+                "a": a_label.upper(),
+                "b": b_label.upper(),
+                "c": c_label.upper(),
+                "d": d_target_label.upper() if d_target_label else "SOLVED_ANALOGY",
+                "fidelity": round(fidelity, 4),
+                "agent_id": str(agent.get("id")),
+                "tick": getattr(self.world, "ticks", 0)
+            }
+            if self.federal_monument is not None:
+                self.federal_monument.analogies_repository.append(record)
+
+        return {
+            "transferred": transferred,
+            "fidelity": round(fidelity, 4),
+            "d_vector": d_solved,
+        }
 
     def _get_agent_projection(self, agent_id: str, input_dim: int) -> np.ndarray:
         """Garantit une matrice de projection orthogonale ou pseudo-aléatoire stable pour chaque agent."""
@@ -1911,6 +2197,22 @@ class LUInWorldAdapter:
                 if exec_ok:
                     tick_smart_contracts += 1
 
+        # 12. Clauses temporelles LTL & Programmes Latents Synthétisés (Phase 9 M2)
+        tick_temporal_released = 0
+        tick_programs_executed = 0
+        if getattr(self.config, "enable_ltl_temporal_logic", True):
+            tick_temporal_released = self.step_temporal_escrows(agents)
+
+        if getattr(self.config, "enable_program_synthesis", True) and self.federal_monument is not None and self.federal_monument.synthesized_programs:
+            mon_x, mon_y = self.federal_monument.x, self.federal_monument.y
+            near_prog = [ag for ag in agents if (abs(ag.get("x", 0) - mon_x) + abs(ag.get("y", 0) - mon_y)) <= 3]
+            for ag in near_prog:
+                # Exécuter le dernier programme synthétisé pour l'agent
+                last_prog = self.federal_monument.synthesized_programs[-1]
+                exec_res = self.execute_inworld_program(ag, last_prog["program_id"])
+                if exec_res.get("converged", False):
+                    tick_programs_executed += 1
+
         self.total_transmissions += tick_transmissions
         self.successful_alignments += tick_alignments
         self.pack_coordinations_count += tick_coordinations
@@ -1955,6 +2257,13 @@ class LUInWorldAdapter:
             "causal_hypotheses_validated": self.causal_hypotheses_validated_count,
             "bft_consensus_events": self.bft_consensus_events_count,
             "bft_byzantine_mitigated": self.bft_byzantine_mitigated_count,
+            "temporal_clauses_evaluated": self.temporal_clauses_evaluated_count,
+            "temporal_escrows_released": self.temporal_escrows_released_count,
+            "tick_temporal_released": tick_temporal_released,
+            "programs_synthesized": self.programs_synthesized_count,
+            "programs_executed": self.programs_executed_count,
+            "tick_programs_executed": tick_programs_executed,
+            "analogy_transfers": self.analogy_transfers_count,
         }
 
 

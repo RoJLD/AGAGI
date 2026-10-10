@@ -140,6 +140,15 @@ class LUSymbolicBridge:
             "BFT_CONSENSUS": ("CONSENSUS", 1.0),
             "ESCROW": ("TARGET", 1.0),
             "NEURAL_VM": ("META", 1.0),
+            # Phase 9 : Synthèse de Programmes Latents, LTL & Analogies Multivers
+            "SYNTHESIZE_PROGRAM": ("ACTION", 1.0),
+            "TEMPORAL_ASSERT": ("TEMPORAL", 1.0),
+            "TRANSFER_ANALOGY": ("ACTION", 1.0),
+            "LOOP": ("META", 1.0),
+            "BRANCH": ("META", 1.0),
+            "NEXT": ("TEMPORAL", 1.0),
+            "ALWAYS": ("TEMPORAL", 1.0),
+            "EVENTUALLY": ("TEMPORAL", 1.0),
         }
         
         for name, (cat, weight) in concepts.items():
@@ -1141,6 +1150,257 @@ class LUSymbolicBridge:
             "effect": e_name,
             "effect_sim": round(e_sim, 3),
             "is_valid": (c_sim >= 0.35 and e_sim >= 0.35),
+        }
+
+    # =========================================================================
+    # Méthodes Synthèse de Programmes, Logique LTL & Analogies (Phase 9 M1)
+    # =========================================================================
+
+    def register_synthesized_program(
+        self,
+        program_id: str,
+        entry_label: str,
+        loop_label: str,
+        branch_label: str,
+        term_label: str,
+        lipschitz_l: float,
+        is_contracting: bool
+    ) -> bool:
+        """
+        Consigne un macro-programme latent synthétisé dans LUSynthesizedProgram.
+        """
+        if self.db is not None:
+            try:
+                self.db.execute_cypher(
+                    "CREATE NODE TABLE LUSynthesizedProgram (id STRING, entry_label STRING, "
+                    "loop_label STRING, branch_label STRING, term_label STRING, "
+                    "lipschitz_l DOUBLE, is_contracting BOOLEAN, PRIMARY KEY (id))"
+                )
+            except Exception:
+                pass
+            try:
+                q = (
+                    f"CREATE (p:LUSynthesizedProgram {{id: '{program_id}', entry_label: '{entry_label}', "
+                    f"loop_label: '{loop_label}', branch_label: '{branch_label}', term_label: '{term_label}', "
+                    f"lipschitz_l: {lipschitz_l}, is_contracting: {str(is_contracting).lower()}}})"
+                )
+                self.db.execute_cypher(q)
+                return True
+            except Exception as e:
+                logger.debug(f"Persistence LUSynthesizedProgram ignorée : {e}")
+        return False
+
+    def register_temporal_clause(
+        self,
+        clause_id: str,
+        predicate_label: str,
+        operator_type: str,
+        horizon: int,
+        is_satisfied: bool
+    ) -> bool:
+        """
+        Consigne une clause de Logique Temporelle Diachronique (LTL) dans LUTemporalClause.
+        """
+        if self.db is not None:
+            try:
+                self.db.execute_cypher(
+                    "CREATE NODE TABLE LUTemporalClause (id STRING, predicate_label STRING, "
+                    "operator_type STRING, horizon INT64, is_satisfied BOOLEAN, PRIMARY KEY (id))"
+                )
+            except Exception:
+                pass
+            try:
+                q = (
+                    f"CREATE (tc:LUTemporalClause {{id: '{clause_id}', predicate_label: '{predicate_label}', "
+                    f"operator_type: '{operator_type}', horizon: {horizon}, is_satisfied: {str(is_satisfied).lower()}}})"
+                )
+                self.db.execute_cypher(q)
+                return True
+            except Exception as e:
+                logger.debug(f"Persistence LUTemporalClause ignorée : {e}")
+        return False
+
+    def register_analogy_transfer(
+        self,
+        analogy_id: str,
+        a_label: str,
+        b_label: str,
+        c_label: str,
+        d_label: str,
+        fidelity_score: float
+    ) -> bool:
+        """
+        Consigne un transfert analogique multivers dans LUAnalogyTransfer.
+        """
+        if self.db is not None:
+            try:
+                self.db.execute_cypher(
+                    "CREATE NODE TABLE LUAnalogyTransfer (id STRING, a_label STRING, b_label STRING, "
+                    "c_label STRING, d_label STRING, fidelity_score DOUBLE, PRIMARY KEY (id))"
+                )
+            except Exception:
+                pass
+            try:
+                q = (
+                    f"CREATE (at:LUAnalogyTransfer {{id: '{analogy_id}', a_label: '{a_label}', "
+                    f"b_label: '{b_label}', c_label: '{c_label}', d_label: '{d_label}', "
+                    f"fidelity_score: {fidelity_score}}})"
+                )
+                self.db.execute_cypher(q)
+                return True
+            except Exception as e:
+                logger.debug(f"Persistence LUAnalogyTransfer ignorée : {e}")
+        return False
+
+    def compile_synthesized_program_directive(
+        self,
+        entry_label: str,
+        loop_label: str,
+        branch_label: str,
+        term_label: str
+    ) -> np.ndarray:
+        """
+        Compile un programme latent symbolique en Gigatoken unitaire.
+        """
+        def get_v(lbl: str) -> np.ndarray:
+            key = lbl.upper()
+            if key in self.lexicon:
+                return self.lexicon[key]["vector"]
+            rng = np.random.default_rng(abs(hash(key)) % (2**31 - 1))
+            return self.grammar._generate_canonical_unit_vector(rng)
+
+        v_entry = get_v(entry_label)
+        v_loop = get_v(loop_label)
+        v_branch = get_v(branch_label)
+        v_term = get_v(term_label)
+
+        return self.grammar.compose_synthesized_program(v_entry, v_loop, v_branch, v_term)
+
+    def decode_synthesized_program_vector(self, program_vector: np.ndarray) -> Dict[str, Any]:
+        """
+        Décompile un programme latent vectoriel en labels symboliques.
+        """
+        parts = self.grammar.extract_synthesized_program_parts(program_vector)
+
+        def best_match(qv: np.ndarray) -> Tuple[str, float]:
+            best_label = "UNKNOWN"
+            best_sim = -1.0
+            for name, data in self.lexicon.items():
+                sim = float(cosine_similarity(qv, data["vector"]))
+                if sim > best_sim:
+                    best_sim = sim
+                    best_label = name
+            return best_label, best_sim
+
+        e_name, e_sim = best_match(parts["entry_state"])
+        l_name, l_sim = best_match(parts["loop_operator"])
+        b_name, b_sim = best_match(parts["branch_condition"])
+        t_name, t_sim = best_match(parts["terminal_state"])
+
+        return {
+            "entry_state": e_name,
+            "entry_sim": round(e_sim, 3),
+            "loop_operator": l_name,
+            "loop_sim": round(l_sim, 3),
+            "branch_condition": b_name,
+            "branch_sim": round(b_sim, 3),
+            "terminal_state": t_name,
+            "terminal_sim": round(t_sim, 3),
+            "is_valid": (e_sim >= 0.25 and l_sim >= 0.25 and b_sim >= 0.25 and t_sim >= 0.25),
+        }
+
+    def compile_temporal_directive(
+        self,
+        predicate_label: str,
+        operator_type: str = "ALWAYS",
+        horizon: int = 5
+    ) -> np.ndarray:
+        """
+        Compile une directive de Logique Temporelle Diachronique en Gigatoken unitaire.
+        """
+        key = predicate_label.upper()
+        if key in self.lexicon:
+            v_pred = self.lexicon[key]["vector"]
+        else:
+            rng = np.random.default_rng(abs(hash(key)) % (2**31 - 1))
+            v_pred = self.grammar._generate_canonical_unit_vector(rng)
+
+        return self.grammar.compose_temporal_clause(v_pred, operator_type=operator_type, horizon=horizon)
+
+    def decode_temporal_vector(self, temporal_vector: np.ndarray) -> Dict[str, Any]:
+        """
+        Décompile une clause LTL vectorielle en composantes symboliques.
+        """
+        parts = self.grammar.extract_temporal_clause_parts(temporal_vector)
+
+        def best_match(qv: np.ndarray) -> Tuple[str, float]:
+            best_label = "UNKNOWN"
+            best_sim = -1.0
+            for name, data in self.lexicon.items():
+                sim = float(cosine_similarity(qv, data["vector"]))
+                if sim > best_sim:
+                    best_sim = sim
+                    best_label = name
+            return best_label, best_sim
+
+        pred_name, pred_sim = best_match(parts["predicate"])
+        return {
+            "operator": parts["operator"],
+            "predicate": pred_name,
+            "predicate_sim": round(pred_sim, 3),
+            "is_valid": (pred_sim >= 0.25),
+        }
+
+    def compile_analogy_directive(
+        self,
+        a_label: str,
+        b_label: str,
+        c_label: str,
+        d_label: str
+    ) -> np.ndarray:
+        """
+        Compile un quadruplet d'analogie A : B :: C : D en Gigatoken unitaire.
+        """
+        def get_v(lbl: str) -> np.ndarray:
+            key = lbl.upper()
+            if key in self.lexicon:
+                return self.lexicon[key]["vector"]
+            rng = np.random.default_rng(abs(hash(key)) % (2**31 - 1))
+            return self.grammar._generate_canonical_unit_vector(rng)
+
+        va = get_v(a_label)
+        vb = get_v(b_label)
+        vc = get_v(c_label)
+        vd = get_v(d_label)
+        return self.grammar.compose_analogy_statement(va, vb, vc, vd)
+
+    def decode_analogy_vector(self, analogy_vector: np.ndarray) -> Dict[str, Any]:
+        """
+        Décompile un énoncé d'analogie vectorielle en 4 pôles symboliques.
+        """
+        parts = self.grammar.extract_analogy_parts(analogy_vector)
+
+        def best_match(qv: np.ndarray) -> Tuple[str, float]:
+            best_label = "UNKNOWN"
+            best_sim = -1.0
+            for name, data in self.lexicon.items():
+                sim = float(cosine_similarity(qv, data["vector"]))
+                if sim > best_sim:
+                    best_sim = sim
+                    best_label = name
+            return best_label, best_sim
+
+        a_name, a_sim = best_match(parts["a"])
+        b_name, b_sim = best_match(parts["b"])
+        c_name, c_sim = best_match(parts["c"])
+        d_name, d_sim = best_match(parts["d"])
+
+        return {
+            "a": a_name, "a_sim": round(a_sim, 3),
+            "b": b_name, "b_sim": round(b_sim, 3),
+            "c": c_name, "c_sim": round(c_sim, 3),
+            "d": d_name, "d_sim": round(d_sim, 3),
+            "is_valid": (a_sim >= 0.25 and b_sim >= 0.25 and c_sim >= 0.25 and d_sim >= 0.25),
         }
 
 
