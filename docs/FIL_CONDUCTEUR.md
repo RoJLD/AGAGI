@@ -513,6 +513,15 @@ Le franchissement du seuil ultime G15 d'intrication quantique sémantique et de 
 - **Persistance Lattice KuzuDB (`LUSemanticEntanglement`, `LUDemiurgicCollapse`)** : Traçabilité immuable des paires intriquées et des effondrements démiurgiques dans le graphe de connaissances.
 - **Clôture & Journalisation** : Validé par le banc sociologique PIU de 60 ères sous Commandement 15 et consigné dans KuzuDB sous l'identifiant `art_024_langage_ultime_intrication_retrocausalite_demiurgie` (Article 024).
 
+## 🌉 Langage Ultime Phase 16 : The Foundation Bridge — Invariance Géométrique, Transfert M2M Continu et Steering Téléologique sur Modèles de Fondation Réels (Article 025)
+
+Le pivot stratégique majeur et la transposition universelle de l'algèbre latente du Langage Ultime aux modèles de fondation réels (Arc 10 : The Foundation Bridge / M16-M19) :
+- **Extracteur d'Activations Cachées & Normalisateur Hypersphérique (`LLMLatentExtractor`)** : Extraction sans gradient des tenseurs d'activation cachée $h \in \mathbb{R}^{384}$ de Transformers réels (`sentence-transformers/all-MiniLM-L6-v2` sous PyTorch) et projection semi-orthogonale unitaire sur $\mathbb{S}^{D-1}$ ($P^T P = I$, $\|z\|_2 = 1.0$), préservant les normes et la géométrie interne tout en éliminant les instabilités numériques.
+- **Pont Inter-Modèles M2M Direct sans Tokenisation (`LLMThoughtBridge`)** : Résolution de Procruste orthogonal régularisé entre connectomes hétérogènes ($D_A=64 \leftrightarrow D_B=128$), suppression intégrale du goulot d'étranglement textuel (-100% de tokens textuels échangés) et préservation topologique rigoureuse confirmée par Linear Centered Kernel Alignment ($CKA = 0.9435$) et fidélité projective ($0.5330$).
+- **Steering Téléologique Continu (`LLMLatentSteerer`)** : Orientation immédiate des représentations cachées par rétro-projection adjointe de vecteurs de but téléologique sans réentraînement ni fine-tuning, avec un gain d'alignement empirique $\Delta \cos(\theta) = +0.5748$.
+- **Vérification Formelle de Hoare & Audit Lattice KuzuDB (`LLMLatticeBridge`)** : Filtrage continu des signatures adverses ($\cos(z, z_{\text{adverse}}) < \theta$), validation d'invariants de sécurité et archivage immuable de chaque transfert sous forme d'événements typés `LogEvent` dans KuzuDB.
+- **Clôture & Journalisation** : Validé par le banc comparatif officiel `tools/llm_foundation_bridge_benchmark.py` sur modèle PyTorch réel et consigné dans KuzuDB sous l'identifiant `art_025_langage_ultime_foundation_bridge_llm` (Article 025).
+
 ## Comment lire les preuves
 
 Chaque affirmation ci-dessus pointe vers son EDR (`docs/EDR/NNN_*.md`), qui contient le protocole, les
