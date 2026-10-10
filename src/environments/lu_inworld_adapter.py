@@ -18,6 +18,7 @@ import numpy as np
 from src.metaprog.lu_auto_translator import MutualLatentTranslator, AutoTranslatorConfig
 from src.metaprog.lu_state_bridge import LUStateBridge
 from src.metaprog.lu_human_explainer import LUHumanExplainer
+from src.metaprog.lu_algebra import LUCompositionalGrammar, LUAlgebraConfig
 from src.graph_rag.async_logger import logger
 
 
@@ -45,6 +46,11 @@ class LUInWorldConfig:
     role_specialization: bool = True
     emergent_roles: bool = False
     campfire_cultural_boost: bool = True
+    enable_multi_hop: bool = True
+    max_hops: int = 2
+    relay_decay: float = 0.80
+    relay_confidence_threshold: float = 0.60
+    enable_compositional_grammar: bool = True
 
 
 class LUInWorldAdapter:
@@ -83,8 +89,15 @@ class LUInWorldAdapter:
         self.cooperative_hunts_count: int = 0
         self.recipes_transmitted: int = 0
         self.campfire_transmissions_count: int = 0
+        self.multi_hop_relays_count: int = 0
         self.total_metabolic_cost: float = 0.0
         self.recent_tokens: List[np.ndarray] = []
+
+        # Moteur de compositionnalité vectorielle (Phase 2)
+        if self.config.enable_compositional_grammar:
+            self.grammar = LUCompositionalGrammar(LUAlgebraConfig(dim=self.dim))
+        else:
+            self.grammar = None
 
     def _get_agent_projection(self, agent_id: str, input_dim: int) -> np.ndarray:
         """Garantit une matrice de projection orthogonale ou pseudo-aléatoire stable pour chaque agent."""
@@ -357,13 +370,16 @@ class LUInWorldAdapter:
         elif self.config.role_specialization:
             self.assign_tribal_roles(agents)
 
-        # 1. Encodage latent pour tous les agents
+        # 1. Encodage latent pour tous les agents & reset des flags par tick
         for ag in agents:
+            ag["lu_multi_hop_relayed"] = False
+            ag["cooperative_hunt_active"] = False
             self.encode_agent_latent(ag)
 
         tick_transmissions = 0
         tick_alignments = 0
         tick_coordinations = 0
+        tick_cooperative_hunts = 0
 
         R = self.config.hear_radius
 
@@ -457,24 +473,65 @@ class LUInWorldAdapter:
                     if self.config.pack_coordination:
                         dir_x = float(zb_pred[0])
                         dir_y = float(zb_pred[1])
-                        if abs(dir_x) > 0.1 or abs(dir_y) > 0.1:
+                        if abs(dir_x) > 0.05 or abs(dir_y) > 0.05:
                             tick_coordinations += 1
                             b["lu_steer_bias"] = (dir_x, dir_y)
+                            b["lu_signal_source"] = a.get("id")
 
                             # Synergie de rôle (SCOUT -> HUNTER ou synergie endogène sans étiquettes forcées)
                             is_scout_to_hunter = (a.get("role") == ROLE_SCOUT and b.get("role") == ROLE_HUNTER)
-                            has_directional_signal = (abs(dir_x) > 0.1 or abs(dir_y) > 0.1)
+                            has_directional_signal = (abs(dir_x) > 0.05 or abs(dir_y) > 0.05)
                             is_cooperative_synergy = is_scout_to_hunter or (self.config.emergent_roles and has_directional_signal)
                             multiplier = self.config.cooperative_prey_multiplier if is_cooperative_synergy else 1.0
                             if is_cooperative_synergy:
+                                tick_cooperative_hunts += 1
                                 self.cooperative_hunts_count += 1
                                 b["cooperative_hunt_active"] = True
+                                # Partage symbiotique de la chasse : le scout et le hunter profitent de la synergie
+                                a["energy"] = min(100.0, a.get("energy", 0.0) + self.config.referential_bonus * 0.8)
 
                             b["energy"] = min(100.0, b.get("energy", 0.0) + self.config.referential_bonus * multiplier)
 
                 # Mémorisation du token pour audit
                 if len(self.recent_tokens) < self.config.max_history_tokens:
                     self.recent_tokens.append(za.copy())
+
+        # 6. Propagation acoustique multi-hop (Phase 2 - Jalon M2)
+        tick_relays = 0
+        if self.config.enable_multi_hop and tick_coordinations > 0:
+            for b in agents:
+                steer_bias = b.get("lu_steer_bias")
+                source_id = b.get("lu_signal_source")
+                if steer_bias is None:
+                    continue
+                source_agent = next((ag for ag in agents if ag.get("id") == source_id), None)
+                for c in agents:
+                    if c is b or c.get("lu_multi_hop_relayed", False):
+                        continue
+                    # Si c est hors de portée directe de la source originelle
+                    if source_agent is not None:
+                        dist_source_c = abs(source_agent["x"] - c["x"]) + abs(source_agent["y"] - c["y"])
+                        if dist_source_c <= R:
+                            continue  # Déjà à portée directe
+                    dist_bc = abs(b["x"] - c["x"]) + abs(b["y"] - c["y"])
+                    if dist_bc <= R:
+                        relayed_bias = (
+                            steer_bias[0] * self.config.relay_decay,
+                            steer_bias[1] * self.config.relay_decay,
+                        )
+                        c["lu_steer_bias"] = relayed_bias
+                        c["lu_multi_hop_relayed"] = True
+                        if b.get("cooperative_hunt_active", False):
+                            c["cooperative_hunt_active"] = True
+                            tick_cooperative_hunts += 1
+                            self.cooperative_hunts_count += 1
+                            c["energy"] = min(100.0, c.get("energy", 0.0) + self.config.referential_bonus * 1.5)
+                            b["energy"] = min(100.0, b.get("energy", 0.0) + self.config.referential_bonus * 0.8)
+                            if source_agent is not None:
+                                source_agent["energy"] = min(100.0, source_agent.get("energy", 0.0) + self.config.referential_bonus * 0.5)
+                        tick_relays += 1
+                        self.multi_hop_relays_count += 1
+                        c["energy"] = min(100.0, c.get("energy", 0.0) + self.config.alignment_reward)
 
         self.total_transmissions += tick_transmissions
         self.successful_alignments += tick_alignments
@@ -484,7 +541,10 @@ class LUInWorldAdapter:
             "transmissions": tick_transmissions,
             "alignments": tick_alignments,
             "coordinations": tick_coordinations,
-            "cooperative_hunts": self.cooperative_hunts_count,
+            "multi_hop_relays": tick_relays,
+            "total_multi_hop_relays": self.multi_hop_relays_count,
+            "cooperative_hunts": tick_cooperative_hunts,
+            "total_cooperative_hunts": self.cooperative_hunts_count,
             "total_transmissions": self.total_transmissions,
             "successful_alignments": self.successful_alignments,
             "total_metabolic_cost": round(self.total_metabolic_cost, 4),

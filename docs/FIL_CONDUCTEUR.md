@@ -386,7 +386,13 @@ Séparation neurobiologique du temps d'action (jour) et du temps de consolidatio
 - **Modèle de Soi Métacognitif (`SelfModel`)** : Prédiction anticipée du coût énergétique $\hat{c}(s, a)$ et du succès $\hat{p}(s, a)$, générant un signal d'erreur de prédiction (surprise) modulant l'attention.
 - **Consolidation Collective Vectorisée (`BatchNightConsolidator`)** : Vectorisation matricielle pure en NumPy entraînant simultanément toute la population sur les épisodes saillants.
 - **Débiaisement Métabolique Isocalorique** : Phénotype `isocaloric=True` éliminant tout artefact corporel de la norme des poids synaptiques $W$ pour mesurer une intelligence pure.
-- **Clôture & Journalisation** : Validé empiriquement par les bancs de tests unitaires et consigné dans KuzuDB sous l'identifiant `art_010_arc6_reve_episodique_metacognition` (Article 010).
+## 🌐 Langage Ultime Phase 2 : Compositionnalité Sémantique HRR, Relais Acoustique Multi-Hop & Décompilation KuzuDB (Article 011)
+
+L'émergence compositionnelle franchit le cap du continu holistique vers une véritable algèbre vectorielle symbolique :
+- **Algèbre Sémantique HRR Unitaire (Commandement 3)** : Convolution circulaire unitaire à spectre plat $|\mathcal{F}(R)| = 1$ et déconvolution spectrale de Wiener régularisée sur la sphère $\mathbb{S}^{D-1}$. Permet la composition et le déliage fiable de triplets argumentaux (Sujet, Prédicat, Cible, Urgence) sans interférence destructive (similarité post-déliage $\ge 0.45$ vs bruit $< 0.10$).
+- **Relais Acoustique Multi-Hop & Consensus Spatial In-World** : Rediffusion des signaux latents au-delà de la ligne de vue directe avec atténuation géométrique et synchronisation de meute (`cooperative_hunt_active`), débloquant la coordination de meute à longue distance.
+- **Pont Symbolique-Neuronal Bidirectionnel (KuzuDB & LangGraph)** : Compilation descendante d'ordres symboliques en Gigatokens continus injectables dans les connectomes Mamba, décompilation ascendante en langage naturel et inscription vivante des lexèmes émergents (`LULexeme`) dans la mémoire Lattice.
+- **Clôture & Journalisation** : Validé empiriquement sous la Loi du Sociologue (Commandement 15) et certifié dans KuzuDB sous l'identifiant `art_011_langage_ultime_compositionnel` (Article 011).
 
 ## Comment lire les preuves
 
