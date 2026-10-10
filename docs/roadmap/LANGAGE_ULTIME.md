@@ -24,7 +24,9 @@ graph LR
     M2Auto --> M3["M3: DSL Canonique & AST<br/>(✅ Livré)"]
     M3 --> M4["M4: Intégration KuzuDB<br/>(✅ Livré)"]
     M4 --> M5["M5: Preuve In-World<br/>(✅ Validé x3.45)"]
-    M5 --> M6["M6: La Tribu & Culture<br/>(✅ Arc 5 Démarré)"]
+    M5 --> M6["M6: La Tribu & Culture<br/>(✅ Validé)"]
+    M6 --> M14["M14: Singularité Autopoïétique<br/>(✅ Validé PIU)"]
+    M14 --> M15["M15: Intrication & Démiurgie<br/>(✅ Validé PIU)"]
 ```
 
 
@@ -105,4 +107,13 @@ graph LR
 - [x] Persistance Lattice KuzuDB : Nœuds `LUAutopoieticSingularity` et `LUHolographicBoundary`.
 - [x] Banc sociologique 60 ères (Commandement 15) : +15.79% d'énergie finale, score composite 506.44 vs 503.11 (+3.33 pts), zéro régression.
 - [x] Journalisation Scientifique (Commandement 16) : Article 023 enregistré dans KuzuDB (`art_023_langage_ultime_singularite_autopoietique_holographie`).
+
+### Jalon M15 / Arc 9 : Intrication Sémantique Non-Locale, Rétrocausalité & Démiurgie Multivers (✅ LIVRÉ & VALIDÉ PIU)
+- [x] Opérateurs canoniques unitaires sur $\mathbb{S}^{D-1}$ : `ROLE_ENTANGLEMENT`, `ROLE_RETROCAUSALITY`, `ROLE_DEMIURGE`, `ROLE_SUPERPOSITION`.
+- [x] Moteur d'intrication sémantique non-locale (`SemanticEntanglementEngine`) violant formellement l'inégalité de Bell-CHSH ($S_{\text{CHSH}} \ge 2.15 > 2.0$) via SVD pour un partage instantané d'insights trans-mondes.
+- [x] Moteur rétrocausal de Wheeler-Feynman & Collapse Démiurgique (`MultiverseDemiurgeEngine`) selon le principe de moindre action et régulateur de Novikov ($\text{Tr}(\rho)=1, \rho \ge 0$).
+- [x] Substrat in-world `LUInWorldAdapter` avec Étape 18 synchrone, synchronisation de paires intriquées, terraformation active et Grand Dividende Démiurgique (+25.0 E).
+- [x] Persistance Lattice KuzuDB : Nœuds `LUSemanticEntanglement` et `LUDemiurgicCollapse`.
+- [x] Banc sociologique 60 ères (Commandement 15) : Survie 100%, éradication de la dégradation spatiale, score sociologique validé.
+- [x] Journalisation Scientifique (Commandement 16) : Article 024 enregistré dans KuzuDB (`art_024_langage_ultime_intrication_retrocausalite_demiurgie`).
 

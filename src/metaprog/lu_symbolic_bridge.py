@@ -108,6 +108,28 @@ class LUHolographicBoundary:
 
 
 @dataclass
+class LUSemanticEntanglement:
+    """Modèle de persistance pour l'Intrication Sémantique Non-Locale (Phase 15 M3)."""
+    id: str
+    chsh_score: float = 2.0
+    purity: float = 1.0
+    correlation_gain: float = 0.0
+    tick: int = 0
+
+
+@dataclass
+class LUDemiurgicCollapse:
+    """Modèle de persistance pour le Collapse Démiurgique Multivers et Rétrocausalité (Phase 15 M3)."""
+    id: str
+    retro_potential: float = 0.0
+    energy_injected: float = 0.0
+    agents_aligned: int = 0
+    version: int = 1
+    tick: int = 0
+
+
+
+@dataclass
 class LUSymbolicBridgeConfig:
     """Configuration du pont symbolique-neuronal LU."""
     dim: int = 16
@@ -2145,5 +2167,75 @@ class FederalDiplomaticBridge:
             except Exception:
                 pass
         return boundary
+
+    def record_entanglement_pair(
+        self,
+        entanglement: Optional[LUSemanticEntanglement] = None,
+        entanglement_id: Optional[str] = None,
+        chsh_score: float = 2.20,
+        purity: float = 1.0,
+        correlation_gain: float = 0.0,
+        tick: int = 0,
+        **kwargs: Any
+    ) -> LUSemanticEntanglement:
+        """Enregistre une paire intriquée non-locale dans le Lattice et KuzuDB si disponible."""
+        if entanglement is None:
+            e_id = entanglement_id or f"ent_{tick}_1"
+            entanglement = LUSemanticEntanglement(
+                id=e_id,
+                chsh_score=float(chsh_score),
+                purity=float(purity),
+                correlation_gain=float(correlation_gain),
+                tick=int(tick),
+            )
+
+        self.lattice_nodes[entanglement.id] = entanglement
+
+        if self.db is not None:
+            try:
+                self.db.execute_cypher(
+                    f"CREATE (e:LUSemanticEntanglement {{id: '{entanglement.id}', chsh_score: {entanglement.chsh_score}, "
+                    f"purity: {entanglement.purity}, correlation_gain: {entanglement.correlation_gain}, tick: {entanglement.tick}}})"
+                )
+            except Exception:
+                pass
+        return entanglement
+
+    def record_demiurgic_event(
+        self,
+        collapse: Optional[LUDemiurgicCollapse] = None,
+        collapse_id: Optional[str] = None,
+        retro_potential: float = 0.0,
+        energy_injected: float = 0.0,
+        agents_aligned: int = 0,
+        version: int = 1,
+        tick: int = 0,
+        **kwargs: Any
+    ) -> LUDemiurgicCollapse:
+        """Enregistre un événement de collapse démiurgique dans le Lattice et KuzuDB si disponible."""
+        if collapse is None:
+            c_id = collapse_id or f"demiurge_{tick}_{version}"
+            collapse = LUDemiurgicCollapse(
+                id=c_id,
+                retro_potential=float(retro_potential),
+                energy_injected=float(energy_injected),
+                agents_aligned=int(agents_aligned),
+                version=int(version),
+                tick=int(tick),
+            )
+
+        self.lattice_nodes[collapse.id] = collapse
+
+        if self.db is not None:
+            try:
+                self.db.execute_cypher(
+                    f"CREATE (c:LUDemiurgicCollapse {{id: '{collapse.id}', retro_potential: {collapse.retro_potential}, "
+                    f"energy_injected: {collapse.energy_injected}, agents_aligned: {collapse.agents_aligned}, "
+                    f"version: {collapse.version}, tick: {collapse.tick}}})"
+                )
+            except Exception:
+                pass
+        return collapse
+
 
 

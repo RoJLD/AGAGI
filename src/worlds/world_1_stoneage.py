@@ -246,6 +246,7 @@ class Biosphere3D(BaseWorld):
                 role_specialization=getattr(self.config, "lu_role_specialization", True),
                 emergent_roles=getattr(self.config, "lu_emergent_roles", False),
                 campfire_cultural_boost=getattr(self.config, "lu_campfire_cultural_boost", True),
+                enable_tom=getattr(self.config, "lu_enable_tom", False),
             )
             self.lu_adapter = LUInWorldAdapter(self, lu_cfg)
 
@@ -283,6 +284,7 @@ class Biosphere3D(BaseWorld):
                 role_specialization=getattr(self.config, "lu_role_specialization", True),
                 emergent_roles=getattr(self.config, "lu_emergent_roles", False),
                 campfire_cultural_boost=getattr(self.config, "lu_campfire_cultural_boost", True),
+                enable_tom=getattr(self.config, "lu_enable_tom", False),
             )
             self.lu_adapter = LUInWorldAdapter(self, lu_cfg)
         

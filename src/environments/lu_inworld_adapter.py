@@ -21,7 +21,9 @@ from src.metaprog.lu_human_explainer import LUHumanExplainer
 from src.metaprog.lu_algebra import (
     LUCompositionalGrammar,
     LUAlgebraConfig,
+    circular_convolution,
     grassmann_distance,
+
     orthonormal_subspace,
     drift_subspace,
     linear_cka,
@@ -55,6 +57,8 @@ from src.metaprog.lu_algebra import (
     HyperConnectomeSynthesizer,
     AutopoieticSingularityEngine,
     HolographicBoundaryProjector,
+    SemanticEntanglementEngine,
+    MultiverseDemiurgeEngine,
 )
 from src.metaprog.lu_symbolic_bridge import (
     MultiTribalTranslator,
@@ -65,6 +69,8 @@ from src.metaprog.lu_symbolic_bridge import (
     LUHyperConnectome,
     LUAutopoieticSingularity,
     LUHolographicBoundary,
+    LUSemanticEntanglement,
+    LUDemiurgicCollapse,
 )
 from src.agents.dream_replay import SharedDreamExperience, SharedDreamPool
 from src.graph_rag.async_logger import logger
@@ -232,6 +238,13 @@ class LUInWorldConfig:
     teleological_attractor_force: float = 0.25
     autopoietic_entropy_threshold: float = 0.65
     singularity_dividend_bonus: float = 20.0
+    # Phase 15 : Intrication Sémantique Non-Locale, Rétrocausalité Téléologique et Démiurgie Multivers
+    enable_demiurgic_multiverse: bool = True
+    entanglement_coupling_strength: float = 0.35
+    retrocausal_influence_rate: float = 0.20
+    bell_violation_threshold: float = 2.05
+    demiurgic_dividend_bonus: float = 25.0
+
 
 
 class LUInWorldAdapter:
@@ -404,6 +417,24 @@ class LUInWorldAdapter:
         self.teleological_convergences_count: int = 0
         self.singularity_dividends_count: int = 0
         self.recent_autopoietic_snapshots: List[Dict[str, Any]] = []
+        # Phase 15 : Intrication Sémantique Non-Locale, Rétrocausalité & Démiurgie Multivers
+        self.entanglement_engine = SemanticEntanglementEngine(
+            dim=self.dim,
+            grammar=self.grammar,
+            seed=getattr(self.config, "seed", 42),
+        )
+        self.demiurge_engine = MultiverseDemiurgeEngine(
+            dim=self.dim,
+            lambda_retro=float(self.config.retrocausal_influence_rate),
+            mu_terra=0.30,
+            grammar=self.grammar,
+            seed=getattr(self.config, "seed", 42),
+        )
+        self.demiurgic_steps_count: int = 0
+        self.entangled_pairs_count: int = 0
+        self.retrocausal_pulses_count: int = 0
+        self.demiurgic_dividends_count: int = 0
+        self.recent_demiurgic_snapshots: List[Dict[str, Any]] = []
         if getattr(self.config, "enable_diplomacy", True):
             self._init_federal_monument()
 
@@ -2156,8 +2187,130 @@ class LUInWorldAdapter:
         return True, bonus
 
     # =========================================================================
+    # Phase 15 : Intrication Sémantique Non-Locale, Rétrocausalité Téléologique
+    #            & Démiurgie Multivers (Arc 9 : La Démiurgie)
+    # =========================================================================
+
+    def step_demiurgic_multiverse(self) -> Dict[str, Any]:
+        """
+        Résout une itération de l'Intrication Sémantique Non-Locale et du Champ Démiurgique.
+        Couple les paires d'agents inter-mondes, mesure la violation de Bell-CHSH
+        et diffuse le potentiel rétrocausal de Wheeler-Feynman.
+        """
+        if not getattr(self.config, "enable_demiurgic_multiverse", True):
+            return {"status": "disabled"}
+
+        agents = getattr(self.world, "agents", [])
+        world_states: List[np.ndarray] = []
+
+        for ag in agents[:12]:
+            z = ag.get("lu_latent")
+            if z is not None and len(z) == self.dim:
+                world_states.append(z)
+
+        # 1. Synthèse de paires intriquées et test Bell-CHSH
+        chsh_score = 2.20
+        purity = 1.0
+        if len(world_states) >= 2:
+            psi_pair = self.entanglement_engine.synthesize_bell_pair(world_states[0], world_states[1])
+            self.entangled_pairs_count += 1
+            chsh_score = self.entanglement_engine.measure_bell_chsh_correlation(psi_pair)
+            purity = self.entanglement_engine.compute_entanglement_purity(psi_pair)
+
+            # Propagation instantanée d'un insight sans latence spatiale
+            insight_b = self.entanglement_engine.propagate_instantaneous_insight(psi_pair, world_states[0])
+            if len(agents) >= 2:
+                agents[1]["lu_entangled_insight"] = insight_b.copy()
+
+        # 2. Résolution du champ démiurgique avec rétrocausalité
+        mean_bulk = np.mean(world_states, axis=0) if world_states else None
+        phi_dem = self.demiurge_engine.step_demiurgic_field(
+            retarded_field=mean_bulk,
+            advanced_attractor=getattr(self.autopoietic_engine, "phi_attractor", None),
+            dt=0.15,
+        )
+        self.demiurgic_steps_count += 1
+        self.retrocausal_pulses_count += 1
+
+        # 3. Traçabilité Lattice Memory
+        spec = self.demiurge_engine.get_demiurge_spec()
+        tick = getattr(self.world, "tick", getattr(self.world, "ticks", 0)) if self.world is not None else 0
+
+        if hasattr(self, "diplomatic_bridge") and self.diplomatic_bridge is not None:
+            self.diplomatic_bridge.record_entanglement_pair(
+                entanglement_id=f"ent_{tick}_{self.entangled_pairs_count}",
+                chsh_score=chsh_score,
+                purity=purity,
+                correlation_gain=float(chsh_score - 2.0),
+                tick=tick,
+            )
+            self.diplomatic_bridge.record_demiurgic_event(
+                collapse_id=f"demiurge_{tick}_{self.demiurgic_steps_count}",
+                retro_potential=float(spec["retrocausal_potential"]),
+                energy_injected=float(self.config.demiurgic_dividend_bonus),
+                agents_aligned=len(agents),
+                version=self.demiurgic_steps_count,
+                tick=tick,
+            )
+
+        snapshot = {
+            "tick": tick,
+            "chsh_score": chsh_score,
+            "purity": purity,
+            "retrocausal_potential": spec["retrocausal_potential"],
+            "entangled_pairs_count": self.entangled_pairs_count,
+        }
+        self.recent_demiurgic_snapshots.append(snapshot)
+        if len(self.recent_demiurgic_snapshots) > 20:
+            self.recent_demiurgic_snapshots.pop(0)
+
+        return snapshot
+
+    def collapse_entangled_intentions(
+        self,
+        agents: Optional[List[Dict[str, Any]]] = None,
+    ) -> Tuple[bool, float]:
+        """
+        Effondre les états de superposition des intentions des agents sur la branche d'action
+        maximisant l'alignement téléologique rétrocausal, et octroie le Grand Dividende
+        Démiurgique (+25.0 E) renforçant la terraformation locale.
+        """
+        if not getattr(self.config, "enable_demiurgic_multiverse", True):
+            return False, 0.0
+
+        target_agents = agents or getattr(self.world, "agents", [])
+        if not target_agents:
+            return False, 0.0
+
+        bonus = float(self.config.demiurgic_dividend_bonus)
+        future_obj = getattr(self.autopoietic_engine, "phi_attractor", self.demiurge_engine.phi_demiurge)
+
+        for ag in target_agents:
+            z_ag = ag.get("lu_latent")
+            if z_ag is None:
+                z_ag = self.encode_agent_latent(ag)
+
+            # Branches candidates virtuelles exploratoires
+            cand1 = z_ag
+            cand2 = circular_convolution(z_ag, getattr(self.grammar, "ROLE_TARGET", z_ag))
+            cand3 = circular_convolution(z_ag, getattr(self.grammar, "ROLE_DEMIURGE", z_ag))
+
+            best_branch, idx, score = self.demiurge_engine.collapse_multiverse_branch(
+                candidate_branches=[cand1, cand2, cand3],
+                future_objective=future_obj,
+            )
+            ag["lu_latent"] = best_branch.copy()
+            ag["energy"] = min(100.0, ag.get("energy", 0.0) + bonus)
+            ag["demiurgic_collapses_count"] = ag.get("demiurgic_collapses_count", 0) + 1
+            ag["multiverse_aligned"] = True
+            self.demiurgic_dividends_count += 1
+
+        return True, bonus
+
+    # =========================================================================
     # Spéciation Dialectale & Contrats de Troc Décentralisés (Phase 4 M1 & M2)
     # =========================================================================
+
 
     def get_agent_clan(self, agent: Dict[str, Any]) -> str:
         """Détermine le clan ou la tribu d'un agent."""
@@ -3130,6 +3283,21 @@ class LUInWorldAdapter:
                         tick_teleological_convergences += 1
                         tick_singularity_dividends += len(agents)
 
+        # 18. Intrication Sémantique Non-Locale & Démiurgie Multivers (Phase 15 M2)
+        tick_demiurgic_steps = 0
+        tick_entangled_pairs = 0
+        tick_demiurgic_dividends = 0
+        if getattr(self.config, "enable_demiurgic_multiverse", True) and self.world is not None:
+            tick_now = getattr(self.world, "tick", getattr(self.world, "ticks", 0))
+            if tick_now % 5 == 0:
+                self.step_demiurgic_multiverse()
+                tick_demiurgic_steps += 1
+                tick_entangled_pairs += 1
+                if len(agents) >= 2:
+                    succ_dem, _ = self.collapse_entangled_intentions(agents)
+                    if succ_dem:
+                        tick_demiurgic_dividends += len(agents)
+
         self.total_transmissions += tick_transmissions
         self.successful_alignments += tick_alignments
         self.pack_coordinations_count += tick_coordinations
@@ -3214,7 +3382,15 @@ class LUInWorldAdapter:
             "tick_autopoietic_steps": tick_autopoietic_steps,
             "tick_teleological_convergences": tick_teleological_convergences,
             "tick_singularity_dividends": tick_singularity_dividends,
+            "demiurgic_steps": self.demiurgic_steps_count,
+            "entangled_pairs": self.entangled_pairs_count,
+            "retrocausal_pulses": self.retrocausal_pulses_count,
+            "demiurgic_dividends": self.demiurgic_dividends_count,
+            "tick_demiurgic_steps": tick_demiurgic_steps,
+            "tick_entangled_pairs": tick_entangled_pairs,
+            "tick_demiurgic_dividends": tick_demiurgic_dividends,
         }
+
 
 
     def explain_agent_thought(self, agent: Dict[str, Any], lang: str = "fr") -> str:

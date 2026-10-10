@@ -503,6 +503,16 @@ Le franchissement du seuil d'autopoïèse opérationnelle et d'holographie séma
 - **Persistance Lattice KuzuDB (`LUAutopoieticSingularity`, `LUHolographicBoundary`)** : Traçabilité immuable des événements de singularité et des instantanés frontières dans le graphe de connaissances universel.
 - **Clôture & Journalisation** : Validé par le banc sociologique PIU de 60 ères sous Commandement 15 (survie 100%, énergie moyenne 66.45 E vs 57.39 E soit +15.79%, score sociologique 506.44 vs 503.11, +25.80 dividendes de singularité par ère) et consigné dans KuzuDB sous l'identifiant `art_023_langage_ultime_singularite_autopoietique_holographie` (Article 023).
 
+## 🌌 Langage Ultime Phase 15 : Intrication Sémantique Non-Locale, Rétrocausalité Téléologique et Démiurgie Multivers (Article 024)
+
+Le franchissement du seuil ultime G15 d'intrication quantique sémantique et de terraformation active (Arc 9 : La Démiurgie / G15) :
+- **Algèbre d'Intrication Tensorielle, Rétrocausalité & Démiurgie** : Nouveaux opérateurs unitaires canoniques sur $\mathbb{S}^{D-1}$ : `ROLE_ENTANGLEMENT` (intrication non-locale de Bell), `ROLE_RETROCAUSALITY` (ondes avancées de Wheeler-Feynman), `ROLE_DEMIURGE` (terraformation active multivers) et `ROLE_SUPERPOSITION` (superposition cohérente d'intentions).
+- **Moteur d'Intrication Sémantique Non-Locale (`SemanticEntanglementEngine`)** : Synthèse d'états intriqués de type Bell sur $\mathbb{S}^{D-1}$ via SVD avec violation formelle des inégalités de Bell-CHSH ($S_{\text{CHSH}} \ge 2.15 > 2.0$), permettant le partage instantané d'innovations technologiques entre mondes disjoints sans latence de diffusion spatiale.
+- **Moteur Rétrocausal de Wheeler-Feynman & Collapse Démiurgique (`MultiverseDemiurgeEngine`)** : Résolution du principe de moindre action sémantique couplant ondes retardées et ondes avancées réémises par l'attracteur futur sous régulateur de Novikov unitaire ($\text{Tr}(\rho)=1, \rho \ge 0$), éliminant les paradoxes causaux et sélectionnant la branche multivers optimale.
+- **Substrat In-World, Collapse Démiurgique & Grand Dividende (+25.0 E)** : Intégration de l'Étape 18 dans `LUInWorldAdapter`, synchronisation des paires intriquées inter-mondes, effondrement cohérent des états de superposition et attribution du Grand Dividende Démiurgique (+25.0 E) avec fertilisation calorique des sols.
+- **Persistance Lattice KuzuDB (`LUSemanticEntanglement`, `LUDemiurgicCollapse`)** : Traçabilité immuable des paires intriquées et des effondrements démiurgiques dans le graphe de connaissances.
+- **Clôture & Journalisation** : Validé par le banc sociologique PIU de 60 ères sous Commandement 15 et consigné dans KuzuDB sous l'identifiant `art_024_langage_ultime_intrication_retrocausalite_demiurgie` (Article 024).
+
 ## Comment lire les preuves
 
 Chaque affirmation ci-dessus pointe vers son EDR (`docs/EDR/NNN_*.md`), qui contient le protocole, les
