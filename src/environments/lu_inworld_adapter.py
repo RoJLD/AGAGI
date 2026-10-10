@@ -51,6 +51,14 @@ class LUInWorldConfig:
     relay_decay: float = 0.80
     relay_confidence_threshold: float = 0.60
     enable_compositional_grammar: bool = True
+    # Phase 3 : Theory of Mind (ToM) & Consensus Délibératif
+    enable_tom: bool = True
+    tom_pragmatics_weight: float = 0.50
+    tom_redundancy_threshold: float = 0.85
+    tom_silence_metabolic_saving: float = 0.04
+    enable_deliberation: bool = True
+    deliberation_rounds: int = 3
+    deliberation_consensus_threshold: float = 0.65
 
 
 class LUInWorldAdapter:
@@ -93,7 +101,15 @@ class LUInWorldAdapter:
         self.total_metabolic_cost: float = 0.0
         self.recent_tokens: List[np.ndarray] = []
 
-        # Moteur de compositionnalité vectorielle (Phase 2)
+        # Théorie de l'Esprit Latente (ToM) & Délibération (Phase 3)
+        self.agent_tom_beliefs: Dict[str, Dict[str, np.ndarray]] = {}
+        self.tom_silences_count: int = 0
+        self.tom_energy_saved: float = 0.0
+        self.deliberation_events_count: int = 0
+        self.deliberation_consensus_count: int = 0
+        self.last_deliberated_consensus: Optional[np.ndarray] = None
+
+        # Moteur de compositionnalité vectorielle (Phase 2 & 3)
         if self.config.enable_compositional_grammar:
             self.grammar = LUCompositionalGrammar(LUAlgebraConfig(dim=self.dim))
         else:
@@ -352,18 +368,113 @@ class LUInWorldAdapter:
         })
         return decoded
 
+    def get_peer_belief(self, agent_id: str, peer_id: str) -> Optional[np.ndarray]:
+        """Retourne l'estimation que agent_id a de l'état latent de peer_id (ToM, Phase 3 M2)."""
+        return self.agent_tom_beliefs.get(agent_id, {}).get(peer_id)
+
+    def update_peer_belief(self, agent_id: str, peer_id: str, observed_vec: np.ndarray, alpha: float = 0.35):
+        """Mise à jour bayésienne/exponentielle de la croyance estimée sur le pair."""
+        if agent_id not in self.agent_tom_beliefs:
+            self.agent_tom_beliefs[agent_id] = {}
+        curr = self.agent_tom_beliefs[agent_id].get(peer_id)
+        if curr is None:
+            self.agent_tom_beliefs[agent_id][peer_id] = observed_vec.copy()
+        else:
+            updated = (1.0 - alpha) * curr + alpha * observed_vec
+            norm = np.linalg.norm(updated) + 1e-12
+            self.agent_tom_beliefs[agent_id][peer_id] = (updated / norm).astype(np.float32)
+
+    def evaluate_tom_emission(self, speaker_id: str, listener_id: str, intention: np.ndarray) -> Tuple[np.ndarray, bool]:
+        """
+        Pragmatique continue ToM (Theory of Mind, Phase 3 M2) :
+        Si l'interlocuteur connaît déjà l'information (similarité >= tom_redundancy_threshold),
+        l'agent choisit le silence pragmatique (is_silent=True) pour économiser l'énergie métabolique.
+        Sinon, il soustrait la part déjà connue de l'auditeur : z_prag = normalize(intention - beta * z_peer).
+        """
+        if not self.config.enable_tom:
+            return intention, False
+
+        peer_belief = self.get_peer_belief(speaker_id, listener_id)
+        if peer_belief is None:
+            return intention, False
+
+        # Similarité cosinus entre intention et ce que l'autre sait
+        denom = (np.linalg.norm(intention) * np.linalg.norm(peer_belief)) + 1e-12
+        overlap = float(np.dot(intention, peer_belief) / denom)
+
+        if overlap >= self.config.tom_redundancy_threshold:
+            # Information déjà connue : silence pragmatique
+            return intention, True
+
+        # Modulation pragmatique continue
+        beta = float(self.config.tom_pragmatics_weight)
+        pragmatic_vec = intention - beta * peer_belief
+        norm = np.linalg.norm(pragmatic_vec) + 1e-12
+        return (pragmatic_vec / norm).astype(np.float32), False
+
+    def deliberate_at_campfire(self, gathered_agents: List[Dict[str, Any]], rounds: int = 3) -> Dict[str, Any]:
+        """
+        Consensus délibératif distribué en K tours de parole au coin du feu (Phase 3 M3).
+        Calcule le barycentre sphérique de Fréchet pondéré par rôles/expérience.
+        """
+        if len(gathered_agents) < 2:
+            return {"deliberated": False, "consensus": None, "agreement": 0.0}
+
+        self.deliberation_events_count += 1
+        
+        propositions = [ag.get("lu_latent", np.zeros(self.dim, dtype=np.float32)).copy() for ag in gathered_agents]
+        weights = [1.5 if ag.get("role") == ROLE_SCOUT else 1.0 for ag in gathered_agents]
+
+        consensus_vec = np.zeros(self.dim, dtype=np.float32)
+        for r in range(rounds):
+            accum = np.zeros(self.dim, dtype=np.float64)
+            for p, w in zip(propositions, weights):
+                accum += float(w) * p.astype(np.float64)
+            norm = np.linalg.norm(accum) + 1e-12
+            consensus_vec = (accum / norm).astype(np.float32)
+
+            # Relaxation collective (gamma = 0.4)
+            gamma = 0.4
+            for idx in range(len(propositions)):
+                updated = (1.0 - gamma) * propositions[idx] + gamma * consensus_vec
+                norm_p = np.linalg.norm(updated) + 1e-12
+                propositions[idx] = (updated / norm_p).astype(np.float32)
+
+        sims = [float(np.dot(p, consensus_vec)) for p in propositions]
+        mean_sim = float(np.mean(sims)) if len(sims) > 0 else float('nan')
+
+        is_consensus = mean_sim >= self.config.deliberation_consensus_threshold
+        if is_consensus:
+            self.deliberation_consensus_count += 1
+            self.last_deliberated_consensus = consensus_vec.copy()
+            for ag in gathered_agents:
+                ag["lu_deliberated_consensus"] = consensus_vec.copy()
+                ag["lu_steer_bias"] = (float(consensus_vec[0]), float(consensus_vec[1]))
+                ag["energy"] = min(100.0, ag.get("energy", 0.0) + 0.8)
+
+        return {
+            "deliberated": is_consensus,
+            "consensus": consensus_vec,
+            "agreement": round(mean_sim, 3),
+            "participants": len(gathered_agents),
+        }
+
     def step(self) -> Dict[str, Any]:
         """
         Cycle de communication continue in-world pour le tick actuel :
         1. Chaque agent génère son Gigatoken z_i.
         2. Spécialisation des rôles tribaux (Arc 5).
-        3. Propagation spatiale selon hear_radius.
-        4. Traduction latente via MutualLatentTranslator avec coût métabolique.
-        5. Orientation d'action et alignement référentiel.
+        3. Propagation spatiale selon hear_radius et régulation ToM.
+        4. Délibération nocturne collective autour du feu de camp.
+        5. Traduction latente via MutualLatentTranslator avec coût métabolique.
+        6. Orientation d'action et alignement référentiel.
         """
         agents = getattr(self.world, "agents", [])
         if len(agents) < 2:
-            return {"transmissions": 0, "alignments": 0, "coordinations": 0, "cooperative_hunts": 0}
+            return {
+                "transmissions": 0, "alignments": 0, "coordinations": 0,
+                "cooperative_hunts": 0, "tom_silences": 0, "deliberations": 0
+            }
 
         if self.config.emergent_roles:
             self.infer_emergent_roles(agents)
@@ -380,30 +491,68 @@ class LUInWorldAdapter:
         tick_alignments = 0
         tick_coordinations = 0
         tick_cooperative_hunts = 0
+        tick_tom_silences = 0
 
         R = self.config.hear_radius
 
-        # 2. Diffusion par paires dans le rayon d'audition
+        # Détection globale des agents au coin du feu pour délibération (Phase 3 M3)
+        if self.config.enable_deliberation and self.world is not None:
+            items = getattr(self.world, "items", [])
+            fires = [it for it in items if str(it.get("type", "")).lower() == "fire" or str(it.get("name", "")).lower() == "fire"]
+            if fires:
+                campfire_agents = []
+                for ag in agents:
+                    for f in fires:
+                        if abs(ag.get("x", 0) - f.get("x", 0)) + abs(ag.get("y", 0) - f.get("y", 0)) <= 3:
+                            campfire_agents.append(ag)
+                            break
+                if len(campfire_agents) >= 2:
+                    self.deliberate_at_campfire(campfire_agents, rounds=self.config.deliberation_rounds)
+
+        # 2. Diffusion par paires dans le rayon d'audition avec ToM
         for i, a in enumerate(agents):
             za = a["lu_latent"]
+            a_id = str(a.get("id", f"ag_{i}"))
             for j, b in enumerate(agents):
                 if i >= j:
                     continue
+                b_id = str(b.get("id", f"ag_{j}"))
                 dist = abs(a["x"] - b["x"]) + abs(a["y"] - b["y"])
                 if dist > R:
                     continue
 
+                # Évaluation Theory of Mind (ToM) : filtrage pragmatique
+                za_prag, a_silent = self.evaluate_tom_emission(a_id, b_id, za)
+                zb = b["lu_latent"]
+                zb_prag, b_silent = self.evaluate_tom_emission(b_id, a_id, zb)
+
+                # Économie métabolique si silence ToM
+                if a_silent:
+                    tick_tom_silences += 1
+                    self.tom_silences_count += 1
+                    a["energy"] = min(100.0, a.get("energy", 0.0) + self.config.tom_silence_metabolic_saving)
+                    self.tom_energy_saved += self.config.tom_silence_metabolic_saving
+                if b_silent:
+                    tick_tom_silences += 1
+                    self.tom_silences_count += 1
+                    b["energy"] = min(100.0, b.get("energy", 0.0) + self.config.tom_silence_metabolic_saving)
+                    self.tom_energy_saved += self.config.tom_silence_metabolic_saving
+
+                if a_silent and b_silent:
+                    continue  # Tous deux choisissent le silence pragmatique informatif
+
                 tick_transmissions += 1
                 a["lu_signals_emitted"] = a.get("lu_signals_emitted", 0) + 1
                 b["lu_signals_received"] = b.get("lu_signals_received", 0) + 1
-                zb = b["lu_latent"]
 
-                # Coût métabolique d'information (Commandement 1 & 9) :
-                # Parler coûte de l'énergie -> élimine le spam d'information aléatoire
+                # Coût métabolique d'information
                 cost = self.config.signal_metabolic_cost
-                a["energy"] = max(0.0, a.get("energy", 0.0) - cost)
-                b["energy"] = max(0.0, b.get("energy", 0.0) - cost)
-                self.total_metabolic_cost += (2.0 * cost)
+                if not a_silent:
+                    a["energy"] = max(0.0, a.get("energy", 0.0) - cost)
+                    self.total_metabolic_cost += cost
+                if not b_silent:
+                    b["energy"] = max(0.0, b.get("energy", 0.0) - cost)
+                    self.total_metabolic_cost += cost
 
                 # Détection d'un feu de camp actif à proximité (EXP-9 : Rituels et Maîtrise du Feu)
                 near_fire = False
@@ -417,33 +566,24 @@ class LUInWorldAdapter:
                             near_fire = True
                             break
 
-                # Ajout de bruit physique d'atténuation (Commandement 1)
+                # Ajout de bruit physique d'atténuation
                 effective_noise = self.config.noise_level * (1.0 + float(dist) / max(1, R))
-                # Autour du feu de camp : espace calme d'écoute sociale (bruit divisé par 5, amplification culturelle)
                 if near_fire:
                     effective_noise *= 0.2
                     self.campfire_transmissions_count += 1
                     a["energy"] = min(100.0, a.get("energy", 0.0) + 0.1)
                     b["energy"] = min(100.0, b.get("energy", 0.0) + 0.1)
-                    # Transmission culturelle spontanée au coin du feu (Arc 6 / EXP-9)
-                    crafter_cand = a if (len(a.get("inventory", [])) > 0 or a.get("role") == ROLE_CRAFTER) else (b if (len(b.get("inventory", [])) > 0 or b.get("role") == ROLE_CRAFTER) else None)
-                    student_cand = b if crafter_cand is a else a
-                    if crafter_cand is not None and student_cand is not None and crafter_cand is not student_cand:
-                        recipe_item = crafter_cand.get("inventory", ["spear"])[0] if crafter_cand.get("inventory") else "spear"
-                        self.transmit_cultural_recipe(
-                            crafter_id=str(crafter_cand.get("id", "a")),
-                            student_id=str(student_cand.get("id", "b")),
-                            recipe_name=f"fire_recipe_{recipe_item}",
-                            materials=["wood", "stone"],
-                            target_product=str(recipe_item),
-                        )
 
-                za_noisy = za + np.random.randn(self.dim).astype(np.float32) * effective_noise
-                zb_noisy = zb + np.random.randn(self.dim).astype(np.float32) * effective_noise
+                za_noisy = za_prag + np.random.randn(self.dim).astype(np.float32) * effective_noise
+                zb_noisy = zb_prag + np.random.randn(self.dim).astype(np.float32) * effective_noise
 
                 # 3. Traduction mutuelle croisée A -> B et B -> A
                 zb_pred = self.shared_translator.translate_a_to_b(za_noisy)
                 za_pred = self.shared_translator.translate_b_to_a(zb_noisy)
+
+                # Mise à jour des croyances ToM post-observation
+                self.update_peer_belief(a_id, b_id, zb_pred)
+                self.update_peer_belief(b_id, a_id, za_pred)
 
                 # Injection neuronale directe dans les connectomes Mamba (Option A - Physique & Biosphère)
                 if "model" in b and hasattr(b["model"], "receive_gigatoken"):
@@ -550,6 +690,10 @@ class LUInWorldAdapter:
             "total_metabolic_cost": round(self.total_metabolic_cost, 4),
             "recipes_transmitted": self.recipes_transmitted,
             "campfire_transmissions": self.campfire_transmissions_count,
+            "tom_silences": self.tom_silences_count,
+            "tom_energy_saved": round(self.tom_energy_saved, 4),
+            "deliberation_events": self.deliberation_events_count,
+            "deliberation_consensuses": self.deliberation_consensus_count,
         }
 
 

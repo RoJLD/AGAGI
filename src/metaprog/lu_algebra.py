@@ -108,6 +108,7 @@ class LUCompositionalGrammar:
         self.ROLE_PREDICATE = self._generate_canonical_unit_vector(rng)
         self.ROLE_TARGET = self._generate_canonical_unit_vector(rng)
         self.ROLE_MODIFIER = self._generate_canonical_unit_vector(rng)
+        self.ROLE_CLAUSE = self._generate_canonical_unit_vector(rng)  # Rôle pour récursion syntaxique (Phase 3)
 
     def _generate_canonical_unit_vector(self, rng: np.random.Generator) -> np.ndarray:
         """
@@ -166,12 +167,51 @@ class LUCompositionalGrammar:
 
         return bundle_vectors(parts, weights)
 
-    def query_role(self, composite_message: np.ndarray, role_key: np.ndarray) -> np.ndarray:
+    def compose_hierarchical(
+        self,
+        outer_subject: np.ndarray,
+        outer_predicate: np.ndarray,
+        inner_proposition: np.ndarray,
+        modifier: Optional[np.ndarray] = None,
+        modifier_weight: float = 0.5
+    ) -> np.ndarray:
+        """
+        Composition récursive à 2 niveaux (Proposition dans Proposition, Phase 3 M1) :
+        Z_meta = bind(ROLE_SUBJ, S_outer) + bind(ROLE_PRED, P_outer) + bind(ROLE_CLAUSE, P_inner) [+ w * M]
+        Exemple : 'Agent A informe que la proie B fuit vers l'abri C'.
+        """
+        parts = []
+        weights = []
+
+        # 1. Sujet enveloppant (ex: Informateur)
+        bound_subj = circular_convolution(self.ROLE_SUBJECT, outer_subject)
+        parts.append(bound_subj)
+        weights.append(1.0)
+
+        # 2. Prédicat enveloppant (ex: Informe, Pense, Doute)
+        bound_pred = circular_convolution(self.ROLE_PREDICATE, outer_predicate)
+        parts.append(bound_pred)
+        weights.append(1.0)
+
+        # 3. Sous-clause emboîtée (Proposition récursive complète)
+        bound_clause = circular_convolution(self.ROLE_CLAUSE, inner_proposition)
+        parts.append(bound_clause)
+        weights.append(1.0)  # Équilibre isotrope unitaire (Sujet, Prédicat, Clause)
+
+        # 4. Modificateur optionnel
+        if modifier is not None:
+            bound_mod = circular_convolution(self.ROLE_MODIFIER, modifier)
+            parts.append(bound_mod)
+            weights.append(float(modifier_weight))
+
+        return bundle_vectors(parts, weights)
+
+    def query_role(self, composite_message: np.ndarray, role_key: np.ndarray, reg: float = 1e-3) -> np.ndarray:
         """
         Dé-binde le message composite pour extraire le concept lié à ce rôle :
         concept_est = unbind(Z, ROLE_KEY)
         """
-        return circular_correlation(composite_message, role_key)
+        return circular_correlation(composite_message, role_key, reg=reg)
 
     def extract_subject(self, composite_message: np.ndarray) -> np.ndarray:
         return self.query_role(composite_message, self.ROLE_SUBJECT)
@@ -181,3 +221,17 @@ class LUCompositionalGrammar:
 
     def extract_target(self, composite_message: np.ndarray) -> np.ndarray:
         return self.query_role(composite_message, self.ROLE_TARGET)
+
+    def extract_clause(self, composite_message: np.ndarray, depth_reg: float = 5e-4) -> np.ndarray:
+        """Extrait la sous-clause emboîtée avec déconvolution de Wiener régularisée."""
+        return self.query_role(composite_message, self.ROLE_CLAUSE, reg=depth_reg)
+
+    def extract_hierarchical(self, composite_message: np.ndarray) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
+        """
+        Décomposition complète d'une proposition récursive :
+        Retourne (outer_subject, outer_predicate, inner_proposition).
+        """
+        s_out = self.extract_subject(composite_message)
+        p_out = self.extract_predicate(composite_message)
+        c_in = self.extract_clause(composite_message)
+        return s_out, p_out, c_in

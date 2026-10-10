@@ -82,12 +82,17 @@ class LUSymbolicBridge:
             "CRAFT": ("PREDICATE", 1.0),
             "DEFEND": ("PREDICATE", 1.0),
             "REST": ("PREDICATE", 0.5),
+            "INFORMS": ("PREDICATE", 1.0),
+            "BELIEVES": ("PREDICATE", 1.0),
+            "DELIBERATE": ("PREDICATE", 1.0),
             # Cibles
             "PREY": ("TARGET", 1.0),
             "FOOD": ("TARGET", 1.0),
             "FIRE": ("TARGET", 1.0),
             "GRANARY": ("TARGET", 1.0),
             "FURNACE": ("TARGET", 1.0),
+            "SHELTER": ("TARGET", 1.0),
+            "EXPEDITION": ("TARGET", 1.0),
             "WOOD": ("TARGET", 0.8),
             "STONE": ("TARGET", 0.8),
         }
@@ -157,6 +162,33 @@ class LUSymbolicBridge:
 
         return self.grammar.compose(subject=subj, predicate=pred, target=tgt)
 
+    def compile_recursive_directive(self, outer_directive: str, inner_directive: str) -> np.ndarray:
+        """
+        Top-Down Récursif (Phase 3 M1) :
+        Compose une proposition enveloppante englobant une sous-clause complète.
+        Ex: outer='SCOUT INFORMS', inner='PREY HUNT SHELTER'.
+        """
+        inner_token = self.compile_directive_to_gigatoken(inner_directive)
+        words_out = [w.strip().upper() for w in outer_directive.replace(",", " ").split() if w.strip()]
+
+        s_out = None
+        p_out = None
+        for w in words_out:
+            if w in self.lexicon:
+                cat = self.lexicon[w]["category"]
+                vec = self.lexicon[w]["vector"]
+                if cat == "SUBJECT" and s_out is None:
+                    s_out = vec
+                elif cat == "PREDICATE" and p_out is None:
+                    p_out = vec
+
+        if s_out is None:
+            s_out = self.lexicon.get("SCOUT", {}).get("vector", np.ones(self.dim, dtype=np.float32) / np.sqrt(self.dim))
+        if p_out is None:
+            p_out = self.lexicon.get("INFORMS", {}).get("vector", np.ones(self.dim, dtype=np.float32) / np.sqrt(self.dim))
+
+        return self.grammar.compose_hierarchical(outer_subject=s_out, outer_predicate=p_out, inner_proposition=inner_token)
+
     def decode_gigatoken_to_symbolic(self, token: np.ndarray) -> Dict[str, Any]:
         """
         Bottom-Up : Trouve les lexèmes les plus proches par décomposition sémantique.
@@ -190,3 +222,69 @@ class LUSymbolicBridge:
                 "target_sim": round(sim_t, 3),
             }
         }
+
+    def decode_recursive_gigatoken(self, token: np.ndarray) -> Dict[str, Any]:
+        """
+        Bottom-Up Récursif (Phase 3 M1) :
+        Décompose une proposition hiérarchique en constituants externes et sous-clause interne.
+        """
+        s_out_vec, p_out_vec, inner_vec = self.grammar.extract_hierarchical(token)
+
+        def best_match(query_vec: np.ndarray, cat: str) -> Tuple[str, float]:
+            best_label = "INCONNU"
+            best_sim = -1.0
+            for name, data in self.lexicon.items():
+                if data["category"] == cat:
+                    sim = cosine_similarity(query_vec, data["vector"])
+                    if sim > best_sim:
+                        best_sim = sim
+                        best_label = name
+            return best_label, best_sim
+
+        outer_s, sim_os = best_match(s_out_vec, "SUBJECT")
+        outer_p, sim_op = best_match(p_out_vec, "PREDICATE")
+        inner_decoded = self.decode_gigatoken_to_symbolic(inner_vec)
+
+        return {
+            "outer_subject": outer_s,
+            "outer_predicate": outer_p,
+            "outer_scores": {"subject_sim": round(sim_os, 3), "predicate_sim": round(sim_op, 3)},
+            "inner_clause": inner_decoded,
+        }
+
+    def register_deliberation_consensus(
+        self,
+        deliberation_id: str,
+        topic: str,
+        participants: List[str],
+        consensus_vector: np.ndarray,
+        rounds: int = 3,
+        agreement_score: float = 0.85
+    ) -> str:
+        """
+        Consigne un consensus délibéré au coin du feu dans la mémoire Lattice KuzuDB (Phase 3 M3).
+        """
+        v_norm = (consensus_vector / (np.linalg.norm(consensus_vector) + 1e-12)).astype(np.float32)
+        decoded = self.decode_gigatoken_to_symbolic(v_norm)
+        summary = f"{decoded['subject']} {decoded['predicate']} {decoded['target']}"
+
+        if self.db is not None:
+            try:
+                # Création table LUDeliberation si nécessaire
+                self.db.execute_cypher(
+                    "CREATE NODE TABLE LUDeliberation (id STRING, topic STRING, summary STRING, rounds INT64, agreement_score DOUBLE, PRIMARY KEY (id))"
+                )
+            except Exception:
+                pass
+            try:
+                topic_safe = topic.replace("'", "\\'")
+                summary_safe = summary.replace("'", "\\'")
+                q = (
+                    f"CREATE (d:LUDeliberation {{id: '{deliberation_id}', topic: '{topic_safe}', "
+                    f"summary: '{summary_safe}', rounds: {rounds}, agreement_score: {agreement_score}}})"
+                )
+                self.db.execute_cypher(q)
+            except Exception as e:
+                logger.debug(f"Persistence LUDeliberation ignorée : {e}")
+
+        return summary

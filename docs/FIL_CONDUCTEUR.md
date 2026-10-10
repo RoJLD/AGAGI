@@ -394,6 +394,15 @@ L'émergence compositionnelle franchit le cap du continu holistique vers une vé
 - **Pont Symbolique-Neuronal Bidirectionnel (KuzuDB & LangGraph)** : Compilation descendante d'ordres symboliques en Gigatokens continus injectables dans les connectomes Mamba, décompilation ascendante en langage naturel et inscription vivante des lexèmes émergents (`LULexeme`) dans la mémoire Lattice.
 - **Clôture & Journalisation** : Validé empiriquement sous la Loi du Sociologue (Commandement 15) et certifié dans KuzuDB sous l'identifiant `art_011_langage_ultime_compositionnel` (Article 011).
 
+## 🧠 Langage Ultime Phase 3 : Récursion Grammaticale, Théorie de l'Esprit Latente et Consensus Délibératif Distribué (Article 012)
+
+Le saut scientifique de la Phase 3 franchit le mur du dialogue et de la délibération distribuée (G3) :
+- **Algèbre Récursive Hiérarchique & Clause Unitaire** : Extension VSA/HRR introduisant la clé unitaire $\mathbf{r}_{\text{clause}}$ ($|\mathcal{F}(\mathbf{r}_{\text{clause}})| = 1$). Permet l'emboîtement de sous-clauses propositionnelles à 2 niveaux (ex: *"SCOUT INFORMS [HUNTER HUNT PREY]"*) avec rappel cyclique de profondeur 2 garanti $\ge 0.40$ sur $\mathbb{S}^{D-1}$.
+- **Théorie de l'Esprit Latente (ToM) & Silence Pragmatique** : Chaque agent maintient une croyance bayésienne $\hat{\mathbf{z}}_{\text{peer}}$ de l'état latent d'autrui. Si l'information est redondante ($\ge 0.85$), l'agent choisit le silence pragmatique (RSA continue). Résultat : +82.1 silences/ère épargnant $+14.98$ points d'énergie métabolique et éliminant le spam acoustique.
+- **Consensus Délibératif Distribué au Coin du Feu** : Lors des rituels nocturnes au feu de camp, la meute négocie les décisions collectives en $K$ tours par barycentre pondéré sur la variété sphérique de Fréchet. Dès accord $\ge 0.60$, le consensus est injecté dans les connectomes pour orienter les chasses de l'aube.
+- **Auditabilité Graph-RAG KuzuDB (`LUDeliberation`)** : Décompilation symbolique ascendante des débats de meute et archivage immuable des consensus dans la table KuzuDB dédiée.
+- **Clôture & Journalisation** : Validé par le banc sociologique de 30 ères (Commandement 15 : delta énergie $+14.98$, delta survie $+0.33$, delta chasses $+0.57$) et consigné dans KuzuDB sous l'identifiant `art_012_langage_ultime_tom_deliberation` (Article 012).
+
 ## Comment lire les preuves
 
 Chaque affirmation ci-dessus pointe vers son EDR (`docs/EDR/NNN_*.md`), qui contient le protocole, les
