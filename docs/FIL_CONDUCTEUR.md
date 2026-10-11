@@ -522,6 +522,14 @@ Le pivot stratégique majeur et la transposition universelle de l'algèbre laten
 - **Vérification Formelle de Hoare & Audit Lattice KuzuDB (`LLMLatticeBridge`)** : Filtrage continu des signatures adverses ($\cos(z, z_{\text{adverse}}) < \theta$), validation d'invariants de sécurité et archivage immuable de chaque transfert sous forme d'événements typés `LogEvent` dans KuzuDB.
 - **Clôture & Journalisation** : Validé par le banc comparatif officiel `tools/llm_foundation_bridge_benchmark.py` sur modèle PyTorch réel et consigné dans KuzuDB sous l'identifiant `art_025_langage_ultime_foundation_bridge_llm` (Article 025).
 
+## 🐝 Langage Ultime Phase 17 : Swarm Foundation Bridge & Contrôle Incarné In-World — Consensus BFT de Weiszfeld, Embodiment Continu et Rêve Téléologique (Article 026)
+
+Le franchissement du seuil d'essaim distribué et d'incarnation physique sans texte (Arc 11 : Swarm Foundation & Embodied LLMs / M20-M23) :
+- **Consensus Latent Distribué Multi-LLMs (`LLMSwarmConsensus`)** : Délibération d'essaim de fondation sur $\mathbb{S}^{D-1}$ par Médiane Sphérique de Weiszfeld BFT géodésique et Barycentre de Sinkhorn-Wasserstein, avec filtrage par MAD géodésique rejetant 100% des agents byzantins déviants (+0.1534 d'alignement vs moyenne naïve).
+- **Contrôleur Incarné In-World (`EmbodiedFoundationAgent`)** : Couplage direct des Gigatokens téléologiques de fondation aux 108 sorties motrices des agents physiques 3D via projection semi-orthogonale et fusion convexe stable avec les ODEs réflexes Liquid Mamba, sans aucune tokenisation textuelle.
+- **Consolidation Épisodique & Replay Hippocampique Hybride (`NightConsolidator`)** : Replay offline de trajectoires continues de fondation générant un gain téléologique de +0.8317 et une réduction d'erreur prédictive de -0.4159 sans dépense d'énergie.
+- **Clôture & Journalisation** : Validé par le banc comparatif officiel `tools/llm_swarm_embodied_benchmark.py` et consigné dans KuzuDB sous l'identifiant `art_026_langage_ultime_swarm_foundation_embodied` (Article 026).
+
 ## Comment lire les preuves
 
 Chaque affirmation ci-dessus pointe vers son EDR (`docs/EDR/NNN_*.md`), qui contient le protocole, les

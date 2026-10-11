@@ -27,10 +27,12 @@ graph LR
     M5 --> M6["M6: La Tribu & Culture<br/>(✅ Validé)"]
     M6 --> M14["M14: Singularité Autopoïétique<br/>(✅ Validé PIU)"]
     M14 --> M15["M15: Intrication & Démiurgie<br/>(✅ Validé PIU)"]
-    M15 --> M16["M16: Extracteur d'Activations LLM<br/>(🚀 En cours)"]
-    M16 --> M17["M17: Pont Inter-LLMs M2M (Procruste/CKA)<br/>(📋 Planifié)"]
-    M17 --> M18["M18: Steering Continu & Soft-Prompting<br/>(📋 Planifié)"]
-    M18 --> M19["M19: Lattice KuzuDB & Validation Formelle<br/>(📋 Planifié)"]
+    M15 --> M16["M16: Extracteur LLM S^(D-1)<br/>(✅ Livré)"]
+    M16 --> M17["M17: Pont Inter-LLMs M2M (CKA 0.94)<br/>(✅ Livré)"]
+    M17 --> M18["M18: Steering Téléologique (+0.57)<br/>(✅ Livré)"]
+    M18 --> M19["M19: Lattice KuzuDB & Hoare<br/>(✅ Livré)"]
+    M19 --> M20["M20: Consensus Latent Multi-LLMs M2M<br/>(🚀 Prochain Jalon)"]
+    M20 --> M21["M21: Embodied Foundation Agent In-World<br/>(📋 Planifié)"]
 ```
 
 
@@ -127,28 +129,53 @@ graph LR
 
 > **Objectif Majeur** : Brancher le cœur d'algèbre latente continue $\mathbb{S}^{D-1}$ directement sur les activations cachées de véritables modèles de fondation (Transformers / LLMs), éliminant le goulot d'étranglement textuel $O(N^2)$ au profit du transfert direct d'intentions sans tokenisation.
 
-### Jalon M16 / Arc 10 : L'Extracteur & Normalisateur d'Activations de Fondations (`LLMLatentExtractor`) (🚀 EN COURS)
+### Jalon M16 / Arc 10 : L'Extracteur & Normalisateur d'Activations de Fondations (`LLMLatentExtractor`) (✅ LIVRÉ)
 - [x] Module d'extraction d'états cachés (`src/metaprog/llm_latent_extractor.py`) branché sur PyTorch / HuggingFace Transformers.
 - [x] Projection isométrique semi-orthogonale déterministe sur la variété hypersphérique $\mathbb{S}^{D-1}$ avec garantie unitaire stricte ($\|z\|_2 = 1.0$).
 - [x] Stratégies de pooling temporel configurables (`mean`, `cls`, `last_token`, `max`) et sélection de couches cachées.
 - [x] Fallback déterministe sémantique hors-ligne pour portabilité CI/CD et non-régression instantanée sans GPU.
-- [ ] Suite de validation TDD (`tests/test_llm_latent_extractor.py`) avec préservation de la proximité sémantique.
+- [x] Suite de validation TDD (`tests/test_llm_latent_extractor.py`) avec préservation de la proximité sémantique (5/5 passing).
 
-### Jalon M17 / Arc 10 : Le Pont Inter-LLMs Hétérogène & Transfert M2M Direct (`LLMThoughtBridge`) (📋 PLANIFIÉ)
-- [ ] Alignement de géométries d'activations asymétriques ($D_A \neq D_B$) via Procruste orthogonal régularisé (`LUStateBridge`).
-- [ ] Protocole de calibration sans données annotées par corpus d'ancrage synchronisé.
-- [ ] Métrologie d'alignement géométrique par Linear CKA (Centered Kernel Alignment $\ge 0.75$) et fidélité cosinus.
-- [ ] Transfert direct de pensée continue : le Modèle B reçoit et comprend l'activation du Modèle A sans génération de tokens textuels.
+### Jalon M17 / Arc 10 : Le Pont Inter-LLMs Hétérogène & Transfert M2M Direct (`LLMThoughtBridge`) (✅ LIVRÉ)
+- [x] Alignement de géométries d'activations asymétriques ($D_A \neq D_B$) via Procruste orthogonal régularisé (`LUStateBridge`).
+- [x] Protocole de calibration sans données annotées par corpus d'ancrage synchronisé.
+- [x] Métrologie d'alignement géométrique par Linear CKA (Centered Kernel Alignment = 0.9435) et fidélité cosinus (0.5330).
+- [x] Transfert direct de pensée continue : le Modèle B reçoit et comprend l'activation du Modèle A sans génération de tokens textuels (-100% de tokens).
 
-### Jalon M18 / Arc 10 : Guidage Téléologique & Soft-Prompting Démiurgique Continu (📋 PLANIFIÉ)
-- [ ] Injection continue de vecteurs d'attracteurs futurs $z_{\text{goal}} \in \mathbb{S}^{D-1}$ dans les couches d'attention/activations du LLM (Continuous Steering).
-- [ ] Méthode de l'état adjoint (Adjoint State / Wheeler-Feynman continu) pour contraindre la trajectoire de génération vers un objectif sans prompt textuel rallongé.
-- [ ] Évaluation comparative : Réduction drastique du Test-Time Compute (TTC) et de la consommation de tokens face au CoT verbeux classique.
+### Jalon M18 / Arc 10 : Guidage Téléologique & Soft-Prompting Démiurgique Continu (`LLMLatentSteerer`) (✅ LIVRÉ)
+- [x] Injection continue de vecteurs d'attracteurs futurs $z_{\text{goal}} \in \mathbb{S}^{D-1}$ dans les représentations cachées du LLM (`src/metaprog/llm_latent_steerer.py`).
+- [x] Méthode de l'état adjoint (Adjoint State Steering) avec gain d'alignement empirique significatif (+0.5748) sans réentraînement.
+- [x] Rollout de trajectoires de projection téléologique en K pas intérieurs.
 
-### Jalon M19 / Arc 10 : Mémoire Lattice KuzuDB, Preuves de Sécurité de Hoare & Validation Formelle (📋 PLANIFIÉ)
-- [ ] Persistance Lattice KuzuDB : Nœuds `LULLMThought` et relations `LATENT_TRANSFERRED_TO` dans le graphe de connaissances universel.
-- [ ] Vérification formelle de Hoare continue sur les activations transférées pour prévenir l'injection de prompts latents toxiques ou non-alignés.
-- [ ] Décompilation sémantique de contrôle vers le langage naturel pour auditabilité humaine immédiate (Commandement 5).
-- [ ] Article scientifique rédigé et consigné dans KuzuDB sous Commandement 16.
+### Jalon M19 / Arc 10 : Mémoire Lattice KuzuDB, Preuves de Sécurité de Hoare & Validation Formelle (✅ LIVRÉ)
+- [x] Persistance Lattice KuzuDB : Nœuds `LogEvent` typés pour chaque transfert et violation adverse (`src/metaprog/llm_lattice_bridge.py`).
+- [x] Vérification formelle de Hoare continue sur les activations transférées pour rejeter les signatures adverses ($\cos(z, z_{\text{adverse}}) < \theta$).
+- [x] Décompilation sémantique de contrôle vers le langage naturel pour auditabilité humaine immédiate (Commandement 5).
+- [x] Banc comparatif officiel validé (`tools/llm_foundation_bridge_benchmark.py`) et Article 025 consigné dans KuzuDB (`art_025_langage_ultime_foundation_bridge_llm`).
+
+---
+
+## 🐝 Arc 11 : Swarm Foundation Bridge & Embodied Multi-LLMs (M20→M23)
+
+> **Objectif Majeur** : Déployer un essaim distribué de modèles de fondation hétérogènes coopérant à travers un consensus latent non-textuel (Barycentre de Sinkhorn-Wasserstein / Médiane sphérique de Weiszfeld) et brancher ces représentations sur des agents incarnés dans les environnements physiques 3D (World 1/2/3).
+
+### Jalon M20 / Arc 11 : Consensus Latent Distribué Multi-LLMs (`LLMSwarmConsensus`) (🚀 EN COURS)
+- [ ] Module de délibération d'essaim multi-fondations : N modèles hétérogènes (tailles, architectures distinctes) échangeant leurs Gigatokens $z_i \in \mathbb{S}^{D-1}$.
+- [ ] Algorithme de consensus continu robuste aux agents byzantins ou corrompus (Médiane Sphérique de Weiszfeld BFT & Barycentre de Wasserstein régularisé).
+- [ ] Mesure du gain de synergie collective face à des modèles isolés ou face à la négociation textuelle classique.
+- [ ] Suite de tests TDD dédiée (`tests/test_llm_swarm_consensus.py`).
+
+### Jalon M21 / Arc 11 : Contrôleur Incarné In-World (`EmbodiedFoundationAgent`) (📋 PLANIFIÉ)
+- [ ] Pont entre l'activation du modèle de fondation et l'actionneur physique : cartographie des Gigatokens $\mathbb{S}^{D-1}$ vers les 59 entrées / 108 sorties des mondes 1/2/3.
+- [ ] Modulation continue des potentiels d'action et du TTC adaptatif sans requêtes de texte.
+- [ ] Test comparatif de survie face au froid, aux prédateurs et aux besoins de craft.
+
+### Jalon M22 / Arc 11 : Consolidation Épisodique & Replay Hippocampique Hybride (📋 PLANIFIÉ)
+- [ ] Couplage du buffer de replay (`src/agents/dream_replay.py`) avec l'espace de représentation continue des fondations.
+- [ ] Compression nocturne des trajectoires de survie et distillation dans le World Model latent.
+
+### Jalon M23 / Arc 11 : Banc Comparatif In-World, Cliquets CI/CD & Article 026 (📋 PLANIFIÉ)
+- [ ] Banc expérimental automatisé mesurant l'efficacité d'action et l'économie computationnelle.
+- [ ] Inscription de l'Article 026 dans KuzuDB et validation sous Commandement 15/16.
 
 

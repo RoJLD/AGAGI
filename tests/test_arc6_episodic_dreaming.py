@@ -57,3 +57,26 @@ def test_episodic_buffer_and_night_consolidation():
     assert result["status"] == "consolidated"
     assert result["replayed_steps"] == 8
     assert result["post_loss"] <= result["pre_loss"] + 1e-4, "Le replay doit consolider le modèle du monde"
+
+
+def test_foundation_dream_trajectory_consolidation():
+    """Vérifie la consolidation nocturne d'une trajectoire continue de fondation (Arc 11 : M22)."""
+    consolidator = NightConsolidator()
+    dim = 64
+    goal = np.zeros(dim, dtype=np.float32)
+    goal[0] = 1.0  # Objectif téléologique
+
+    # Trajectoire de 5 pas progressant vers l'objectif
+    trajectory = []
+    for step in range(5):
+        v = np.zeros(dim, dtype=np.float32)
+        v[0] = float(step) * 0.2
+        v[1] = 1.0 - float(step) * 0.2
+        v = v / (np.linalg.norm(v) + 1e-12)
+        trajectory.append(v)
+
+    res = consolidator.consolidate_foundation_trajectory(trajectory, goal, trajectory_id="traj_test_1")
+    assert res["status"] == "foundation_consolidated"
+    assert res["trajectory_length"] == 5
+    assert res["teleological_gain"] > 0.5
+    assert res["loss_reduction"] > 0.0
