@@ -369,3 +369,17 @@ graph LR
 - [x] Banc officiel validé (`tools/planetary_omniverse_benchmark.py`) et tests (`tests/test_planetary_omniverse_conductor.py`, `tests/test_planetary_omniverse_benchmark.py`).
 - [x] Rédaction du grand livre de synthèse ([`docs/033_Langage_Ultime_Complexite_Systemique_Mondes_Planetaires.md`](../033_Langage_Ultime_Complexite_Systemique_Mondes_Planetaires.md)).
 - [x] Rédaction et enregistrement de l'Article 033 dans KuzuDB sous Commandement 16 via `tools/register_article_033.py` (`art_033_langage_ultime_complexite_systemique_mondes_planetaires`).
+
+---
+
+## 🎮 Arc 19 : L'Ère des Mondes Réalistes & Moteurs de Jeu 3D (M52→M55) (EN COURS)
+
+> **Objectif Majeur** : Relier directement AGIseed à la physique ultra-réaliste d'un moteur de jeu moderne (Unity 3D / PhysX), intégrant collisions rigides, biomécanique locomotrice, hydrodynamique et perception LiDAR volumétrique.
+
+### Jalon M52 / Arc 19 : Passerelle Bidirectionnelle Unity 3D & Article 034 (✅ LIVRÉ)
+- [x] Implémentation de `UnityBridgeWorld` (`src/worlds/unity_bridge_world.py`) : protocole réseau TCP bidirectionnel 50 Hz, mode Live et mode Simulation Locale autonome.
+- [x] Composant C# Unity prêt à poser (`src/worlds/unity/AGIseedAgentBridge.cs`) : application des forces PhysX sur Rigidbody et 16 faisceaux raycasts LiDAR 3D.
+- [x] Banc officiel validé (`tools/unity_bridge_benchmark.py`) atteignant $62\,119$ pas/seconde.
+- [x] Suite de tests unitaires passée à 100% (`tests/test_unity_bridge_world.py`, `tests/test_unity_bridge_benchmark.py`).
+- [x] Rédaction de l'Article 034 ([`docs/034_Langage_Ultime_Passerelle_Unity_Moteur_Jeu_Realiste.md`](../034_Langage_Ultime_Passerelle_Unity_Moteur_Jeu_Realiste.md)).
+- [x] Enregistrement dans KuzuDB via `tools/register_article_034.py` (`art_034_langage_ultime_passerelle_unity_moteur_jeu_realiste`).

@@ -587,6 +587,13 @@ L'implémentation de l'échelle systémique et cosmique (Arc 18 : La Complexité
 - **Monde 10 : Astro-Physique & Expansion Orbitale Multi-Gravitationnelle (`OrbitalAstrophysicsWorld` / M50)** : Mécanique orbitale newtonienne, puits de potentiel $\mu = GM$, transfert de Hohmann, amarrage spatial et gestion du propergol $\Delta V$.
 - **Métamonde Planétaire Omniversel (`PlanetaryOmniverseConductor` / M51)** : Orchestration synchrone cyber-climat-orbite évaluant l'Indice de Kardashev synthétique ($K_{\text{score}} = 0.6755$), validé par le banc `tools/planetary_omniverse_benchmark.py` et consigné dans KuzuDB sous l'identifiant `art_033_langage_ultime_complexite_systemique_mondes_planetaires` (Article 033).
 
+## 🎮 Langage Ultime Phase 25 : La Passerelle Unity 3D & L'Intégration du Moteur de Jeu Réaliste (Article 034)
+
+L'implémentation de la passerelle directe vers les mondes 3D haute fidélité (Arc 19 : L'Ère des Mondes Réalistes & Moteurs de Jeu 3D / M52) :
+- **Passerelle Moteur de Jeu Unity 3D (`UnityBridgeWorld` / M52)** : Connexion bidirectionnelle TCP 50 Hz reliant les modèles cognitifs Liquid Mamba ODE aux avatars 3D sous Unity PhysX.
+- **Composant C# Natif Unity (`AGIseedAgentBridge.cs`)** : Réception des commandes motrices (25D) et envoi de 16 faisceaux LiDAR raycastés 3D, vitesse, position et contact physique (45D).
+- **Mode Dual "Live / Simulation Locale"** : Permet un débit de $62\,119\text{ pas/s}$ en simulation locale autonome certifiée CI/CD, validé par `tools/unity_bridge_benchmark.py` et consigné dans KuzuDB sous l'identifiant `art_034_langage_ultime_passerelle_unity_moteur_jeu_realiste` (Article 034).
+
 ## Comment lire les preuves
 
 Chaque affirmation ci-dessus pointe vers son EDR (`docs/EDR/NNN_*.md`), qui contient le protocole, les
