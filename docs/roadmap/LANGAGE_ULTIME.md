@@ -341,3 +341,31 @@ graph LR
 - [x] Suite de validation TDD validée à 100% (`tests/test_autotelic_curriculum_conductor.py`, `tests/test_autotelic_curriculum_benchmark.py`).
 - [x] Rédaction du grand livre de synthèse ([`docs/032_Langage_Ultime_Coevolution_Mondes_Autoteliques.md`](../032_Langage_Ultime_Coevolution_Mondes_Autoteliques.md)).
 - [x] Rédaction et enregistrement de l'Article 032 dans KuzuDB sous Commandement 16 via `tools/register_article_032.py` (`art_032_langage_ultime_coevolution_mondes_autoteliques`).
+
+---
+
+## 🚀 Arc 18 : La Complexité Systémique & L'Ère Spatiale (M48→M51) (✅ LIVRÉ)
+
+> **Objectif Majeur** : Élever la complexité des environnements à l'échelle macroscopique planétaire et orbitale. Intégrer la topologie de réseaux distribués (cyber-sécurité et routage), la thermodynamique climatique planétaire non-linéaire (dilemme des biens communs et cycle du carbone) et la navigation orbitale multi-gravitationnelle keplerienne (gestion de poussée $\Delta V$).
+
+### Jalon M48 / Arc 18 : Monde 8 — Écosystème Cyber-Physique & Réseaux Distribués (`CyberNetworkWorld`) (✅ LIVRÉ)
+- [x] Modélisation de topologie réseau dynamique, routage de paquets, bande passante et buffer bloat (`src/worlds/world_8_cyber_network.py`).
+- [x] Détection d'intrusions et filtrage de corruption byzantine dans les flux de données.
+- [x] Suite de validation TDD validée à 100% (`tests/test_world_8_cyber_network.py`).
+
+### Jalon M49 / Arc 18 : Monde 9 — Climat Global & Rétroactions Planétaires Non-Linéaires (`PlanetaryClimateWorld`) (✅ LIVRÉ)
+- [x] Forçage radiatif logarithmique du $CO_2$, rétroaction de fonte d'albédo glaciaire et catastrophes extrêmes (`src/worlds/world_9_planetary_climate.py`).
+- [x] Dilemme des biens communs et investissement concerté en reboisement et séquestration carbone.
+- [x] Suite de validation TDD validée à 100% (`tests/test_world_9_planetary_climate.py`).
+
+### Jalon M50 / Arc 18 : Monde 10 — Astro-Physique & Expansion Orbitale Multi-Gravitationnelle (`OrbitalAstrophysicsWorld`) (✅ LIVRÉ)
+- [x] Mécanique orbitale newtonienne, puits de potentiel $\mu = GM$, transfert de Hohmann et rendez-vous spatial (`src/worlds/world_10_orbital_astrophysics.py`).
+- [x] Gestion du budget critique de propergol $\Delta V$.
+- [x] Suite de validation TDD validée à 100% (`tests/test_world_10_orbital_astrophysics.py`).
+
+### Jalon M51 / Arc 18 : Le Métamonde Planétaire Omniversel & Article 033 (✅ LIVRÉ)
+- [x] Orchestrateur omniversel unifiant les 3 dimensions (`src/worlds/planetary_omniverse_conductor.py`).
+- [x] Indice de Kardashev synthétique $K_{\text{score}} = 0.6755$.
+- [x] Banc officiel validé (`tools/planetary_omniverse_benchmark.py`) et tests (`tests/test_planetary_omniverse_conductor.py`, `tests/test_planetary_omniverse_benchmark.py`).
+- [x] Rédaction du grand livre de synthèse ([`docs/033_Langage_Ultime_Complexite_Systemique_Mondes_Planetaires.md`](../033_Langage_Ultime_Complexite_Systemique_Mondes_Planetaires.md)).
+- [x] Rédaction et enregistrement de l'Article 033 dans KuzuDB sous Commandement 16 via `tools/register_article_033.py` (`art_033_langage_ultime_complexite_systemique_mondes_planetaires`).

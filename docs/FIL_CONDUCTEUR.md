@@ -579,6 +579,14 @@ L'implémentation de la co-évolution autotélique mondes-modèles (Arc 17 : L'E
 - **Monde 7 : Raisonnement Symbolique, Algèbre & Preuves Formelles (`SymbolicReasoningWorld` / M46)** : Résolution formelle découplée du métabolisme physique (Modus Ponens, simplification d'invariants et équations algébriques).
 - **Curriculum Autotélique & Co-Évolution (`AutotelicCurriculumConductor` / M47)** : Déclenchement automatique de la complexification de l'univers ($L \leftarrow L + 1$) dès que les modèles atteignent le seuil de maîtrise ($\tau_{\text{mastery}} \ge 0.80$), validé par le banc `tools/autotelic_curriculum_benchmark.py` (progression continue, 2 élévations de difficulté, compétence moyenne $0.8779$) et consigné dans KuzuDB sous l'identifiant `art_032_langage_ultime_coevolution_mondes_autoteliques` (Article 032).
 
+## 🚀 Langage Ultime Phase 24 : La Complexité Systémique & L'Ère Planétaire, Réseaux & Expansion Orbitale (Article 033)
+
+L'implémentation de l'échelle systémique et cosmique (Arc 18 : La Complexité Systémique & L'Ère Spatiale / M48-M51) :
+- **Monde 8 : Cyber-Réseau Décentralisé (`CyberNetworkWorld` / M48)** : Topologie de graphe dynamique, routage de paquets, congestion (buffer bloat) et filtrage d'intrusions byzantines.
+- **Monde 9 : Climat Global & Rétroactions Planétaires Non-Linéaires (`PlanetaryClimateWorld` / M49)** : Forçage radiatif du $CO_2$, rétroaction de fonte d'albédo glaciaire, catastrophes climatiques et tragédie des biens communs.
+- **Monde 10 : Astro-Physique & Expansion Orbitale Multi-Gravitationnelle (`OrbitalAstrophysicsWorld` / M50)** : Mécanique orbitale newtonienne, puits de potentiel $\mu = GM$, transfert de Hohmann, amarrage spatial et gestion du propergol $\Delta V$.
+- **Métamonde Planétaire Omniversel (`PlanetaryOmniverseConductor` / M51)** : Orchestration synchrone cyber-climat-orbite évaluant l'Indice de Kardashev synthétique ($K_{\text{score}} = 0.6755$), validé par le banc `tools/planetary_omniverse_benchmark.py` et consigné dans KuzuDB sous l'identifiant `art_033_langage_ultime_complexite_systemique_mondes_planetaires` (Article 033).
+
 ## Comment lire les preuves
 
 Chaque affirmation ci-dessus pointe vers son EDR (`docs/EDR/NNN_*.md`), qui contient le protocole, les
