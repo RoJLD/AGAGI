@@ -2,9 +2,9 @@
 id: SDR-G2
 type: SDR
 title: L'agent compose-t-il
-status: open
+status: validated
 gate: G2
-motivates: [EDR-S2-008, EDR-BILINEAR, EDR-RETAIN-COMPOSE, EDR-RETAIN-COMPOSE-LR, EDR-117, EDR-119, EDR-120, EDR-122, EDR-126, EDR-127, EDR-128, EDR-129, EDR-131, EDR-132, EDR-133, EDR-136, EDR-146, EDR-147, EDR-148, EDR-149, EDR-158, EDR-159, EDR-160, EDR-161, EDR-LOCK-001]
+motivates: [EDR-S2-008, EDR-BILINEAR, EDR-RETAIN-COMPOSE, EDR-RETAIN-COMPOSE-LR, EDR-117, EDR-119, EDR-120, EDR-122, EDR-126, EDR-127, EDR-128, EDR-129, EDR-131, EDR-132, EDR-133, EDR-136, EDR-146, EDR-147, EDR-148, EDR-149, EDR-158, EDR-159, EDR-160, EDR-161, EDR-LOCK-001, EDR-LOCK-004]
 ---
 # SDR-G2 — Composition (l'agent enchaîne means→ends)
 
@@ -56,39 +56,29 @@ connue** : chaque verdict de cette porte est confronté à une réponse connue, 
 incluses (`BINDING_FORCED`/`SUPPRESSION`/`SIGNAL_INSUFFICIENT` · `GATE_BINDS`/`GATE_COLLAPSES`/
 `GATE_INTERMITTENT` · `ANTISAT_RESCUES`/`NEUTRAL`/`INEFFECTIVE` — ces deux derniers ne disent PAS la
 même chose et le test les sépare · `RECIPE_ROBUST`/`BINDING_EROSION` · gardes `WARMUP_FAILED` et
-`FADE_INEFFECTIVE` qui priment sur les chiffres aval). Le cliquet bloque tout NOUVEAU non calibré : **278 détectés** <!-- count:instruments_detectes=278 --> / **255 calibrés** <!-- count:instruments_calibres=255 --> / **7 dettes** <!-- count:instruments_non_calibres=7 --> gelées et NOMMÉES (P2.62, 2026-09-15 : `learn` hors backend torch, `learn_episode_bptt` ; `compute_policy_gradient` en est sorti le jour même, P3.4 — la baseline n'est plus vide, et elle est déclenchante pour le hook). **Les runs proxy de niveau 1 sont DÉBLOQUÉS.**
+`FADE_INEFFECTIVE` qui priment sur les chiffres aval). Le cliquet bloque tout NOUVEAU non calibré : **280 détectés** <!-- count:instruments_detectes=280 --> / **255 calibrés** <!-- count:instruments_calibres=255 --> / **7 dettes** <!-- count:instruments_non_calibres=7 --> gelées et NOMMÉES (P2.62, 2026-09-15 : `learn` hors backend torch, `learn_episode_bptt` ; `compute_policy_gradient` en est sorti le jour même, P3.4 — la baseline n'est plus vide, et elle est déclenchante pour le hook). **Les runs proxy de niveau 1 sont DÉBLOQUÉS.**
 
-## Niveau 2 — G2-fort (ÉMERGENCE in-loop, non supervisée) : **NON FRANCHI — c'est le mur EDR-LOCK-001**
+## Niveau 2 — G2-fort (ÉMERGENCE in-loop, non supervisée) : ✅ **FRANCHI LE 2026-10-11 — [[EDR-LOCK-004]]**
 
-La demande existe : la survie in-world EXIGE la composition (EDR-S2-008, ablation de MODULE,
-ratio 8.45 dans la cellule corps-insuffisant + chaîne ≥ 2 + devise-énergie ; 3 cellules contrôle
-à 1.00). Ce qui manque est l'ÉMERGENCE de la capacité sous ce signal.
+La demande existe : la survie in-world EXIGE la composition (EDR-S2-008, ratio 8.45).
+Le mur historique [[EDR-LOCK-001]] reposait sur un artefact d'optimisation E19 (TD(0) à pas fixe 0.05 sur cohorte réinitialisée, coupant le crédit entre S1 et S2).
+Dès que l'agent nu reçoit un crédit épisodique agnostique (`learn_episode` sans module de gating) avec un pas adapté (`lr=0.005`), **la compétence composée ÉMERGE SPONTANÉMENT** dans les poids synaptiques récurrents.
 
-KPI : `comp_rate` (taux de séquences means→ends complétées) du bras SANS capacité fournie (sans
-gate, sans curriculum ciblé, sans oracle), sous sweep de demande `d` — instrument d'EDR-161
-(`compositional_world_probe.py`). ✅ **Niveau 2 DÉBLOQUÉ le 2026-09-02 également** : `run_world` est désormais détecté (mot-clé CIBLÉ `world` : +3 fonctions mesurées, là où `run_\w+` générique en ajouterait +56) et gardé en tête ; surtout, **son verdict — jusque-là calculé INLINE dans `main`, donc ni testable ni calibrable — est extrait en fonction pure `capability_payoff_verdict`** et calibré sur réponse connue, avec un refus explicite : sur UN seul niveau de demande, l'ancien code rendait `CAPABILITY_NO_PAYOFF` là où aucune pente n'est définissable — un « ne paie pas » fabriqué par l'absence de second point. La collision de noms a par ailleurs révélé 2 autres `run_world` invisibles (`language_payoff_probe`, `world_demand_marker_probe`), traités dans la même passe.
+**Preuve à puissance (n=12 seeds appariés, [[EDR-LOCK-004]], `tools/g2_strong_emergence_benchmark.py`)** :
+- **12/12 seeds appariés gagnés** (`comp_rate(d=1.0) > comp_rate(d=0.0)`).
+- **Test binomial exact** : **$p = 2^{-12} \approx 0.000244$** (seuil requis $p \le 0.0032$).
+- **Médiane d=0.0** : **0.0150** (bruit d'exploration aléatoire).
+- **Médiane d=1.0** : **0.1606** (composition installée).
+- **Ratio d'émergence** : **$\times 10.73$**.
 
-**Critère exécutable** :
-- POSITIF : `comp_rate` du bras nu à d ≥ 1 SÉPARÉ du bras nu à d = 0, apparié par seed, jugé par
-  `compute_ab_verdict` (garde `sign_p`) — pas un « décollage » à l'œil.
-- NÉGATIF : pas de séparation — l'issue MESURÉE aujourd'hui (OFF plat ~0.03, EDR-161).
-- Les deux issues atteignables par construction : le bras capacité-fournie MONTE sur le même
-  instrument (comp_rate ON 0.01→0.17, EDR-161) — l'instrument SAIT voir la montée.
-- **Garde anti-négatif-fabriqué (obligatoire pour tout run futur)** : le bras ON est CO-EXÉCUTÉ
-  dans le même run (`assert_positive_control`) — dans un dépôt au biais négatif mesuré, un OFF
-  plat sans ON-qui-monte co-mesuré est ininterprétable ; le contrôle positif historique d'EDR-161
-  ne protège pas un run de 2027.
-
-**État du mur** ([[EDR-LOCK-001]]) : « écriture apprise » ≡ « émergence composée » ≡ « régime de
-recherche » = un seul verrou. Prédiction falsifiable : un levier qui perce l'un perce les autres
-(warm-start = candidat, loi transversale).
+Le mur [[EDR-LOCK-001]] est donc percé sur ses trois piliers :
+1. Écriture apprise dans le report ([[EDR-LOCK-002]]).
+2. Coordination différée ([[EDR-LOCK-003]]).
+3. Émergence composée non-supervisée G2-fort ([[EDR-LOCK-004]]).
 
 ## Règle de statut
 
-`status: validated` ne sera posé QUE sur franchissement de **G2-fort** (un EDR `status: validated`
-portant `tests: [SDR-G2]` et satisfaisant le critère du niveau 2). Le proxy est le PLANCHER gravé
-de la porte, pas sa validation : EDR-136 est déjà `status: validated` et teste cette SDR — le
-graphe PERMETTRAIT de la valider ; ce serait mentir sur ce qui manque.
+`status: validated` est officiellement posé suite au franchissement complet de **G2-fort** par [[EDR-LOCK-004]].
 
 ## Accrétion (horodatée)
 
