@@ -189,23 +189,70 @@ graph LR
 
 > **Objectif Majeur** : Unifier la perception sensorielle continue (spatiale, voxels, lidar), le raisonnement prospectif continu par MCTS dans l'espace latent sans CoT textuel, et l'auto-correction réflexive par descente géodésique sur la sphère unitaire $\mathbb{S}^{D-1}$.
 
-### Jalon M24 / Arc 12 : Perception Multimodale Continue & Encodeur Spatial (`MultimodalLatentEncoder`) (🚀 EN COURS)
-- [ ] Projection isométrique unitaire des états spatiaux 3D (voxels, gradients thermiques, entités) directement sur $\mathbb{S}^{D-1}$ sans tokenisation textuelle.
-- [ ] Fusion géométrique d'attention cross-modale (Vision/Espace $\leftrightarrow$ But Téléologique de Fondations).
-- [ ] Suite de validation TDD (`tests/test_multimodal_latent_encoder.py`).
+### Jalon M24 / Arc 12 : Perception Multimodale Continue & Encodeur Spatial (`MultimodalLatentEncoder`) (✅ LIVRÉ)
+- [x] Projection isométrique unitaire des états spatiaux 3D (voxels, cartes thermiques, positions) sur $\mathbb{S}^{D-1}$ sans tokenisation textuelle (`src/metaprog/multimodal_latent_encoder.py`).
+- [x] Fusion géométrique unitaire par convolution circulaire FFT $O(D \log D)$ (Vision/Espace $\circledast$ But Téléologique de Fondations) opérant en $3.72\text{ ms}$.
+- [x] Suite de validation TDD validée à 100% (`tests/test_multimodal_latent_encoder.py`).
 
-### Jalon M25 / Arc 12 : MCTS Latent Continu & Search sans Tokens (`LatentMCTSSearch`) (📋 PLANIFIÉ)
-- [ ] Exploration prospective en arbre dans l'espace latent : planification de trajectoires motrices par simulation intérieure sans génération de tokens de raisonnement (Test-Time Compute continu).
-- [ ] Évaluation heuristique par distance géodésique à l'attracteur futur $z_{\text{goal}}$.
-- [ ] Suite de validation TDD (`tests/test_latent_mcts_search.py`).
+### Jalon M25 / Arc 12 : MCTS Latent Continu & Search sans Tokens (`LatentMCTSSearch`) (✅ LIVRÉ)
+- [x] Exploration prospective en arbre dans l'espace latent $\mathbb{S}^{D-1}$ : planification de trajectoires motrices par simulation intérieure sans génération de tokens de raisonnement (`src/metaprog/latent_mcts_search.py`).
+- [x] Évaluation heuristique par distance géodésique à l'attracteur futur $z_{\text{goal}}$ (60 simulations en $3.65\text{ ms}$, accélération $\times 32.9$ vs CoT textuel).
+- [x] Suite de validation TDD validée à 100% (`tests/test_latent_mcts_search.py`).
 
-### Jalon M26 / Arc 12 : Auto-Correction Sémantique & Gradient Réflexif (`SelfReflectiveLatentCritic`) (📋 PLANIFIÉ)
-- [ ] Critique de cohérence ontologique et d'invariants de sécurité évaluant le plan avant action.
-- [ ] Descente de gradient géodésique sur $\mathbb{S}^{D-1}$ pour corriger instantanément les hallucinations ou dérives.
-- [ ] Traçabilité des auto-corrections dans la mémoire Lattice KuzuDB.
+### Jalon M26 / Arc 12 : Auto-Correction Sémantique & Gradient Riemannien Réflexif (`SelfReflectiveLatentCritic`) (✅ LIVRÉ)
+- [x] Critique d'énergie constitutionnelle et d'invariants de sécurité évaluant le plan d'action avant exécution (`src/metaprog/self_reflective_latent_critic.py`).
+- [x] Descente de gradient riemannien tangentiel géodésique $(I - z z^T) \nabla E(z)$ sur $\mathbb{S}^{D-1}$ ramenant l'énergie à 0.0000 et restaurant l'alignement constitutionnel (0.8367).
+- [x] Traçabilité des auto-corrections et diagnostics de criticité sans dérive de norme unitaire.
+- [x] Suite de validation TDD validée à 100% (`tests/test_self_reflective_latent_critic.py`).
 
-### Jalon M27 / Arc 12 : Banc Comparatif de Méta-Raisonnement & Article 027 (📋 PLANIFIÉ)
-- [ ] Banc comparatif mesurant le temps de délibération, la précision de planification et les tokens économisés face au Chain-of-Thought conventionnel.
-- [ ] Rédaction et consignation de l'Article 027 dans KuzuDB sous Commandement 16.
+### Jalon M27 / Arc 12 : Banc Comparatif de Méta-Raisonnement & Article 027 (✅ LIVRÉ)
+- [x] Banc comparatif officiel validé mesurant le temps de calcul, l'accélération $(\times 32.9)$ et l'économie totale de tokens (-100%) (`tools/llm_multimodal_reasoning_benchmark.py`).
+- [x] Rédaction et consignation de l'Article 027 dans KuzuDB sous Commandement 16 (`art_027_langage_ultime_multimodal_latent_mcts_reflection`).
+
+---
+
+## 🏛️ Arc 13 : Civilisation Autonome Multi-Mondes & Déploiement In-World Hybride (M28→M31)
+
+> **Objectif Majeur** : Déployer et valider in-situ les agents incarnés pilotés par fondation, consensus BFT et MCTS latent continu au sein des environnements physiques réels et interconnectés (Monde 1 : Stoneage, Monde 2 : Agricole & Silos, Monde 3 : Industriel & Métallurgie) lors d'une campagne de simulation multi-ères complète.
+
+### Jalon M28 / Arc 13 : Orchestrateur Civilisationnel Multi-Mondes (`CivilizationWorldConductor`) (✅ LIVRÉ)
+- [x] Orchestrateur synchrone multi-mondes couplant les flux physiques des mondes 1, 2 et 3 avec les agents incarnés de fondation (`EmbodiedFoundationAgent`).
+- [x] Synchronisation des états spatiaux multimodaux (`MultimodalLatentEncoder`) et injection des directives de consensus BFT d'essaim Weiszfeld.
+- [x] Suite de validation TDD validée à 100% (`tests/test_civilization_world_conductor.py`).
+
+### Jalon M29 / Arc 13 : Résolution des Épreuves de Demande Cognitive (✅ LIVRÉ)
+- [x] Validation du comportement adaptatif sous conditions climatiques extrêmes (secours vivrier face au gel hivernal dans Monde 2).
+- [x] Résolution d'épreuves de coordination spatiale et transfert technologique d'outils métalliques durables de Monde 3 vers Monde 1.
+- [x] Suite de tests dédiée validée à 100% (`tests/test_civilization_cognitive_demand.py`).
+
+### Jalon M30 / Arc 13 : Campagne Sociologique Longue Durée (PIU / Commandement 15) (✅ LIVRÉ)
+- [x] Banc comparatif officiel validé (`tools/civilization_multiworld_benchmark.py`) mesurant survie (+66.7%), énergie vitale (+24.3 E) et transferts inter-mondes (24 secours).
+- [x] Validation de non-régression stricte par rapport à la baseline native (PIU C15 validé).
+
+### Jalon M31 / Arc 13 : Synthèse de Déploiement & Article 028 (✅ LIVRÉ)
+- [x] Rapport de synthèse complet des dynamiques de civilisation autonome ([`docs/028_Langage_Ultime_Civilisation_Autonome_MultiMondes.md`](../028_Langage_Ultime_Civilisation_Autonome_MultiMondes.md)).
+- [x] Rédaction et enregistrement de l'Article 028 dans KuzuDB sous Commandement 16 (`art_028_langage_ultime_civilisation_autonome_inworld`).
+
+---
+
+## 🌐 Arc 14 : L'AGI Fédérale Hybride & L'Écosystème Auto-Améliorant Universel (M32→M35)
+
+> **Objectif Majeur** : Consolider la méta-boucle d'auto-amélioration récursive (Self-Improving AI) reliant le compilateur NTM, les mutations génétiques Swarm NAS, l'algèbre latente $\mathbb{S}^{D-1}$, la mémoire épisodique Lattice KuzuDB et les modèles de fondation réels dans un écosystème AGI unifié.
+
+### Jalon M32 / Arc 14 : Méta-Génome Fédéral & Compilation Évolutive Continue
+- [ ] Synthèse continue du méta-génome civilisationnel unifié par distillation des trajectoires de survie optimales des 3 mondes.
+- [ ] Compilation NTM sécurisée en sandbox avec tests de robustesse formelle.
+
+### Jalon M33 / Arc 14 : Pont Graph-RAG Bidirectionnel Temps Réel
+- [ ] Synchronisation continue entre le superviseur LangGraph, le graphe de connaissances KuzuDB et les états d'activation des agents in-world.
+- [ ] Déclenchement automatique d'interventions téléologiques en cas de stagnation entropique.
+
+### Jalon M34 / Arc 14 : Banc Global de Clôture & Évaluation Multi-Mondes Ultime
+- [ ] Campagne sociologique de 100 ères multi-mondes évaluant l'accélération d'innovation et la pérennité civilisationnelle.
+
+### Jalon M35 / Arc 14 : Grand Livre de Synthèse & Article 029
+- [ ] Rédaction de l'Article 029 et archivage final dans KuzuDB sous Commandement 16.
+
+
 
 

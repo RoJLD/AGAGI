@@ -128,3 +128,15 @@ class EmbodiedFoundationAgent:
     def step(self, observation: np.ndarray) -> np.ndarray:
         """Alias pour compatibilité avec l'API Gym/RL standard."""
         return self.forward(observation)
+
+    def get_size(self) -> int:
+        """Retourne la complexité paramétrique du contrôleur."""
+        if hasattr(self.base_agent, "get_size") and callable(self.base_agent.get_size):
+            return self.base_agent.get_size()
+        return self.config.latent_dim * self.config.num_outputs
+
+    def __getattr__(self, name: str) -> Any:
+        """Délégation transparente des attributs au modèle moteur sous-jacent."""
+        if "base_agent" in self.__dict__ and hasattr(self.base_agent, name):
+            return getattr(self.base_agent, name)
+        raise AttributeError(f"'{type(self).__name__}' object has no attribute '{name}'")

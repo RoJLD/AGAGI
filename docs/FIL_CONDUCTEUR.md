@@ -538,6 +538,15 @@ Le franchissement du seuil du méta-raisonnement et de la recherche sans tokens 
 - **Auto-Correction Sémantique & Gradient Riemannien Réflexif (`SelfReflectiveLatentCritic`)** : Descente de gradient riemannienne tangentielle $(I - z z^T) \nabla E(z)$ sur la variété hypersphérique annulant l'énergie de critique ($E=0.0000$), restaurant l'alignement constitutionnel ($0.8367$) et éliminant les hallucinations dangereuses avant exécution.
 - **Clôture & Journalisation** : Validé par le banc comparatif officiel `tools/llm_multimodal_reasoning_benchmark.py` et consigné dans KuzuDB sous l'identifiant `art_027_langage_ultime_multimodal_latent_mcts_reflection` (Article 027).
 
+## 🏛️ Langage Ultime Phase 19 : La Civilisation Autonome Multi-Mondes, Orchestration Synchrone et Passerelles Inter-Mondes (Article 028)
+
+Le franchissement du seuil d'orchestration multi-mondes in-situ et de résilience systémique (Arc 13 : Civilisation Autonome Multi-Mondes / M28-M31) :
+- **Orchestrateur Civilisationnel Synchrone (`CivilizationWorldConductor`)** : Couplage temps réel des flux physiques des Mondes 1 (Stoneage), 2 (Agricole) et 3 (Industriel) avec les contrôleurs incarnés de fondation (`EmbodiedFoundationAgent`), l'encodage spatial 3D unitaire (`MultimodalLatentEncoder`) et la délibération continue par consensus d'essaim Weiszfeld BFT (`LLMSwarmConsensus`) sur $\mathbb{S}^{D-1}$.
+- **Planification Prospective & Auto-Correction Réflexive In-World** : Déploiement in-situ de la recherche MCTS continue sans tokens (`LatentMCTSSearch`) et du critique riemannien géodésique (`SelfReflectiveLatentCritic`) éliminant les actions déviantes avant impact physique.
+- **Passerelles Inter-Mondes & Solidarité Systémique** : Mécanismes automatisés de secours vivrier (redistribution des réserves du grenier sous gel hivernal) et transfert d'outils métalliques durables du Monde 3 vers les chasseurs du Monde 1.
+- **Dividende d'Harmonisation Civilisationnelle (+1.2 E)** : Prime d'alignement unitaire stabilisant le métabolisme de base des agents engagés dans la coopération trans-mondes.
+- **Clôture & Journalisation (PIU C15 & C16)** : Validé par le banc comparatif officiel `tools/civilization_multiworld_benchmark.py` (gain de survie +66.7%, différentiel d'énergie +24.3 E, 24 transferts réussis, 24.3 ms/pas) et consigné dans KuzuDB sous l'identifiant `art_028_langage_ultime_civilisation_autonome_inworld` (Article 028).
+
 ## Comment lire les preuves
 
 Chaque affirmation ci-dessus pointe vers son EDR (`docs/EDR/NNN_*.md`), qui contient le protocole, les
