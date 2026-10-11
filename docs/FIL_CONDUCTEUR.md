@@ -571,6 +571,14 @@ Le franchissement du seuil de généralité universelle trans-domaines (Arc 16 :
 - **Monde 4 Cartésien & Contrôle Robotique Continu (`CartesianPhysicsWorld` / M42)** : Espace newtonien 3D continu et bras articulé 2-DOF piloté par commande hybride Mamba + cinématique inverse analytique avec amortissement PD (100% cibles atteintes $15/15$, distance résiduelle $0.2366\text{ m}$, débit de $9\,800+\text{ Hz}$).
 - **Banc Multimodal Universel & Clôture (M43)** : Évaluation quadrant intégrée (`tools/universal_multimodal_benchmark.py`) établissant un Indice de Généralité Universelle $G_{\text{score}} = 1.0000$ (100% biosphère, 100% logique, 100% code, 100% physique continue) et consigné dans KuzuDB sous l'identifiant `art_031_langage_ultime_agi_universelle_multimodale` (Article 031).
 
+## 🌌 Langage Ultime Phase 23 : L'Expansion des Mondes & La Co-Évolution Autotélique (Article 032)
+
+L'implémentation de la co-évolution autotélique mondes-modèles (Arc 17 : L'Expansion des Mondes & La Co-Évolution Autotélique / M44-M47) :
+- **Monde 5 : Le Marché Économique Décentralisé (`EconomicMarketWorld` / M44)** : Émergence du commerce, de la monnaie fiduciaire `Coin`, de la fixation dynamique des prix par élasticité offre/demande et de la division du travail entre producteurs et consommateurs.
+- **Monde 6 : L'Écosystème Co-Évolutif Proies/Prédateurs (`CoevolutionBiosphereWorld` / M45)** : Dynamique Red Queen / Arms Race avec évasion vectorisée active (Boids), toxicité sélective imposant la discrimination sensorielle et camouflage biologique.
+- **Monde 7 : Raisonnement Symbolique, Algèbre & Preuves Formelles (`SymbolicReasoningWorld` / M46)** : Résolution formelle découplée du métabolisme physique (Modus Ponens, simplification d'invariants et équations algébriques).
+- **Curriculum Autotélique & Co-Évolution (`AutotelicCurriculumConductor` / M47)** : Déclenchement automatique de la complexification de l'univers ($L \leftarrow L + 1$) dès que les modèles atteignent le seuil de maîtrise ($\tau_{\text{mastery}} \ge 0.80$), validé par le banc `tools/autotelic_curriculum_benchmark.py` (progression continue, 2 élévations de difficulté, compétence moyenne $0.8779$) et consigné dans KuzuDB sous l'identifiant `art_032_langage_ultime_coevolution_mondes_autoteliques` (Article 032).
+
 ## Comment lire les preuves
 
 Chaque affirmation ci-dessus pointe vers son EDR (`docs/EDR/NNN_*.md`), qui contient le protocole, les

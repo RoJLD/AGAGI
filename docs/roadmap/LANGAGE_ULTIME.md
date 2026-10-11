@@ -312,3 +312,32 @@ graph LR
 - [x] Test unitaire validé sous pytest (`tests/test_universal_multimodal_benchmark.py`).
 - [x] Rédaction du grand livre de synthèse ([`docs/031_Langage_Ultime_AGI_Universelle_Multimodale.md`](../031_Langage_Ultime_AGI_Universelle_Multimodale.md)).
 - [x] Rédaction et enregistrement de l'Article 031 dans KuzuDB sous Commandement 16 via `tools/register_article_031.py` (`art_031_langage_ultime_agi_universelle_multimodale`).
+
+---
+
+## 🌌 Arc 17 : L'Expansion des Mondes & La Co-Évolution Autotélique (M44→M47) (✅ LIVRÉ)
+
+> **Objectif Majeur** : Matérialiser la dynamique autotélique où les mondes et les modèles co-évoluent conjointement. L'introduction de nouveaux mondes spécialisés (Marché Économique Décentralisé, Écosystème Co-Évolutif Proies/Prédateurs, Raisonnement Symbolique Formel) permet d'élever dynamiquement la difficulté dès que les modèles atteignent le sommet de leurs compétences.
+
+### Jalon M44 / Arc 17 : Monde 5 — Le Marché Économique Décentralisé (`EconomicMarketWorld`) (✅ LIVRÉ)
+- [x] Modélisation de la division du travail, carnet d'ordres, monnaie fiduciaire `Coin` et trésor public (`src/worlds/world_5_economic_market.py`).
+- [x] Fluctuation dynamique des prix par élasticité offre/demande et exécution de contrats bilatéraux ou via comptoir central.
+- [x] Suite de validation TDD validée à 100% (`tests/test_world_5_economic_market.py`).
+
+### Jalon M45 / Arc 17 : Monde 6 — L'Écosystème Co-Évolutif Proies/Prédateurs (`CoevolutionBiosphereWorld`) (✅ LIVRÉ)
+- [x] Comportement de fuite vectorisée active des proies face aux prédateurs (`src/worlds/world_6_coevolution_biosphere.py`).
+- [x] Course aux armements (Arms Race / Red Queen), camouflage et toxicité sélective exigeant discrimination sensorielle.
+- [x] Suite de validation TDD validée à 100% (`tests/test_world_6_coevolution_biosphere.py`).
+
+### Jalon M46 / Arc 17 : Monde 7 — Raisonnement Symbolique & Preuves Formelles (`SymbolicReasoningWorld`) (✅ LIVRÉ)
+- [x] Tâches formelles de logique propositionnelle (Modus Ponens) et résolution d'équations algébriques (`src/worlds/world_7_symbolic_reasoning.py`).
+- [x] Récompenses cognitives pures découplées de toute consommation calorique.
+- [x] Suite de validation TDD validée à 100% (`tests/test_world_7_symbolic_reasoning.py`).
+
+### Jalon M47 / Arc 17 : Le Conducteur de Curriculum Autotélique & Article 032 (✅ LIVRÉ)
+- [x] Orchestrateur autotélique de co-évolution (`src/worlds/autotelic_curriculum_conductor.py`).
+- [x] Élévation conjointe de la complexité des mondes ($L \leftarrow L + 1$) dès que la compétence composite franchit $\tau_{\text{mastery}} \ge 0.80$.
+- [x] Banc officiel multi-cycles validé (`tools/autotelic_curriculum_benchmark.py`).
+- [x] Suite de validation TDD validée à 100% (`tests/test_autotelic_curriculum_conductor.py`, `tests/test_autotelic_curriculum_benchmark.py`).
+- [x] Rédaction du grand livre de synthèse ([`docs/032_Langage_Ultime_Coevolution_Mondes_Autoteliques.md`](../032_Langage_Ultime_Coevolution_Mondes_Autoteliques.md)).
+- [x] Rédaction et enregistrement de l'Article 032 dans KuzuDB sous Commandement 16 via `tools/register_article_032.py` (`art_032_langage_ultime_coevolution_mondes_autoteliques`).
