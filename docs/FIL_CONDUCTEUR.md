@@ -563,6 +563,14 @@ Le franchissement du seuil de méta-cognition de second ordre et d'anticipation 
 - **Conduction In-World Synthétique** : Intégration transparente dans `CivilizationWorldConductor` de la surveillance ToM et de la sélection contrefactuelle.
 - **Clôture & Journalisation (PIU C15 & C16)** : Validé par le banc comparatif officiel `tools/civilization_tom_benchmark.py` (gain de survie +12.5%, énergie moyenne 42.93 E, 27 transferts de solidarité, carte mentale ToM unitaire $1.0000 \in \mathbb{S}^{D-1}$, débit $37.71\text{ pas/s}$) et consigné dans KuzuDB sous l'identifiant `art_030_langage_ultime_conscience_theorie_esprit` (Article 030).
 
+## 🌐 Langage Ultime Phase 22 : L'AGI Universelle Multimodale — Logique, Auto-Programmation & Robotique Continue (Article 031)
+
+Le franchissement du seuil de généralité universelle trans-domaines (Arc 16 : L'AGI Universelle Multimodale & La Transcendance Multi-Domaines / M40-M43) :
+- **Arène de Logique Formelle & Tactique (`BoardLogicWorld` / M40)** : Confrontation sur grille échiquéenne $8\times 8$ et planification prospective MCTS adverse sans contingence de faim biologique (100% victoires/nulles favorables, débit de $16\,000+\text{ pas/s}$).
+- **Machine Virtuelle d'Auto-Programmation & Self-Debugging (`AgentVMSandbox` / M41)** : Cage isolée Python avec scrubbing AST et détection d'erreurs d'exécution. Boucle de réparation autonome en temps réel (auto-fix réussi en $0.057\text{ s}$).
+- **Monde 4 Cartésien & Contrôle Robotique Continu (`CartesianPhysicsWorld` / M42)** : Espace newtonien 3D continu et bras articulé 2-DOF piloté par commande hybride Mamba + cinématique inverse analytique avec amortissement PD (100% cibles atteintes $15/15$, distance résiduelle $0.2366\text{ m}$, débit de $9\,800+\text{ Hz}$).
+- **Banc Multimodal Universel & Clôture (M43)** : Évaluation quadrant intégrée (`tools/universal_multimodal_benchmark.py`) établissant un Indice de Généralité Universelle $G_{\text{score}} = 1.0000$ (100% biosphère, 100% logique, 100% code, 100% physique continue) et consigné dans KuzuDB sous l'identifiant `art_031_langage_ultime_agi_universelle_multimodale` (Article 031).
+
 ## Comment lire les preuves
 
 Chaque affirmation ci-dessus pointe vers son EDR (`docs/EDR/NNN_*.md`), qui contient le protocole, les

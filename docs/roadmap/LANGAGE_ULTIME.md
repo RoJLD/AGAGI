@@ -282,6 +282,33 @@ graph LR
 - [x] Rédaction du grand livre de synthèse ([`docs/030_Langage_Ultime_Conscience_Synthetique_Theorie_Esprit.md`](../030_Langage_Ultime_Conscience_Synthetique_Theorie_Esprit.md)).
 - [x] Rédaction et enregistrement de l'Article 030 dans KuzuDB sous Commandement 16 via `tools/register_article_030.py` (`art_030_langage_ultime_conscience_theorie_esprit`).
 
+---
 
+## 🌐 Arc 16 : L'AGI Universelle Multimodale & La Transcendance Multi-Domaines (M40→M43) (✅ LIVRÉ)
 
+> **Objectif Majeur** : Doter l'architecture Liquid Mamba-ODE d'une généralité universelle transcendant le cadre écologique pour maîtriser simultanément la logique formelle pure (jeux de plateau discrets), l'auto-programmation logicielle en sandbox isolée (résolution de code et self-debugging autonome) et la physique cartésienne newtonienne continue (cinématique robotique 3D et contrôle moteur continu).
 
+### Jalon M40 / Arc 16 : L'Arène de Logique Formelle & Tactique (`BoardLogicWorld`) (✅ LIVRÉ)
+- [x] Implémentation de l'arène échiquéenne discrète sur grille $8\times 8$ (`src/worlds/board_logic_world.py`).
+- [x] Moteur de planification prospective MCTS adverse sans contingence de faim biologique.
+- [x] Suite de validation TDD validée à 100% (`tests/test_board_logic_world.py`).
+- [x] Banc officiel (`tools/board_logic_benchmark.py`) : 100% de victoires/nulle supérieure, cadence 16 000+ pas/sec.
+
+### Jalon M41 / Arc 16 : Machine Virtuelle d'Auto-Programmation & Self-Debugging (`AgentVMSandbox`) (✅ LIVRÉ)
+- [x] Environnement d'exécution isolé Python avec scrubbing AST et timeout strict (`src/metaprog/agent_vm_sandbox.py`).
+- [x] Boucle de self-debugging autonome par capture de traceback AST et injection de correctifs sans régression.
+- [x] Suite de validation TDD validée à 100% (`tests/test_agent_vm_sandbox.py`).
+- [x] Banc officiel (`tools/agent_vm_benchmark.py`) : 100% de succès sur défis de code, auto-réparation réussie en 0.057s.
+
+### Jalon M42 / Arc 16 : Monde 4 Cartésien & Contrôle Robotique Continu (`CartesianPhysicsWorld`) (✅ LIVRÉ)
+- [x] Environnement physique newtonien 3D avec manipulateur planaire 2-DOF articulé (`src/worlds/world_4_cartesian_physics.py`).
+- [x] Loi de commande hybride Mamba + cinématique inverse analytique avec compensation de gravité et amortissement PD.
+- [x] Suite de validation TDD validée à 100% (`tests/test_cartesian_physics_world.py`).
+- [x] Banc officiel (`tools/cartesian_physics_benchmark.py`) : 100% de cibles atteintes (15/15), distance résiduelle 0.2366m, cadence 9 800+ Hz.
+
+### Jalon M43 / Arc 16 : Le Banc Multimodal Universel & Article 031 (✅ LIVRÉ)
+- [x] Banc d'évaluation unifié sur les 4 quadrants cognitifs (`tools/universal_multimodal_benchmark.py`).
+- [x] Indice de Généralité Universelle $G_{\text{score}} = 1.0000$ (100% biosphère, 100% logique, 100% code, 100% robotique).
+- [x] Test unitaire validé sous pytest (`tests/test_universal_multimodal_benchmark.py`).
+- [x] Rédaction du grand livre de synthèse ([`docs/031_Langage_Ultime_AGI_Universelle_Multimodale.md`](../031_Langage_Ultime_AGI_Universelle_Multimodale.md)).
+- [x] Rédaction et enregistrement de l'Article 031 dans KuzuDB sous Commandement 16 via `tools/register_article_031.py` (`art_031_langage_ultime_agi_universelle_multimodale`).

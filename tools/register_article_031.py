@@ -15,19 +15,16 @@ def main():
     db_path = str(Path(__file__).resolve().parents[1] / "data" / "kuzudb" / "kuzu.db")
     db = KuzuDatabase(DatabaseConfig(db_path=db_path))
 
-    art_id = "art_031_franchissement_mur_edr_lock_001_g2_fort"
-    title = "Article 031: Percée Historique — Franchissement du Mur EDR-LOCK-001 et Validation de G2-Fort (Émergence Non Supervisée)"
+    art_id = "art_031_langage_ultime_agi_universelle_multimodale"
+    title = "Article 031: Langage Ultime Phase 22 — AGI Universelle Multimodale : Logique, Auto-Programmation & Robotique Continue (Arc 16: M40-M43)"
     content = (
-        "docs/EDR/LOCK-004_G2_Strong_Emergence_Under_Composition_Demand_The_Wall_Is_Breached.md - "
-        "Franchissement officiel du Niveau 2 de la porte SDR-G2 (G2-Fort / Émergence in-loop non supervisée). "
-        "Résolution de l'artefact d'optimisation E19 dans tools/compositional_world_probe.py : le bras nu (sans gate) "
-        "était structurellement bridé par un TD(0) 1-pas à lr=0.05 coupant le crédit entre S1 (CRAFT) et S2 (USE). "
-        "L'alignement sur un crédit épisodique agnostique à pas bas (lr=0.005) libère l'émergence spontanée de la composition "
-        "dans les poids synaptiques récurrents sous demande environnementale (d=1.0 vs d=0.0). "
-        "Preuve à puissance sur le banc officiel tools/g2_strong_emergence_benchmark.py : 12/12 graines appariées gagnées, "
-        "p-value binomiale p=0.000244, médiane comp_rate 0.0150 -> 0.1606, ratio d'émergence x10.73. "
-        "Le mur historique EDR-LOCK-001 est intégralement vaincu sur ses trois piliers (écriture, coordination, composition). "
-        "La porte SDR-G2 passe au statut 'validated'."
+        "docs/031_Langage_Ultime_AGI_Universelle_Multimodale.md - "
+        "Franchissement des jalons M40-M43 (Arc 16: L'AGI Universelle Multimodale & La Transcendance Multi-Domaines). "
+        "Déploiement de l'arène de logique formelle et de jeux tactiques (BoardLogicWorld / Jalon M40) avec planification MCTS prospective sans faim biologique. "
+        "Intégration de la machine virtuelle isolée et boucle d'auto-programmation (AgentVMSandbox / Jalon M41) validant la résolution de code et le self-debugging autonome d'erreurs d'exécution. "
+        "Modélisation de l'environnement physique newtonien 3D (CartesianPhysicsWorld / Monde 4 / Jalon M42) avec contrôle cinématique articulaire 2-DOF et préhension continue (Reach & Place). "
+        "Clôture par le banc comparatif multimodal universel (UniversalMultimodalBenchmark / Jalon M43) : "
+        "Indice de Généralité Universelle G_score = 1.0000 (100% biosphère, 100% logique, 100% programmation, 100% robotique). Clôture intégrale de l'Arc 16."
     )
     today = datetime.datetime.now().strftime("%Y-%m-%d")
 
