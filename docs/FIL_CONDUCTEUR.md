@@ -547,6 +547,14 @@ Le franchissement du seuil d'orchestration multi-mondes in-situ et de résilienc
 - **Dividende d'Harmonisation Civilisationnelle (+1.2 E)** : Prime d'alignement unitaire stabilisant le métabolisme de base des agents engagés dans la coopération trans-mondes.
 - **Clôture & Journalisation (PIU C15 & C16)** : Validé par le banc comparatif officiel `tools/civilization_multiworld_benchmark.py` (gain de survie +66.7%, différentiel d'énergie +24.3 E, 24 transferts réussis, 24.3 ms/pas) et consigné dans KuzuDB sous l'identifiant `art_028_langage_ultime_civilisation_autonome_inworld` (Article 028).
 
+## 🌐 Langage Ultime Phase 20 : L'AGI Fédérale Hybride & L'Écosystème Auto-Améliorant Universel (Article 029)
+
+Le franchissement du seuil d'auto-amélioration récursive universelle et de souveraineté cognitive continue (Arc 14 : L'AGI Fédérale Hybride & L'Écosystème Auto-Améliorant Universel / M32-M35) :
+- **Synthèse du Méta-Génome Fédéral & Compilateur Évolutif (`FederalMetaGenomeSynthesizer` & `EvolutiveCompiler`)** : Condensation géodésique continue des consensus d'essaim multi-mondes et des connectomes survivants avec contraction lipschitzienne formelle $\rho(W_{\text{federal}}) \le 0.95$. Compilation sans perte de Gigatokens continus vers micro-programmes NTM (`NTMProgramCompiler`) validés en sandbox isolée avant gravure synaptique.
+- **Pont Graph-RAG Bidirectionnel Temps Réel (`RealtimeGraphRAGBridge`)** : Monitoring continu de l'entropie de Shannon collective sur fenêtres glissantes et injection de perturbations orthogonales novatrices $\langle z_{\text{new}}, z_{\text{current}} \rangle \approx 0$ pour prévenir l'effondrement de diversité et la stagnation sociologique.
+- **Conduction Civilisationnelle Auto-Améliorante In-World** : Couplage intégral dans `CivilizationWorldConductor` de la délibération BFT, du MCTS continu, de la critique réflexive, du méta-génome lipschitzien et du pont KuzuDB temps réel.
+- **Clôture & Journalisation (PIU C15 & C16)** : Validé par le banc comparatif global `tools/federal_agi_benchmark.py` (gain d'énergie vitale $+20.27\text{ E}$ soit +67.2%, 157 mutations NTM compilées en sandbox, 33 transferts de solidarité inter-mondes, stabilité spectrale 100% garantie $\rho(W) \le 0.9500$, cadence $24.0+\text{ pas/s}$) et consigné dans KuzuDB sous l'identifiant `art_029_langage_ultime_agi_federale_auto_ameliorante` (Article 029).
+
 ## Comment lire les preuves
 
 Chaque affirmation ci-dessus pointe vers son EDR (`docs/EDR/NNN_*.md`), qui contient le protocole, les

@@ -42,6 +42,15 @@ from src.metaprog.self_reflective_latent_critic import (
     SelfReflectiveCriticConfig,
     ReflectionResult,
 )
+from src.metaprog.federal_metagenome_compiler import (
+    FederalMetaGenomeSynthesizer,
+    EvolutiveCompiler,
+    FederalMetaGenomeConfig,
+)
+from src.graph_rag.realtime_graphrag_bridge import (
+    RealtimeGraphRAGBridge,
+    RealtimeBridgeConfig,
+)
 
 
 @dataclass
@@ -53,6 +62,9 @@ class CivilizationConductorConfig:
     enable_latent_mcts: bool = True
     enable_self_reflection: bool = True
     enable_inter_world_trade: bool = True
+    enable_metagenome_compilation: bool = True
+    enable_realtime_graphrag_bridge: bool = True
+    metagenome_distill_interval: int = 10
     distress_energy_threshold: float = 25.0
     granary_relief_amount: float = 12.0
     mcts_num_simulations: int = 20
@@ -104,6 +116,17 @@ class CivilizationWorldConductor:
                 max_correction_steps=5,
                 learning_rate=0.15,
             )
+        )
+
+        # Sous-systèmes d'auto-amélioration récursive (Arc 14 : M32/M33)
+        self.metagenome_synthesizer = FederalMetaGenomeSynthesizer(
+            FederalMetaGenomeConfig(latent_dim=self.config.latent_dim, seed=self.config.seed)
+        )
+        self.evolutive_compiler = EvolutiveCompiler(
+            FederalMetaGenomeConfig(latent_dim=self.config.latent_dim, seed=self.config.seed)
+        )
+        self.graphrag_bridge = RealtimeGraphRAGBridge(
+            RealtimeBridgeConfig(latent_dim=self.config.latent_dim, seed=self.config.seed)
         )
 
         # But civilisationnel universel sur S^(D-1)
@@ -235,6 +258,12 @@ class CivilizationWorldConductor:
         consensus_res = self.consensus_module.deliberate(agent_latents=swarm_states)
         z_civilization = consensus_res.consensus_latent
 
+        # Pont Graph-RAG temps réel & Détection de stagnation (Jalon M33)
+        if self.config.enable_realtime_graphrag_bridge:
+            bridge_report = self.graphrag_bridge.monitor_and_sync(z_civilization)
+            if bridge_report["intervention_triggered"] and bridge_report["refreshed_goal"] is not None:
+                self.civilization_goal = bridge_report["refreshed_goal"]
+
         # 3. Auto-correction réflexive continue (Critic)
         critic_energy = 0.0
         if self.config.enable_self_reflection:
@@ -271,6 +300,31 @@ class CivilizationWorldConductor:
         if len(self.world_indus.agents) > 0:
             self.world_indus.step()
 
+        # Distillation continue du méta-génome & compilation évolutive en sandbox (Jalon M32)
+        mutations_applied = 0
+        if (
+            self.config.enable_metagenome_compilation
+            and self.step_count % self.config.metagenome_distill_interval == 0
+        ):
+            survivor_genomes = []
+            for ag in all_agents:
+                model = ag.get("model")
+                base = getattr(model, "base_agent", model)
+                if hasattr(base, "genome") and hasattr(base.genome, "W"):
+                    survivor_genomes.append(base.genome.W)
+
+            if survivor_genomes:
+                self.metagenome_synthesizer.distill_civilization_trajectories(
+                    consensus_latents=[z_civilization],
+                    survivor_genomes=survivor_genomes,
+                )
+                for ag in all_agents:
+                    ok, rep = self.evolutive_compiler.compile_and_apply_to_agent(
+                        ag.get("model"), self.metagenome_synthesizer.z_meta
+                    )
+                    if ok:
+                        mutations_applied += rep.get("mutations_applied", 0)
+
         # 7. Échanges inter-mondes
         trade_events = self.execute_inter_world_trade()
 
@@ -300,5 +354,6 @@ class CivilizationWorldConductor:
             "total_population": total_pop,
             "mean_energy": mean_energy,
             "trade_events_count": len(trade_events),
+            "mutations_applied": mutations_applied,
             "granary_reserves": getattr(self.world_agri, "granary_reserves", 0.0),
         }
