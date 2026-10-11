@@ -54,7 +54,8 @@ mesuré 0.866), pas un déplacement de seuil. ⚠️ Portée : D=0 — à D=2 la
 | **8** | **L'Omniconscience (Autopoïèse)** | ✅ **TERMINÉ** — Clôture autopoïétique & holographie frontière (Article 023) |
 | **9** | **La Démiurgie (Multivers)** | ✅ **TERMINÉ** — Intrication Bell & onde avancée rétrocausale (Article 024) |
 | **10** | **The Foundation Bridge (LLMs)** | ✅ **TERMINÉ** — Extraction continue, StateBridge M2M & soft-prompting (Article 025) |
-| **11** | **Swarm Foundation & Embodied LLMs** | 🚀 **DÉMARRÉ** — Consensus Wasserstein multi-LLMs & contrôle incarné in-world |
+| **11** | **Swarm Foundation & Embodied LLMs** | ✅ **TERMINÉ** — Consensus Weiszfeld BFT, embodiment & dream replay (Article 026) |
+| **12** | **Multimodal Latent MCTS & Self-Reflection** | 🚀 **DÉMARRÉ** — Méta-raisonnement spatial, search sans tokens & gradient réflexif |
 
 ## Diagnostic — 3 causes-racines (orientation)
 

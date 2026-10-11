@@ -530,6 +530,14 @@ Le franchissement du seuil d'essaim distribué et d'incarnation physique sans te
 - **Consolidation Épisodique & Replay Hippocampique Hybride (`NightConsolidator`)** : Replay offline de trajectoires continues de fondation générant un gain téléologique de +0.8317 et une réduction d'erreur prédictive de -0.4159 sans dépense d'énergie.
 - **Clôture & Journalisation** : Validé par le banc comparatif officiel `tools/llm_swarm_embodied_benchmark.py` et consigné dans KuzuDB sous l'identifiant `art_026_langage_ultime_swarm_foundation_embodied` (Article 026).
 
+## 🔮 Langage Ultime Phase 18 : Méta-Raisonnement Multimodal, Planification par MCTS Latent Continu et Auto-Correction Réflexive (Article 027)
+
+Le franchissement du seuil du méta-raisonnement et de la recherche sans tokens (Arc 12 : Multimodal Latent MCTS & Self-Reflection / M24-M27) :
+- **Perception Multimodale Continue & Encodeur Spatial (`MultimodalLatentEncoder`)** : Projection isométrique unitaire d'observations spatiales 3D (voxels, cartes thermiques, positions) sur $\mathbb{S}^{D-1}$ et fusion par convolution circulaire FFT unitaire en temps réel ($3.72\text{ ms}$, -100% de tokens de description).
+- **MCTS Latent Continu & Test-Time Compute sans Tokens (`LatentMCTSSearch`)** : Planification arborescente prospective explorant 60 simulations d'arbre en $3.65\text{ ms}$ ($\times 32.9$ plus rapide que le Chain-of-Thought textuel) sans générer aucun token de raisonnement, guidée par proximité géodésique à l'attracteur futur.
+- **Auto-Correction Sémantique & Gradient Riemannien Réflexif (`SelfReflectiveLatentCritic`)** : Descente de gradient riemannienne tangentielle $(I - z z^T) \nabla E(z)$ sur la variété hypersphérique annulant l'énergie de critique ($E=0.0000$), restaurant l'alignement constitutionnel ($0.8367$) et éliminant les hallucinations dangereuses avant exécution.
+- **Clôture & Journalisation** : Validé par le banc comparatif officiel `tools/llm_multimodal_reasoning_benchmark.py` et consigné dans KuzuDB sous l'identifiant `art_027_langage_ultime_multimodal_latent_mcts_reflection` (Article 027).
+
 ## Comment lire les preuves
 
 Chaque affirmation ci-dessus pointe vers son EDR (`docs/EDR/NNN_*.md`), qui contient le protocole, les

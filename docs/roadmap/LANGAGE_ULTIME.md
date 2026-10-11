@@ -31,8 +31,12 @@ graph LR
     M16 --> M17["M17: Pont Inter-LLMs M2M (CKA 0.94)<br/>(✅ Livré)"]
     M17 --> M18["M18: Steering Téléologique (+0.57)<br/>(✅ Livré)"]
     M18 --> M19["M19: Lattice KuzuDB & Hoare<br/>(✅ Livré)"]
-    M19 --> M20["M20: Consensus Latent Multi-LLMs M2M<br/>(🚀 Prochain Jalon)"]
-    M20 --> M21["M21: Embodied Foundation Agent In-World<br/>(📋 Planifié)"]
+    M19 --> M20["M20: Consensus Latent Multi-LLMs M2M<br/>(✅ Livré)"]
+    M20 --> M21["M21: Embodied Foundation Agent In-World<br/>(✅ Livré)"]
+    M21 --> M22["M22: Replay Hippocampique Hybride<br/>(✅ Livré)"]
+    M22 --> M23["M23: Banc Swarm & Article 026<br/>(✅ Validé)"]
+    M23 --> M24["M24: Inférence Multimodale Latente<br/>(🚀 Prochain Jalon)"]
+    M24 --> M25["M25: MCTS Latent Continu & TTC<br/>(📋 Planifié)"]
 ```
 
 
@@ -159,23 +163,49 @@ graph LR
 
 > **Objectif Majeur** : Déployer un essaim distribué de modèles de fondation hétérogènes coopérant à travers un consensus latent non-textuel (Barycentre de Sinkhorn-Wasserstein / Médiane sphérique de Weiszfeld) et brancher ces représentations sur des agents incarnés dans les environnements physiques 3D (World 1/2/3).
 
-### Jalon M20 / Arc 11 : Consensus Latent Distribué Multi-LLMs (`LLMSwarmConsensus`) (🚀 EN COURS)
-- [ ] Module de délibération d'essaim multi-fondations : N modèles hétérogènes (tailles, architectures distinctes) échangeant leurs Gigatokens $z_i \in \mathbb{S}^{D-1}$.
-- [ ] Algorithme de consensus continu robuste aux agents byzantins ou corrompus (Médiane Sphérique de Weiszfeld BFT & Barycentre de Wasserstein régularisé).
-- [ ] Mesure du gain de synergie collective face à des modèles isolés ou face à la négociation textuelle classique.
-- [ ] Suite de tests TDD dédiée (`tests/test_llm_swarm_consensus.py`).
+### Jalon M20 / Arc 11 : Consensus Latent Distribué Multi-LLMs (`LLMSwarmConsensus`) (✅ LIVRÉ)
+- [x] Module de délibération d'essaim multi-fondations : N modèles hétérogènes échangeant leurs Gigatokens $z_i \in \mathbb{S}^{D-1}$ (`src/metaprog/llm_swarm_consensus.py`).
+- [x] Algorithme de consensus continu robuste aux agents byzantins ou corrompus (Médiane Sphérique de Weiszfeld BFT & Barycentre de Wasserstein régularisé).
+- [x] Mesure du gain de synergie collective face à des modèles isolés ou face à la négociation textuelle classique (+0.1534 sous 25% d'attaques).
+- [x] Suite de tests TDD dédiée validée à 100% (`tests/test_llm_swarm_consensus.py`).
 
-### Jalon M21 / Arc 11 : Contrôleur Incarné In-World (`EmbodiedFoundationAgent`) (📋 PLANIFIÉ)
-- [ ] Pont entre l'activation du modèle de fondation et l'actionneur physique : cartographie des Gigatokens $\mathbb{S}^{D-1}$ vers les 59 entrées / 108 sorties des mondes 1/2/3.
-- [ ] Modulation continue des potentiels d'action et du TTC adaptatif sans requêtes de texte.
-- [ ] Test comparatif de survie face au froid, aux prédateurs et aux besoins de craft.
+### Jalon M21 / Arc 11 : Contrôleur Incarné In-World (`EmbodiedFoundationAgent`) (✅ LIVRÉ)
+- [x] Pont entre l'activation du modèle de fondation et l'actionneur physique : cartographie des Gigatokens $\mathbb{S}^{D-1}$ vers les 59 entrées / 108 sorties des mondes 1/2/3 (`src/agents/embodied_foundation_agent.py`).
+- [x] Modulation continue des potentiels d'action et du guidage téléologique sans requêtes de texte.
+- [x] Tests d'incarnation et de stabilité sous entrées extrêmes validés (`tests/test_embodied_foundation_agent.py`).
 
-### Jalon M22 / Arc 11 : Consolidation Épisodique & Replay Hippocampique Hybride (📋 PLANIFIÉ)
-- [ ] Couplage du buffer de replay (`src/agents/dream_replay.py`) avec l'espace de représentation continue des fondations.
-- [ ] Compression nocturne des trajectoires de survie et distillation dans le World Model latent.
+### Jalon M22 / Arc 11 : Consolidation Épisodique & Replay Hippocampique Hybride (✅ LIVRÉ)
+- [x] Couplage du buffer de replay (`src/agents/dream_replay.py`) avec l'espace de représentation continue des fondations via `consolidate_foundation_trajectory`.
+- [x] Compression nocturne des trajectoires de survie et réduction d'erreur prédictive (-0.4159) à coût calorique nul.
+- [x] Suite de tests de replay hippocampique enrichie et validée (`tests/test_arc6_episodic_dreaming.py`).
 
-### Jalon M23 / Arc 11 : Banc Comparatif In-World, Cliquets CI/CD & Article 026 (📋 PLANIFIÉ)
-- [ ] Banc expérimental automatisé mesurant l'efficacité d'action et l'économie computationnelle.
-- [ ] Inscription de l'Article 026 dans KuzuDB et validation sous Commandement 15/16.
+### Jalon M23 / Arc 11 : Banc Comparatif In-World, Cliquets CI/CD & Article 026 (✅ LIVRÉ)
+- [x] Banc expérimental automatisé mesurant l'efficacité d'action et l'économie computationnelle (`tools/llm_swarm_embodied_benchmark.py`).
+- [x] Inscription de l'Article 026 dans KuzuDB (`art_026_langage_ultime_swarm_foundation_embodied`) sous Commandement 16.
+
+---
+
+## 🔮 Arc 12 : Méta-Raisonnement Multimodal, World Models Latents & Self-Reflective Foundation Swarm (M24→M27)
+
+> **Objectif Majeur** : Unifier la perception sensorielle continue (spatiale, voxels, lidar), le raisonnement prospectif continu par MCTS dans l'espace latent sans CoT textuel, et l'auto-correction réflexive par descente géodésique sur la sphère unitaire $\mathbb{S}^{D-1}$.
+
+### Jalon M24 / Arc 12 : Perception Multimodale Continue & Encodeur Spatial (`MultimodalLatentEncoder`) (🚀 EN COURS)
+- [ ] Projection isométrique unitaire des états spatiaux 3D (voxels, gradients thermiques, entités) directement sur $\mathbb{S}^{D-1}$ sans tokenisation textuelle.
+- [ ] Fusion géométrique d'attention cross-modale (Vision/Espace $\leftrightarrow$ But Téléologique de Fondations).
+- [ ] Suite de validation TDD (`tests/test_multimodal_latent_encoder.py`).
+
+### Jalon M25 / Arc 12 : MCTS Latent Continu & Search sans Tokens (`LatentMCTSSearch`) (📋 PLANIFIÉ)
+- [ ] Exploration prospective en arbre dans l'espace latent : planification de trajectoires motrices par simulation intérieure sans génération de tokens de raisonnement (Test-Time Compute continu).
+- [ ] Évaluation heuristique par distance géodésique à l'attracteur futur $z_{\text{goal}}$.
+- [ ] Suite de validation TDD (`tests/test_latent_mcts_search.py`).
+
+### Jalon M26 / Arc 12 : Auto-Correction Sémantique & Gradient Réflexif (`SelfReflectiveLatentCritic`) (📋 PLANIFIÉ)
+- [ ] Critique de cohérence ontologique et d'invariants de sécurité évaluant le plan avant action.
+- [ ] Descente de gradient géodésique sur $\mathbb{S}^{D-1}$ pour corriger instantanément les hallucinations ou dérives.
+- [ ] Traçabilité des auto-corrections dans la mémoire Lattice KuzuDB.
+
+### Jalon M27 / Arc 12 : Banc Comparatif de Méta-Raisonnement & Article 027 (📋 PLANIFIÉ)
+- [ ] Banc comparatif mesurant le temps de délibération, la précision de planification et les tokens économisés face au Chain-of-Thought conventionnel.
+- [ ] Rédaction et consignation de l'Article 027 dans KuzuDB sous Commandement 16.
 
 
