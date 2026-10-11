@@ -555,6 +555,14 @@ Le franchissement du seuil d'auto-amélioration récursive universelle et de sou
 - **Conduction Civilisationnelle Auto-Améliorante In-World** : Couplage intégral dans `CivilizationWorldConductor` de la délibération BFT, du MCTS continu, de la critique réflexive, du méta-génome lipschitzien et du pont KuzuDB temps réel.
 - **Clôture & Journalisation (PIU C15 & C16)** : Validé par le banc comparatif global `tools/federal_agi_benchmark.py` (gain d'énergie vitale $+20.27\text{ E}$ soit +67.2%, 157 mutations NTM compilées en sandbox, 33 transferts de solidarité inter-mondes, stabilité spectrale 100% garantie $\rho(W) \le 0.9500$, cadence $24.0+\text{ pas/s}$) et consigné dans KuzuDB sous l'identifiant `art_029_langage_ultime_agi_federale_auto_ameliorante` (Article 029).
 
+## 👁️ Langage Ultime Phase 21 : Conscience Synthétique, Méta-Miroir & Théorie de l'Esprit Latente (Article 030)
+
+Le franchissement du seuil de méta-cognition de second ordre et d'anticipation contrefactuelle sans risque (Arc 15 : Conscience Synthétique, Méta-Miroir & Théorie de l'Esprit Latente / M36-M39) :
+- **Moteur de Théorie de l'Esprit Latente (`LatentTheoryOfMindEngine`)** : Modélisation géodésique récursive des intentions d'autrui $\hat{z}_j \in \mathbb{S}^{D-1}$ par descente riemannienne tangentielle sans coût en tokens textuels, avec détection prédictive des défections byzantines ($d_{\cos} > 0.40$) avant engagement de ressources.
+- **Ramification Contrefactuelle sans Risque (`CounterfactualLatentBranching`)** : Simulation intérieure arborescente "What-If" évaluant les issues d'action dans l'espace tangent face aux intentions perçues, éliminant les collisions et maximisant l'utilité nette sans risque physique.
+- **Conduction In-World Synthétique** : Intégration transparente dans `CivilizationWorldConductor` de la surveillance ToM et de la sélection contrefactuelle.
+- **Clôture & Journalisation (PIU C15 & C16)** : Validé par le banc comparatif officiel `tools/civilization_tom_benchmark.py` (gain de survie +12.5%, énergie moyenne 42.93 E, 27 transferts de solidarité, carte mentale ToM unitaire $1.0000 \in \mathbb{S}^{D-1}$, débit $37.71\text{ pas/s}$) et consigné dans KuzuDB sous l'identifiant `art_030_langage_ultime_conscience_theorie_esprit` (Article 030).
+
 ## Comment lire les preuves
 
 Chaque affirmation ci-dessus pointe vers son EDR (`docs/EDR/NNN_*.md`), qui contient le protocole, les

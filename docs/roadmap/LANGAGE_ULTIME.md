@@ -258,6 +258,30 @@ graph LR
 - [x] Rédaction du grand livre de synthèse ([`docs/029_Langage_Ultime_AGI_Federale_Auto_Ameliorante.md`](../029_Langage_Ultime_AGI_Federale_Auto_Ameliorante.md)).
 - [x] Rédaction et enregistrement de l'Article 029 dans KuzuDB sous Commandement 16 via `tools/register_article_029.py` (`art_029_langage_ultime_agi_federale_auto_ameliorante`).
 
+---
+
+## 👁️ Arc 15 : Conscience Synthétique, Méta-Miroir & Théorie de l'Esprit Latente (M36→M39) (✅ LIVRÉ)
+
+> **Objectif Majeur** : Doter les agents et les essaims d'une modélisation récursive des états mentaux d'autrui sur $\mathbb{S}^{D-1}$ (Theory of Mind de 2nd ordre) et d'un raisonnement contrefactuel arborescent ("What-If") sans risque physique ni coût textuel.
+
+### Jalon M36 / Arc 15 : Moteur de Théorie de l'Esprit Latente (`LatentTheoryOfMindEngine`) (✅ LIVRÉ)
+- [x] Modélisation récursive des intentions d'autrui $\hat{z}_j \in \mathbb{S}^{D-1}$ par descente riemannienne géodésique (`src/metaprog/latent_theory_of_mind.py`).
+- [x] Détection prédictive de défection byzantine avant délibération et synthèse de la carte mentale collective.
+- [x] Suite de validation TDD validée à 100% (`tests/test_latent_theory_of_mind.py`).
+
+### Jalon M37 / Arc 15 : Raisonnement Contrefactuel sans Risque (`CounterfactualLatentBranching`) (✅ LIVRÉ)
+- [x] Simulation intérieure multibranche dans l'espace tangent hypersphérique sans dépense énergétique réelle (`src/metaprog/counterfactual_latent_branching.py`).
+- [x] Arbitrage net entre utilité environnementale et friction sociale modélisée par la ToM.
+- [x] Suite de validation TDD validée à 100% (`tests/test_counterfactual_latent_branching.py`).
+
+### Jalon M38 / Arc 15 : Campagne Sociologique Longue Durée (PIU / Commandement 15) (✅ LIVRÉ)
+- [x] Banc comparatif officiel validé (`tools/civilization_tom_benchmark.py`) mesurant survie (+12.5%), énergie vitale (+0.48 E), 27 transferts de solidarité et carte mentale ToM $1.0000 \in \mathbb{S}^{D-1}$ à $37.71\text{ pas/s}$.
+- [x] Test unitaire validé sous pytest (`tests/test_civilization_tom_benchmark.py`).
+
+### Jalon M39 / Arc 15 : Grand Livre de Synthèse & Article 030 (✅ LIVRÉ)
+- [x] Rédaction du grand livre de synthèse ([`docs/030_Langage_Ultime_Conscience_Synthetique_Theorie_Esprit.md`](../030_Langage_Ultime_Conscience_Synthetique_Theorie_Esprit.md)).
+- [x] Rédaction et enregistrement de l'Article 030 dans KuzuDB sous Commandement 16 via `tools/register_article_030.py` (`art_030_langage_ultime_conscience_theorie_esprit`).
+
 
 
 

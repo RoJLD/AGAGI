@@ -51,6 +51,14 @@ from src.graph_rag.realtime_graphrag_bridge import (
     RealtimeGraphRAGBridge,
     RealtimeBridgeConfig,
 )
+from src.metaprog.latent_theory_of_mind import (
+    LatentTheoryOfMindEngine,
+    ToMConfig,
+)
+from src.metaprog.counterfactual_latent_branching import (
+    CounterfactualLatentBranching,
+    CounterfactualConfig,
+)
 
 
 @dataclass
@@ -64,6 +72,8 @@ class CivilizationConductorConfig:
     enable_inter_world_trade: bool = True
     enable_metagenome_compilation: bool = True
     enable_realtime_graphrag_bridge: bool = True
+    enable_latent_tom: bool = True
+    enable_counterfactual_branching: bool = True
     metagenome_distill_interval: int = 10
     distress_energy_threshold: float = 25.0
     granary_relief_amount: float = 12.0
@@ -127,6 +137,14 @@ class CivilizationWorldConductor:
         )
         self.graphrag_bridge = RealtimeGraphRAGBridge(
             RealtimeBridgeConfig(latent_dim=self.config.latent_dim, seed=self.config.seed)
+        )
+
+        # Sous-systèmes de conscience synthétique et théorie de l'esprit (Arc 15 : M36/M37)
+        self.tom_engine = LatentTheoryOfMindEngine(
+            ToMConfig(latent_dim=self.config.latent_dim, seed=self.config.seed)
+        )
+        self.counterfactual_engine = CounterfactualLatentBranching(
+            CounterfactualConfig(latent_dim=self.config.latent_dim, seed=self.config.seed)
         )
 
         # But civilisationnel universel sur S^(D-1)
@@ -284,6 +302,24 @@ class CivilizationWorldConductor:
             )
         else:
             z_action = z_target
+
+        # Théorie de l'Esprit & Détection Prédictive de Défection (Arc 15 : Jalon M36)
+        if self.config.enable_latent_tom:
+            self.tom_engine.observe_agent_step("civilization", "stoneage", z_stone)
+            self.tom_engine.observe_agent_step("civilization", "agricultural", z_agri)
+            self.tom_engine.observe_agent_step("civilization", "industrial", z_indus)
+
+        # Ramification Contrefactuelle sans Risque (Arc 15 : Jalon M37)
+        if self.config.enable_counterfactual_branching:
+            partner_beliefs = [
+                self.tom_engine.predict_target_intention("civilization", w)
+                for w in ["stoneage", "agricultural", "industrial"]
+            ]
+            z_action, cf_report = self.counterfactual_engine.select_optimal_branch(
+                current_action=z_action,
+                partner_beliefs=partner_beliefs,
+                environmental_target=self.civilization_goal,
+            )
 
         # 5. Injection des directives de but dans chaque contrôleur incarné
         all_agents = self.world_stone.agents + self.world_agri.agents + self.world_indus.agents
