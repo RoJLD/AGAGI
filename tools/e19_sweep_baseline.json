@@ -8,6 +8,7 @@
  "legataires": {
   "tools/bilinear_aligned_run.py": "nu",
   "tools/bilinear_sham_run.py": "nu",
+  "tools/evo_runs/e34_identity_cell.py": "indetermine",
   "tools/evo_runs/s2_blind_champion_bis.py": "non_resolu",
   "tools/evo_runs/s2_credit_ablation.py": "indetermine",
   "tools/evo_runs/s2_credit_ablation_2.py": "indetermine",

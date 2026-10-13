@@ -132,9 +132,22 @@ def immortal_refill(e, refill_below=30.0, refill_to=80.0, hp_refill_below=50.0):
 # pour que la tranche j pilote le corps dont elle porte le modèle. L'ordre de service est donc IDENTIQUE au bras éteint.
 # SHAM DE RÉÉTIQUETAGE (`sham_relabel=k`) : à chaque tick où la recharge change l'ordre des corps, les lignes des
 # positions DÉPLACÉES par cet événement (et elles seules) sont permutées par un RNG PRIVÉ (`np.random.RandomState(k)` :
-# ni RNG global numpy, ni RNG torch), SANS réparer l'identité : même ordre de service et même dose de défaut que le bras
-# éteint (≈ une commutation par position déplacée) ; le correctif est, sous H0, une permutation particulière de ces
-# mêmes lignes — échangeable par construction avec les shams.
+# ni RNG global numpy, ni RNG torch), SANS réparer l'identité — revue v4 (P4.b, P7.a) : une permutation UNIFORME recollait
+# en espérance un cerveau à son corps par événement (et appliquait parfois la réindexation entière) ; le tirage est donc
+# un DÉRANGEMENT relatif à la réindexation (aucune position déplacée ne reçoit le cerveau de son propre corps), tiré par
+# rejet. Même ordre de service que le bras éteint. ⚠️ Revue v5 (P1.1, P4.1, P5.3, P10.1, P10.2) : ce sham ne peut PAS
+# servir de bande de bruit — le rejet laisse passer l'affectation du bras éteint (forcée à 2 positions déplacées), et sur
+# des morts COMPOSÉES le bras éteint remet des cerveaux sur leur propre corps (`repairings`, mesuré) quand le sham
+# l'interdit. Il reste ici, éteint par défaut et testé ; E34-IDENTITY-CELL v6 ne l'emploie plus.
+# RÉENSEMENCEMENT À t1 (`reseed_at_t1=s`, v6, décision Master 2) : à la fin du PREMIER tick où la recharge change l'ordre
+# des corps (t1), après le traitement de lignes éventuel, le RNG GLOBAL numpy est réensemencé par `seed_at(s)` — la
+# convention unique du dépôt aux frontières (`src/seed_ai/harness.py`). Une réplique du harnais PUBLIÉ ainsi décorrélée
+# EST la variabilité naturelle du dispositif : même recharge, même loi des commutations et des remises sur le propre
+# corps que le bras éteint, par construction. Combinable avec UN traitement de lignes (réindexation, coupe).
+# `repairings` compte les cerveaux qui, pilotant un corps étranger au tick précédent, retrouvent leur corps de
+# construction (revue v5, P5.3 : l'égalité de traitement se MESURE).
+# ORDRE DES CORPS MESURÉ (revue v4, P10.a) : `ticks_body_reordered` compte les ticks où l'ordre final de `e.agents`
+# diffère de l'ordre laissé par la recharge publiée — nul pour tout traitement qui ne touche que les lignes.
 # CONTRÔLE POSITIF (`cut_credit_at_t1=True`) : au premier tick où la recharge change l'ordre (t1), le crédit de la
 # population est COUPÉ (learn / learn_episode neutralisés sur l'instance) — un effet de sens connu, au même régime.
 # DOSE : une COMMUTATION = un CERVEAU (modèle) dont le corps change d'un tick au suivant ; comptée dans tous les bras.
@@ -151,8 +164,15 @@ def _identity_counters():
             "ticks_reordered": 0, "positions_reordered": 0, "first_reorder_tick": None,
             "reindex_events": 0, "rows_reindexed": 0, "first_reindex_tick": None,
             "sham_relabel": 0, "relabel_events": 0, "rows_relabeled": 0, "first_relabel_tick": None,
-            "credit_cut_tick": None,
-            "_order": None, "_pairing": None, "_relabel_rng": None}
+            "relabel_draws": 0, "ticks_body_reordered": 0, "credit_cut_tick": None,
+            "reseed_seed": None, "reseed_tick": None, "repairings": 0,
+            "_order": None, "_pairing": None, "_relabel_rng": None, "_own": None, "_census": None}
+
+
+def _reseed_global(s):
+    """Le réensemencement de t1 (v6) : `seed_at(s)`, la convention unique du dépôt. Point d'injection du no-op testé."""
+    from src.seed_ai.harness import seed_at
+    return seed_at(int(s), 0)
 
 
 def _published_identity(identity):
@@ -167,13 +187,16 @@ def _cut_credit(pop):
 
 
 def immortal_after_step(e, refill_below=30.0, refill_to=80.0, hp_refill_below=50.0, slot_order_fix=False,
-                        identity=None, tick=None, slot_reindex=False, sham_relabel=0, cut_credit_at_t1=False):
-    """Ce qui suit `e.step()` dans une cohorte immortelle : `immortal_refill` (publié), puis UN traitement au plus —
-    remise en ordre des CORPS (`slot_order_fix`), réindexation des CERVEAUX (`slot_reindex`), réétiquetage privé des
-    lignes déplacées (`sham_relabel=k`) ou coupe du crédit à t1 (`cut_credit_at_t1`) — et le relevé de l'invariant, des
-    changements d'ordre et des commutations dans `identity` (dict de `_identity_counters`, modifié en place). Rend le
-    nombre de résurrections du tick. Défauts : exactement `immortal_refill(e, ...)`. Gardes EN TÊTE (avant la recharge) :
-    audit sans tick ; deux traitements combinés ; réindexation, sham ou coupe sans audit ; sham négatif."""
+                        identity=None, tick=None, slot_reindex=False, sham_relabel=0, cut_credit_at_t1=False,
+                        reseed_at_t1=None):
+    """Ce qui suit `e.step()` dans une cohorte immortelle : `immortal_refill` (publié), puis UN traitement de lignes ou
+    de corps au plus — remise en ordre des CORPS (`slot_order_fix`), réindexation des CERVEAUX (`slot_reindex`),
+    réétiquetage privé des lignes déplacées (`sham_relabel=k`) ou coupe du crédit à t1 (`cut_credit_at_t1`) —, le
+    réensemencement du RNG global à t1 (`reseed_at_t1=s`, combinable), et le relevé de l'invariant, des changements
+    d'ordre, des commutations et des remises sur le propre corps dans `identity` (dict de `_identity_counters`, modifié
+    en place). Rend le nombre de résurrections du tick. Défauts : exactement `immortal_refill(e, ...)`. Gardes EN TÊTE
+    (avant la recharge) : audit sans tick ; deux traitements combinés ; réindexation, sham, coupe ou réensemencement
+    sans audit ; sham négatif ; graine de réensemencement qui n'est pas un entier >= 0."""
     if identity is not None and tick is None:
         raise ValueError("immortal_after_step : `identity` sans `tick` -- first_misaligned_tick resterait None "
                          "alors qu'un désalignement a pu avoir lieu (une absence fabriquée) ; refus AVANT la recharge")
@@ -182,6 +205,10 @@ def immortal_after_step(e, refill_below=30.0, refill_to=80.0, hp_refill_below=50
         raise ValueError(f"immortal_after_step : traitements {actifs} (sham_relabel={sham_relabel!r}) -- un seul à la "
                          "fois, réindexation / sham / coupe exigent un audit (`identity`), sham >= 0 ; refus AVANT la "
                          "recharge")
+    if reseed_at_t1 is not None and (identity is None or isinstance(reseed_at_t1, bool)
+                                     or not isinstance(reseed_at_t1, (int, np.integer)) or int(reseed_at_t1) < 0):
+        raise ValueError(f"immortal_after_step : reseed_at_t1={reseed_at_t1!r} -- un entier >= 0, et un audit "
+                         "(`identity`) pour dater t1 ; refus AVANT la recharge")
     n = immortal_refill(e, refill_below, refill_to, hp_refill_below)
     if not slot_order_fix and identity is None:
         return n
@@ -189,6 +216,7 @@ def immortal_after_step(e, refill_below=30.0, refill_to=80.0, hp_refill_below=50
                                      slot_identity_violations)
     pop = getattr(e, "_torch_pop", None)
     connu = slot_identity_violations(e) is not None                # appariement défini au sortir de la recharge
+    ordre_recharge = [a["id"] for a in e.agents]                   # l'ordre des corps laissé par la recharge PUBLIÉE
     if identity is not None and connu:
         prev_order = identity["_order"]
         if prev_order is None:                                     # avant le 1er pas : ordre de construction
@@ -204,10 +232,19 @@ def immortal_after_step(e, refill_below=30.0, refill_to=80.0, hp_refill_below=50
             if sham_relabel:
                 if identity["_relabel_rng"] is None:
                     identity["_relabel_rng"] = np.random.RandomState(int(sham_relabel))  # PRIVÉ : ni numpy global, ni torch
-                perm = list(range(len(order)))
-                melange = identity["_relabel_rng"].permutation(len(moved))
-                for i, j in enumerate(moved):
-                    perm[j] = moved[int(melange[i])]
+                rang = {id(m): k for k, m in enumerate(pop.agents)}
+                propre = {j: rang[id(e.agents[j]["model"])] for j in moved}   # la ligne du cerveau de chaque corps déplacé
+                for essai in range(1, 10001):                      # DÉRANGEMENT relatif à la réindexation, par rejet
+                    melange = identity["_relabel_rng"].permutation(len(moved))
+                    perm = list(range(len(order)))
+                    for i, j in enumerate(moved):
+                        perm[j] = moved[int(melange[i])]
+                    if all(perm[j] != propre[j] for j in moved):
+                        break
+                else:
+                    raise SlotIdentityError(f"tick {tick} : aucun dérangement trouvé en 10000 tirages sur {len(moved)} "
+                                            "lignes -- le sham réparerait l'identité, refus")
+                identity["relabel_draws"] += essai
                 permute_population_rows(pop, perm)
                 identity["sham_relabel"] = int(sham_relabel)
                 identity["relabel_events"] += 1
@@ -234,6 +271,15 @@ def immortal_after_step(e, refill_below=30.0, refill_to=80.0, hp_refill_below=50
         identity["rows_reindexed"] += sum(1 for j, k in enumerate(perm) if j != k)
         if identity["first_reindex_tick"] is None:
             identity["first_reindex_tick"] = tick
+    if identity is not None and identity["first_order_change_tick"] == tick:      # fin du tick t1, traitements faits
+        if reseed_at_t1 is not None and identity["reseed_tick"] is None:
+            _reseed_global(reseed_at_t1)
+            identity["reseed_seed"], identity["reseed_tick"] = int(reseed_at_t1), tick
+        census = identity["_census"]
+        if census is not None and census.marque is None:          # APRÈS le réensemencement : la fenêtre « après t1 »
+            census.marquer(f"t1={tick}")
+    if identity is not None and [a["id"] for a in e.agents] != ordre_recharge:
+        identity["ticks_body_reordered"] += 1
     v = slot_identity_violations(e)
     if (slot_order_fix or slot_reindex) and v != []:
         raise SlotIdentityError(f"tick {tick} : invariant slot W <-> corps NON vérifié après correctif "
@@ -254,6 +300,10 @@ def immortal_after_step(e, refill_below=30.0, refill_to=80.0, hp_refill_below=50
             prev = identity["_pairing"]
             if prev is None:                                       # avant le 1er pas : chaque cerveau sur son corps
                 prev = {id(a["model"]): a["id"] for a in e.agents}
+            if identity["_own"] is None:
+                identity["_own"] = {id(a["model"]): a["id"] for a in e.agents}   # corps de CONSTRUCTION de chaque cerveau
+            own = identity["_own"]
+            identity["repairings"] += sum(1 for k, b in pairing.items() if prev.get(k) != own.get(k) and b == own.get(k))
             switched = sum(1 for k, b in pairing.items() if prev.get(k) != b)
             if switched:
                 identity["slot_switches"] += switched
@@ -268,31 +318,42 @@ def immortal_after_step(e, refill_below=30.0, refill_to=80.0, hp_refill_below=50
 def phase1_learn_immortal(agents, seed, ticks, lr=None, refill_below=30.0, refill_to=80.0,
                           hp_refill_below=50.0, curiosity_scale=None, novelty_scale=None,
                           reward_scale=1.0, td_enabled=True, slot_order_fix=False, identity_audit=False,
-                          slot_reindex=False, sham_relabel=0, cut_credit_at_t1=False):
+                          slot_reindex=False, sham_relabel=0, cut_credit_at_t1=False, reseed_at_t1=None,
+                          rng_census=False):
     """Le crédit publié s'applique à `agents` (objets persistés : genome.W accumule) dans le monde
     cognitif, cohorte IMMORTELLE (même recette que run_learner_probe, prouvée complète 12/12 sur 2000
     ticks par EDR-CALIB-LEARNER). Renvoie la dose (summary de count_learning_events) et `resurrections`.
     `curiosity_scale` / `novelty_scale` : voir `_world` (None = échelle du monde, bit-identique à P4.4).
     `reward_scale` / `td_enabled` / `lr` (P4.9, S2-CREDIT-ABLATION) : variantes de count_learning_events ;
     les défauts (1.0, True, None) sont le chemin PUBLIÉ, bit-identique à P4.4/P4.8.
-    `slot_order_fix` / `identity_audit` / `slot_reindex` / `sham_relabel` / `cut_credit_at_t1` (E34, P2.132) : voir
-    `immortal_after_step` ; l'un d'eux vrai publie `slot_identity` (invariant, changements d'ordre, commutations,
-    traitements, les drapeaux) ; les défauts sont le chemin PUBLIÉ, au bit, sans clé nouvelle."""
+    `slot_order_fix` / `identity_audit` / `slot_reindex` / `sham_relabel` / `cut_credit_at_t1` / `reseed_at_t1` (E34,
+    P2.132) : voir `immortal_after_step` ; l'un d'eux vrai publie `slot_identity` (invariant, changements d'ordre,
+    commutations, remises sur le propre corps, traitements, les drapeaux) ; les défauts sont le chemin PUBLIÉ, au bit,
+    sans clé nouvelle. `rng_census=True` (v6) recense les tirages du RNG global numpy pendant la boucle, par site,
+    avant et après la fin du tick t1 (`tools/rng_census.py`, no-op au bit) : publié sous `slot_identity.rng_census`."""
+    from contextlib import nullcontext
     resurrections = 0
     identity = (_identity_counters() if (slot_order_fix or identity_audit or slot_reindex or sham_relabel
-                                         or cut_credit_at_t1) else None)
+                                         or cut_credit_at_t1 or reseed_at_t1 is not None or rng_census) else None)
+    recensement = None
+    if rng_census:
+        from tools.rng_census import RecensementTirages
+        recensement = RecensementTirages()
     with _pinned_substrate(), count_learning_events(reward_scale=reward_scale, td_enabled=td_enabled, lr=lr) as ev:
         e = _world(seed, 0, curiosity_scale=curiosity_scale, novelty_scale=novelty_scale)
         for a in agents:
             e.add_agent(a, energy=80.0)
         t = 0
-        while e.agents and t < int(ticks):
-            e.step()
-            resurrections += immortal_after_step(e, refill_below, refill_to, hp_refill_below,
-                                                 slot_order_fix=slot_order_fix, identity=identity, tick=t,
-                                                 slot_reindex=slot_reindex, sham_relabel=sham_relabel,
-                                                 cut_credit_at_t1=cut_credit_at_t1)
-            t += 1
+        with (recensement if recensement is not None else nullcontext()):
+            if identity is not None:
+                identity["_census"] = recensement
+            while e.agents and t < int(ticks):
+                e.step()
+                resurrections += immortal_after_step(e, refill_below, refill_to, hp_refill_below,
+                                                     slot_order_fix=slot_order_fix, identity=identity, tick=t,
+                                                     slot_reindex=slot_reindex, sham_relabel=sham_relabel,
+                                                     cut_credit_at_t1=cut_credit_at_t1, reseed_at_t1=reseed_at_t1)
+                t += 1
         if hasattr(e, "memory_retriever"):
             e.memory_retriever.stop()
     out = ev.summary()
@@ -300,14 +361,18 @@ def phase1_learn_immortal(agents, seed, ticks, lr=None, refill_below=30.0, refil
     if identity is not None:
         out["slot_identity"] = dict(_published_identity(identity), slot_order_fix=bool(slot_order_fix),
                                     slot_reindex=bool(slot_reindex))
+        if recensement is not None:
+            out["slot_identity"]["rng_census"] = recensement.resume()
     out["ticks"] = int(t)
     return out
 
 
-def phase2_survive_mortal(agents, seed, ticks):
+def phase2_survive_mortal(agents, seed, ticks, publier_dose=False):
     """Survie MORTELLE à poids GELÉS (lr=0, TD coupé : aucune mise à jour, même forward torch que la
     phase 1). Mêmes objets-agents (leur genome.W porte ce qu'ils ont appris). Renvoie la survie
-    médiane des agents (âge à la mort, censuré à `ticks`) et le nombre de censurés."""
+    médiane des agents (âge à la mort, censuré à `ticks`) et le nombre de censurés. `publier_dose=True` (E34 v6, revue
+    v5 P7.1) publie AUSSI la dose de la phase (`dose_phase2` : le summary du compteur, Σ|ΔW| nulle attendue) au lieu de la
+    seule assertion ; défaut : sortie inchangée."""
     with _pinned_substrate(), count_learning_events(lr=0.0, td_enabled=False) as ev:
         e = _world(seed, 1)
         for a in agents:
@@ -324,7 +389,10 @@ def phase2_survive_mortal(agents, seed, ticks):
     if not ages:
         raise ValueError("phase2_survive_mortal : aucun agent mesuré -- aucune survie n'est fabriquée")
     assert ev.summary()["dW_abs_sum"] == 0.0, "phase 2 : les poids ont bougé, le gel a échoué"
-    return {"survival_median": float(np.median(ages)), "ages": ages, "censored": len(alive), "ticks": int(t)}
+    out = {"survival_median": float(np.median(ages)), "ages": ages, "censored": len(alive), "ticks": int(t)}
+    if publier_dose:
+        out["dose_phase2"] = ev.summary()
+    return out
 
 
 def run_arm(seed, arm, num_agents=12, ticks_learn=2000, ticks_test=200, lr=None):

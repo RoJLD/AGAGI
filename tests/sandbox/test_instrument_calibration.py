@@ -1827,34 +1827,63 @@ CALIBRATED = {
     "tools/evo_runs/s2_credit_ablation_2.py::run_arm": ["guard-before-world", "variante:enveloppe-la-phase-1-seule",
                                                         "b_const:reward_const-1.0-b_tdonly:episode-off",
                                                         "gele:ni-variante-ni-phase-1"],
-    # E34 / P2.132 (2026-09-26) -- lecture de la regle scellee E34-IDENTITY-CELL v4 (une cellule = une sonde), branches
-    # dans l'ORDRE impose : INCOMPLET (cellule eteinte ou temoin absent) -> temoin d'une autre execution LEVE (v1 P5.b)
-    # -> TEMOIN_ROMPU lu AVANT l'absence des autres cellules (v2 P10.d) -> INCOMPLET (cellule absente ; audit AVEUGLE,
-    # v1 P7.a) -> PROVENANCE_MIXTE (v2 P10.e) -> LIEU_MIXTE -> SANS_OBJET (0 COMMUTATION) -> harnais qui ment LEVE (dont
-    # des CORPS reordonnes, v3 P1.a) -> BANDE_INERTE (v2 P1.b) -> BANDE_DEPLACEE (S_off hors bande, v3 P5.d) -> bande = 12
-    # shams de REETIQUETAGE (meme ordre de service et meme dose que l'eteint), bords DANS la bande, grille 0,5 -> MATERIEL
-    # / NON_MATERIEL (vers le HAUT seulement) si le CONTROLE POSITIF sort au-dessus de la bande ET de S_off (v3 P6.a),
-    # sinon NON_TRANCHE ; fausse alarme avec ex-aequo ; doses par bras (commutations, vote social) ; plafond de famine.
+    # E34 / P2.132 (2026-09-26, v6 le 2026-09-29) -- lecture de la regle scellee E34-IDENTITY-CELL v6 (une cellule = une
+    # sonde), branches dans l'ORDRE impose : INCOMPLET (cellule eteinte ou temoin absent) -> temoin d'une autre execution
+    # LEVE (v1 P5.b) -> TEMOIN_ROMPU lu AVANT l'absence des autres cellules (v2 P10.d) -> INCOMPLET (cellule absente ;
+    # audit AVEUGLE, v1 P7.a) -> PROVENANCE_MIXTE (v2 P10.e) -> LIEU_MIXTE -> SANS_OBJET (0 COMMUTATION) -> harnais qui
+    # ment LEVE (CORPS reordonnes MESURE v4 P10.a ; phase 2 qui apprend ou sans dose publiee v5 P7.1 ; temoin
+    # reensemence ; reensemencement absent, d'une autre graine ou hors de t1 ; replique traitee ; dose TD du controle
+    # positif differente de t1 EXACTEMENT v5 P7.4) -> BANDE_DEGENEREE (13 trajectoires DISTINCTES exigees : contre-exemple
+    # gele d'E23 occ. 4 et d'E18 occ. 3, v5 P4.1/P5.2/P6.2) -> bande = S_off + 12 REPLIQUES du harnais publie
+    # reensemencees a t1, bords DANS la bande, grille 0,5 -> MATERIEL / NON_MATERIEL (vers le HAUT seulement) si le
+    # CONTROLE POSITIF sort au-dessus de la bande (une seule clause, v5 P5.1), sinon NON_TRANCHE ; refus de la garde de
+    # cout PERSISTE et nomme (v4 P10.d) ; fausse alarme <= 2/14 avec ex-aequo, publiee APRES la garde ; doses par bras
+    # (commutations, remises sur le propre corps, graines, tirages du RNG apres t1, vote social des deux phases,
+    # reconstructions et dose de phase 2) ; plafond de famine.
     # Cas : tests/sandbox/test_e34_identity_cell.py (lignes synthetiques, appels HORS de pytest.raises).
     "identity_cell_verdict": ["incomplet", "temoin-autre-execution:raises", "temoin_rompu:avant-les-absences",
                               "audit-aveugle:incomplet-jamais-sans_objet", "missing:raises", "provenance_mixte",
                               "lieu_mixte", "sans_objet:zero-commutation", "harnais-qui-ment:raises",
-                              "corps-reordonnes:raises", "bande_inerte", "bande_deplacee",
-                              "bande:reetiquetages-bords-dans-la-bande", "materiel_hausse", "materiel_baisse",
-                              "non_tranche:controle-positif-non-vu-au-dessus-de-S_off",
-                              "non_materiel:vers-le-haut-borne-cellule-et-doses", "fausse-alarme:ex-aequo-calculee",
-                              "doses-par-bras-et-vote-social", "plancher-levier-et-plafond-de-famine-publies",
-                              "part-erosion:None-sans-erosion"],
-    # E34 / P2.132 -- une cellule b_full seed 2026 sous le traitement de son bras (off / on / pos / relab_k) : garde en
-    # tete (aucun monde), traitement TRANSMIS a la phase 1 (injection : slot_reindex, sham_relabel, cut_credit_at_t1,
-    # identity_audit toujours vrai), vote social compte (compter_consensus), plafond de famine publie, appel REEL
-    # minuscule (monde torch) ; la reindexation (permute_population_rows, perimetre certifie), le reetiquetage (RNG PRIVE,
-    # lignes deplacees seules, qui DIVERGE en monde reel), la coupe du credit a t1, le no-op EXACT du drapeau eteint et le
-    # contre-exemple (mort en tete) sont dans tests/sandbox/test_e34_slot_identity.py.
+                              "corps-reordonnes-mesure:raises", "reensemencement-ment:raises",
+                              "phase-2-apprend-ou-muette:raises", "controle-positif:td-egal-t1-exact",
+                              "bande_degeneree:copies-de-off-E23-E18",
+                              "bande:S_off-plus-repliques-bords-dans-la-bande", "materiel_hausse", "materiel_baisse",
+                              "incomplet:refus-de-cout-persiste-et-nomme",
+                              "non_tranche:controle-positif-dans-la-bande",
+                              "non_materiel:vers-le-haut-borne-cellule-et-doses",
+                              "fausse-alarme:ex-aequo-sur-trajectoires-distinctes",
+                              "doses-par-bras-remises-graines-rng-vote-social-et-phase-2",
+                              "plancher-levier-et-plafond-de-famine-publies", "part-erosion:None-sans-erosion",
+                              # v6.1 (revue v6) : famille de DEUX tests declaree et publiee (E23 occ. 5 ; 12/210 exact
+                              # sur 15 valeurs distinctes, 14/210 et 0 sur ex-aequo connus) ; dose TD / episodique et
+                              # constructions de phase 1 CONTROLEES (P7.1) ; corps du bassin CONTROLE (P8.2, E26) ;
+                              # coupe au plafond nommee par INCOMPLET (P10.1, E13)
+                              "famille-de-deux-tests:taux-declares-et-publies",
+                              "non-materiel-a-tort:12-sur-210-et-ex-aequo-connus",
+                              "dose-et-reconstructions-phase-1:raises", "corps-non-conforme-ou-illisible:raises",
+                              "incomplet:coupe-au-plafond-nommee"],
+    # E34 / P2.132 -- une cellule b_full seed 2026 sous le traitement de son bras (off / on / pos / rep_k) : garde en
+    # tete (aucun monde), traitement TRANSMIS a la phase 1 (injection : slot_reindex, cut_credit_at_t1, reseed_at_t1,
+    # identity_audit et rng_census toujours vrais) et dose de phase 2 demandee, vote social compte, plafond de famine
+    # publie, appel REEL minuscule (monde torch) ; la reindexation (permute_population_rows, perimetre certifie), le
+    # reensemencement a t1 (une fois, numpy seul ; no-op EXACT du crochet ; trois repliques DIVERGENT en Sigma|dW|), la
+    # coupe du credit a t1 (dose TD = t1 exactement ; aucun tirage numpy ni torch), les remises sur le propre corps
+    # (contre-exemple gele d'E8 occ. 7), le no-op EXACT de la permutation identite, du drapeau eteint et du recensement,
+    # et le contre-exemple (mort en tete) sont dans tests/sandbox/test_e34_slot_identity.py.
     "run_identity_cell": ["guard-before-world", "traitement-transmis-a-la-phase-1", "appel-reel:audit-publie",
                           "vote-social-compte", "plafond-de-famine:reponse-connue", "drapeau-eteint:noop-exact-au-bit",
                           "mort-en-tete:contre-exemple", "reindexation:invariant-et-ordre-des-corps-inchange",
-                          "reetiquetage:rng-prive-lignes-deplacees-diverge", "controle-positif:credit-coupe-a-t1"],
+                          "reensemencement:une-fois-a-t1-numpy-seul", "reensemencement:noop-exact-du-crochet",
+                          "repliques:divergent-en-Sigma-dW", "remises-propre-corps:contre-exemple-E8",
+                          "permutation-identite:noop-exact", "recensement-rng:noop-exact-et-mesure-apres-t1",
+                          "ordre-des-corps:mesure", "rng-intacts:reindexation-coupe-numpy-et-torch",
+                          "controle-positif:credit-coupe-a-t1-td-egal-t1",
+                          "phase-2:vote-social-reconstructions-et-dose-publiee",
+                          # v6.1 (revue v6) : constructions de phase 1 comptees (1 en monde reel), corps lu apres
+                          # chaque phase (conforme en monde reel, None sur une cohorte factice), dose TD et episodique
+                          # du correctif et des repliques EGALE a celle du bras eteint en monde reel
+                          "reconstructions-phase-1:comptees", "corps-du-bassin:conforme-reel-None-factice",
+                          "dose-egale-au-bras-eteint:reel"],
     # E34 / P2.132 (revue v3, P8.b) -- plafond de famine d'un corps qui ne mange pas : energie de depart / (metabolisme de
     # base x drain du phenotype) ; DESCRIPTIF (ne decide rien). Cas : tests/sandbox/test_e34_identity_cell.py -- reponse
     # connue (80 / (0,75 x 14,888)) et drain illisible (nan) -> None, jamais un nombre fabrique ; appels HORS de

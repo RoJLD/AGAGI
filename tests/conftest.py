@@ -16,6 +16,29 @@ import pathlib
 import pytest
 
 
+# ----------------------------------------------------------------------------------------------------
+# GARDE DES ARBRES (P2.142, 2026-09-29) — aucune entrée de sys.path ne pointe vers un AUTRE arbre du dépôt, et aucun
+# module tools.* / src.* n'en est chargé : sinon un test de worktree peut passer au VERT en exerçant le code d'un autre
+# arbre (E35). Tout est dans tests/garde_arbres.py, chargé ici par CHEMIN — jamais par `import tools…`, pour ne pas
+# dépendre du paquet qu'elle surveille. Ses crochets sont EXPOSÉS comme attributs de ce module (pytest ne lit que ceux-
+# là) : ⚠️ ne jamais redéfinir plus bas un crochet du même nom — une seconde définition REMPLACE la première sans un mot.
+def _charger_garde_arbres():
+    import importlib.util
+    spec = importlib.util.spec_from_file_location("_garde_arbres_p2142",
+                                                  pathlib.Path(__file__).with_name("garde_arbres.py"))
+    mod = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(mod)
+    return mod
+
+
+_GARDE_ARBRES = _charger_garde_arbres()
+pytest_sessionstart = _GARDE_ARBRES.pytest_sessionstart
+pytest_report_header = _GARDE_ARBRES.pytest_report_header
+pytest_runtest_setup = _GARDE_ARBRES.pytest_runtest_setup
+pytest_runtest_teardown = _GARDE_ARBRES.pytest_runtest_teardown
+# (le contrôle de COLLECTE passe par l'unique pytest_collection_modifyitems, plus bas : _GARDE_ARBRES.controle_collecte)
+
+
 @pytest.fixture(autouse=True)
 def _env_git_neutralise(monkeypatch):
     """⚠️ **Aucun test ne voit les variables `GIT_*` de son appelant** — E5, DEUX occurrences le même jour.
@@ -55,15 +78,47 @@ def pytest_configure(config):
     config.addinivalue_line("markers", "slow: test lent (lance la biosphere), deselectionne par defaut en CI rapide")
 
 
-def pytest_collection_modifyitems(config, items):
-    """Garde-fou anti-hang (P1.1, 2026-07-22) : le timeout global de 120 s (pytest.ini) catche les hangs
-    de la CI RAPIDE, mais couperait les tests `@slow` légitimement longs (edr114 = 270 s). On leur donne
-    donc 600 s automatiquement (assez pour tout lent légitime, catche quand même un vrai infini), sauf
-    si le test porte déjà un `@pytest.mark.timeout(N)` explicite. Résultat : `pytest -m slow` marche
-    sans `--timeout=0`, et un slow qui HANGE pour de bon échoue quand même (à 600 s)."""
+_DELAI_SLOW_S = 600
+
+
+def _delai_global(config):
+    """Le délai par test EFFECTIF de pytest-timeout : la ligne de commande (--timeout), sinon le pytest.ini ; None si
+    aucun n'est lisible (plugin absent, config absente)."""
+    if config is None:
+        return None
+    v = config.getoption("timeout", None)
+    if v is None:
+        try:
+            v = config.getini("timeout")
+        except (ValueError, KeyError):
+            v = None
+    try:
+        return float(v) if v not in (None, "") else None
+    except (TypeError, ValueError):
+        return None
+
+
+def _delais_slow(config, items):
+    """Garde-fou anti-hang (P1.1, 2026-07-22) : le timeout global de 120 s (pytest.ini) catche les hangs de la CI
+    RAPIDE, mais couperait les tests `@slow` légitimement longs (edr114 = 270 s). On leur donne 600 s, sauf s'ils
+    portent un `@pytest.mark.timeout(N)` explicite — et un slow qui HANGE pour de bon échoue quand même (à 600 s).
+
+    ⚠️ MORT du 2026-09-01 au 2026-09-29 (P2.152) : cette logique était un SECOND `pytest_collection_modifyitems`,
+    et la définition de la garde de bail, plus bas, portant le même nom, le REMPLAÇAIT sans un mot (E32). Ressuscitée
+    comme fonction NOMMÉE, appelée par l'unique crochet de collecte. Et bornée, pour ne rien RÉDUIRE : elle ne relève
+    que le délai PAR DÉFAUT (sous 600 s) ; un délai explicite plus long (la CI passe --timeout=900) ou l'illimité
+    (--timeout=0, la voie documentée de `pytest -m slow`) restent tels quels — un marqueur l'emporterait sur eux.
+    Rend le nombre de tests relevés."""
+    g = _delai_global(config)
+    if g is None or g <= 0 or g >= _DELAI_SLOW_S:
+        return 0
+    n = 0
     for item in items:
         if item.get_closest_marker("slow") and item.get_closest_marker("timeout") is None:
-            item.add_marker(pytest.mark.timeout(600))
+            item.add_marker(pytest.mark.timeout(_DELAI_SLOW_S))
+            n += 1
+    return n
+
 
 _FIXTURES = pathlib.Path(__file__).parent / "fixtures" / "experiments"
 
@@ -127,7 +182,10 @@ def _foreign_kuzu_holder():
     return None
 
 
-def pytest_collection_modifyitems(config, items):  # noqa: F811 — complète le hook ci-dessus
+def _garde_de_bail(items):
+    """La garde de bail à la COLLECTE (E10 occ. 7). Fonction NOMMÉE depuis P2.152 : elle était définie comme un second
+    `pytest_collection_modifyitems` (« noqa: F811 — complète le hook ci-dessus ») et REMPLAÇAIT celui des délais @slow
+    — Python ne complète pas une fonction, il la rebinde."""
     detenteur = _foreign_kuzu_holder()
     if not detenteur:
         return
@@ -157,6 +215,16 @@ def pytest_collection_modifyitems(config, items):  # noqa: F811 — complète le
     if n:
         print(f"\n⚠️  GARDE DE BAIL : {n} test(s) simulant un monde SAUTÉS — {detenteur} tient « kuzu ».")
     _arm_runtime_net(raison)
+
+
+def pytest_collection_modifyitems(config, items):
+    """L'UNIQUE crochet de collecte de ce conftest (P2.152, 2026-09-29). Trois fonctions NOMMÉES, chacune testable
+    seule : les délais @slow, la garde de bail, la garde des arbres (P2.142). ⚠️ Ne JAMAIS redéfinir ce nom plus bas : une
+    seconde définition remplace la première sans un mot — c'est ainsi que les délais @slow sont restés morts quatre
+    semaines. Témoin : `tests/sandbox/test_garde_arbres.py`, les trois effets sur une collecte réelle."""
+    _delais_slow(config, items)
+    _garde_de_bail(items)
+    _GARDE_ARBRES.controle_collecte()
 
 
 _NET = {"armed": False, "orig": None}

@@ -179,6 +179,13 @@ minimal ; les deux publient les variables déclarées dans le MANIFEST.
   MANIFEST (`image_empreinte`, `absente` hors image).
   La nouvelle image, son digest et la vérification de sa reproductibilité par le chemin de PRODUCTION sont au commit
   qui écrit `IMAGE.json`.
+* 2026-09-28 au soir (`results/deport_p2134_adoption.json`, heures lues au statut des Jobs) : nouvelle image construite
+  par le chemin de PRODUCTION (`image --sha ea09dbb9`, 19:46:48Z → 19:48:58Z), puis RECONSTRUITE (`--reconstruire`,
+  19:49:37Z → 19:51:36Z) : MÊME digest `sha256:d5341acf…` et MÊMES empreintes (python : 39 411 entrées ; systeme : 7 194).
+  Le digest diffère de celui des essais du matin parce que le Dockerfile adopté ajoute l'étape d'empreinte — autre image.
+  Témoin `evo011_preflight --smoke` sur cette image : contre les trois côtés du tour 4 d'EDR-DEPORT-NEXUS-TEMOIN (batcave,
+  nexus ×2, ancienne image), un SEUL écart hors `elapsed_s` — `git_sha`, la provenance, qui diffère par construction ;
+  aucun nombre ne change. Le MANIFEST porte l'empreinte (`image_empreinte`). Reste : une reconstruction un AUTRE jour.
 
 ## Surveillance d'un run
 

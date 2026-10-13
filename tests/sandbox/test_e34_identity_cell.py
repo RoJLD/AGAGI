@@ -1,12 +1,18 @@
-"""E34 (P2.132) — `E34-IDENTITY-CELL` v4 : calibration du runner de la sonde (tools/evo_runs/e34_identity_cell.py).
+"""E34 (P2.132) — `E34-IDENTITY-CELL` v6 : calibration du runner de la sonde (tools/evo_runs/e34_identity_cell.py).
 
-À réponse CONNUE : (1) le VERDICT (pur, lignes synthétiques, branches dans l'ordre scellé) : bande = les 12 shams de
-RÉÉTIQUETAGE (revues v2 P5.a, v3 P1.a), bords DANS la bande sur la grille 0,5 ; témoin rompu lu AVANT l'absence des autres cellules
-(P10.d) ; audit aveugle -> INCOMPLET, jamais SANS_OBJET (v1 P7.a) ; commits mêlés -> PROVENANCE_MIXTE (P10.e) ; lieux
-mêlés -> LIEU_MIXTE ; bande inerte -> BANDE_INERTE (P1.b/P5.b) ; contrôle positif non vu -> NON_TRANCHE (P5.c) ;
-harnais qui ment -> LÈVE ; fausse alarme avec ex-aequo calculée (P5.d) ; doses par bras (P7.d) ; (2) S_a et la
-dispersion ENTRE seeds (descriptive) LUES dans le JSON suivi de P4.16 ; (3) le témoin du code contre la cellule
-publiée de P4.4 ; (4) `run_identity_cell` : garde en tête, traitement TRANSMIS, appel réel minuscule (monde, torch).
+À réponse CONNUE : (1) le VERDICT (pur, lignes synthétiques, branches dans l'ordre scellé) : bande = {S_off} + les 12
+RÉPLIQUES du harnais publié réensemencées à t1 (décision Master 2 après la revue v5), bords DANS la bande sur la grille
+0,5 ; témoin rompu lu AVANT l'absence des autres cellules (v2 P10.d) ; audit aveugle -> INCOMPLET, jamais SANS_OBJET
+(v1 P7.a) ; commits mêlés -> PROVENANCE_MIXTE (v2 P10.e) ; lieux mêlés -> LIEU_MIXTE ; bande à trajectoires NON
+DISTINCTES -> BANDE_DEGENEREE (v5 P4.1/P5.2/P6.2 : le contre-exemple gelé d'E23 et d'E18) ; contrôle positif non vu ->
+NON_TRANCHE ; harnais qui ment (réensemencement absent, d'une autre graine ou hors de t1, bras éteint réensemencé,
+réplique traitée, dose TD du contrôle positif différente de t1, phase 2 qui apprend) -> LÈVE ; fausse alarme avec
+ex-aequo ; doses par bras ; (2) S_a et la dispersion ENTRE seeds (descriptive) LUES dans le JSON suivi de P4.16 ; (3) le
+témoin du code contre la cellule publiée de P4.4 ; (4) `run_identity_cell` : garde en tête, traitement TRANSMIS (avec le
+recensement du RNG et la dose de phase 2), appel réel minuscule (monde, torch).
+v6.1 (revue v6, table docs/reviews/2026-09-29-E34-IDENTITY-CELL.v6.correctifs.md) : famille de DEUX tests déclarée et
+publiée (contre-exemple gelé d'E23 occ. 5, taux à réponse connue), dose et constructions de phase 1 contrôlées, corps du
+bassin contrôlé (`body_matches_bassin`, réponses connues), coupe au plafond nommée par INCOMPLET.
 """
 import json
 import os
@@ -22,6 +28,7 @@ from tools.evo_runs import e34_identity_cell as R  # noqa: E402
 # test_instrument_calibration.py avant ce fichier voit la racine de l'arbre PRINCIPAL en tête de sys.path, et un import
 # PARESSEUX de tools.slot_identity y prend alors la version de l'arbre principal, pas celle de ce worktree.
 import tools.slot_identity  # noqa: E402,F401
+import tools.rng_census  # noqa: E402,F401
 
 TL = 2000
 T1 = 57
@@ -30,31 +37,50 @@ LIEU = {"platform": "Windows-11", "python": "3.13.12", "torch": "2.6.0+cu124", "
 PROV = {"git_sha": "abc123", "dirty": False}
 AGES_OFF = [5, 6, 6, 7, 7, 7, 7, 8, 8, 9, 9, 11]
 DW_OFF = 18242.03954219818
-RELAB_S = (7.0, 7.5, 8.0, 6.5, 7.0, 7.5, 8.0, 7.0, 7.5, 7.0, 8.5, 7.5)         # bande [6,5 ; 8,5], S_off 7,0 dedans
+REP_S = (7.0, 7.5, 8.0, 6.5, 7.0, 7.5, 8.0, 7.0, 7.5, 7.0, 8.5, 7.5)            # bande [6,5 ; 8,5], S_off 7,0 dedans
+_DEFAUT = object()
 
 
 def _row(s, arm, switches=0, mis=0, known=TL, unknown=0, order_changes=12, first_order=T1, reindex=False,
-         reindex_tick=None, relab=0, relab_tick=None, cut_tick=None, td=TL - 1, dw=12000.0, ages=None, lieu=LIEU, prov=PROV,
-         reordered=0):
+         reindex_tick=None, cut_tick=None, reseed=_DEFAUT, reseed_tick=_DEFAUT, td=TL - 1, dw=12000.0, ages=None,
+         lieu=LIEU, prov=PROV, reordered=0, repairings=0, p2_dw=0.0, dose_p2=True, relabel_events=0, episodes=250,
+         reco1=1, corps1=True, corps2=True):
+    reseed = R.reseed_seed(arm) if reseed is _DEFAUT and arm in R.RESEED_K else (None if reseed is _DEFAUT else reseed)
+    reseed_tick = (T1 if reseed is not None else None) if reseed_tick is _DEFAUT else reseed_tick
     ident = {"ticks_known": known, "ticks_unknown": unknown, "slot_switches": switches, "slot_ticks_misaligned": mis,
-             "order_changes": order_changes, "first_order_change_tick": first_order, "ticks_reordered": reordered,
+             "order_changes": order_changes, "first_order_change_tick": first_order, "ticks_body_reordered": reordered,
              "positions_moved": 40, "reindex_events": 12 if reindex else 0, "rows_reindexed": 30 if reindex else 0,
-             "first_reindex_tick": reindex_tick, "sham_relabel": relab, "relabel_events": 12 if relab else 0,
-             "rows_relabeled": 25 if relab else 0, "first_relabel_tick": relab_tick, "credit_cut_tick": cut_tick,
+             "first_reindex_tick": reindex_tick, "sham_relabel": 0, "relabel_events": relabel_events,
+             "credit_cut_tick": cut_tick, "reseed_seed": reseed, "reseed_tick": reseed_tick, "repairings": repairings,
+             "rng_census": {"marque": f"t1={T1}", "appels_apres": 50000, "n_sites_apres": 9, "reensemencements_apres": 0,
+                            "sites_apres": {"src/worlds/world_1_stoneage.py:1233": 1900}},
              "slot_order_fix": False, "slot_reindex": reindex}
+    survival = {"survival_median": s, "ages": list(ages or [int(s)] * 12)}
+    if dose_p2:
+        survival["dose_phase2"] = {"td_updates": 0, "episode_calls": 1, "episode_updates": 1, "dW_abs_sum": p2_dw}
     return {"arm": arm, "num_agents": 12, "lieu": dict(lieu), "provenance": dict(prov),
-            "learning": {"td_updates": td, "episode_updates": 250, "resurrections": 12, "dW_abs_sum": dw,
+            "learning": {"td_updates": td, "episode_updates": episodes, "resurrections": 12, "dW_abs_sum": dw,
                          "slot_identity": ident},
             "consensus_phase1": {"ticks_avec_reecriture": 5, "lignes_reecrites": 9}, "plafond_famine_ticks": 7.2,
-            "survival": {"survival_median": s, "ages": list(ages or [int(s)] * 12)}}
+            "consensus_phase2": {"ticks_avec_reecriture": 2, "lignes_reecrites": 3},
+            "reconstructions_phase1": {"constructions": reco1, "B": [12] * reco1},
+            "reconstructions_phase2": {"constructions": 6, "B": [12, 11, 9, 7, 4, 1]},
+            "corps_apres_phase1": {"conforme": corps1, "n_ecarts": 0 if corps1 else None, "ecart_rel_max": 0.0},
+            "corps_apres_phase2": {"conforme": corps2, "n_ecarts": 0 if corps2 else None, "ecart_rel_max": 0.0},
+            "survival": survival}
 
 
-def _rows(s_on=8.0, s_pos=20.0, relab_s=RELAB_S, **over):
-    rows = {"off": _row(7.0, "off", switches=40, mis=24000, ages=AGES_OFF, dw=DW_OFF),
+def _rep(s, k, **kw):
+    a = f"rep_{k:02d}"
+    return _row(s, a, **dict(dict(switches=38, mis=20000, repairings=2, dw=11000.0 + k), **kw))
+
+
+def _rows(s_on=8.0, s_pos=20.0, rep_s=REP_S, **over):
+    rows = {"off": _row(7.0, "off", switches=40, mis=24000, ages=AGES_OFF, dw=DW_OFF, repairings=3),
             "on": _row(s_on, "on", reindex=True, reindex_tick=T1),
-            "pos": _row(s_pos, "pos", switches=40, mis=24000, cut_tick=T1, td=T1 + 1)}
-    for k, v in enumerate(relab_s, 1):
-        rows[f"relab_{k:02d}"] = _row(v, f"relab_{k:02d}", switches=38, mis=20000, relab=k, relab_tick=T1, dw=11000.0 + k)
+            "pos": _row(s_pos, "pos", switches=40, mis=24000, cut_tick=T1, td=T1)}
+    for k, v in enumerate(rep_s, 1):
+        rows[f"rep_{k:02d}"] = _rep(v, k)
     rows.update(over)
     return rows
 
@@ -74,15 +100,18 @@ def _v(rows=None, witness=None, **kw):
 # --------------------------------------------------------------------------------------------------
 
 
-def test_arm_table_off_on_pos_and_twelve_relabels():
-    assert R.ARMS[:3] == ("off", "on", "pos") and len(R.RELABS) == 12 and len(R.ARMS) == 15
-    base = {"slot_reindex": False, "sham_relabel": 0, "cut_credit_at_t1": False}
-    assert R.arm_config("off") == base
-    assert R.arm_config("on") == dict(base, slot_reindex=True)
-    assert R.arm_config("pos") == dict(base, cut_credit_at_t1=True)
-    assert R.arm_config("relab_07") == dict(base, sham_relabel=7)
-    with pytest.raises(ValueError):
-        R.arm_config("relab_13")
+def test_arm_table_off_on_pos_and_twelve_reseeded_replicas():
+    assert R.ARMS[:3] == ("off", "on", "pos") and len(R.REPS) == 12 and len(R.ARMS) == 15
+    base = {"slot_reindex": False, "cut_credit_at_t1": False}
+    assert R.arm_config("off") == dict(base, reseed_at_t1=None)                  # le témoin n'est JAMAIS réensemencé
+    assert R.arm_config("on") == dict(base, slot_reindex=True, reseed_at_t1=202613)
+    assert R.arm_config("pos") == dict(base, cut_credit_at_t1=True, reseed_at_t1=202614)
+    assert R.arm_config("rep_07") == dict(base, reseed_at_t1=202607)
+    graines = [R.reseed_seed(a) for a in R.ARMS if a != "off"]
+    assert len(set(graines)) == 14 and not {2026, 2027} & set(graines)          # ni la graine de phase 1, ni celle de phase 2
+    for mauvais in ("rep_13", "relab_01"):
+        with pytest.raises(ValueError):
+            R.arm_config(mauvais)
 
 
 def test_verdict_INCOMPLET_when_the_off_cell_or_its_witness_is_missing():
@@ -111,9 +140,9 @@ def test_verdict_refuses_a_witness_from_another_run():
 
 def test_verdict_INCOMPLET_when_a_cell_is_missing_or_an_audit_is_blind():
     rows = _rows()
-    rows["relab_05"] = None
+    rows["rep_05"] = None
     v = _v(rows)
-    assert v["verdict"] == "INCOMPLET" and v["manquants"] == ["relab_05"]
+    assert v["verdict"] == "INCOMPLET" and v["manquants"] == ["rep_05"]
     v = _v(_rows(off=_row(7.0, "off", switches=0, known=0, ages=AGES_OFF, dw=DW_OFF)))
     assert v["verdict"] == "INCOMPLET" and v["audit_incomplet"] == ["off"]
 
@@ -123,19 +152,19 @@ def test_verdict_refuses_non_finite_inputs():
         _v(s_on=float("nan"))
     with pytest.raises(ValueError):
         R.identity_cell_verdict(_rows(), _witness(_rows()["off"]), float("nan"), TL)
+    with pytest.raises(ValueError):                                     # remises sur le propre corps : MESURÉES
+        _v(_rows(rep_04=_rep(7.0, 4, repairings=None)))
 
 
 def test_verdict_PROVENANCE_MIXTE_on_two_commits_or_a_dirty_tree():
     """Revue v2, P10.e : une cellule d'un autre commit (ou d'un arbre sale) comblerait un trou sans trace."""
-    assert _v(_rows(relab_03=_row(8.0, "relab_03", switches=38, relab=3, relab_tick=T1,
-                                  prov={"git_sha": "zzz", "dirty": False})))["verdict"] == "PROVENANCE_MIXTE"
-    assert _v(_rows(pos=_row(20.0, "pos", switches=40, cut_tick=T1, td=T1 + 1,
+    assert _v(_rows(rep_03=_rep(8.0, 3, prov={"git_sha": "zzz", "dirty": False})))["verdict"] == "PROVENANCE_MIXTE"
+    assert _v(_rows(pos=_row(20.0, "pos", switches=40, cut_tick=T1, td=T1,
                              prov={"git_sha": "abc123", "dirty": True})))["verdict"] == "PROVENANCE_MIXTE"
 
 
 def test_verdict_LIEU_MIXTE_when_the_cells_come_from_two_places():
-    assert _v(_rows(relab_03=_row(8.0, "relab_03", switches=38, relab=3, relab_tick=T1,
-                                  lieu=dict(LIEU, torch_threads=2))))["verdict"] == "LIEU_MIXTE"
+    assert _v(_rows(rep_03=_rep(8.0, 3, lieu=dict(LIEU, torch_threads=2))))["verdict"] == "LIEU_MIXTE"
 
 
 def test_verdict_SANS_OBJET_only_when_no_brain_switched_body():
@@ -143,63 +172,99 @@ def test_verdict_SANS_OBJET_only_when_no_brain_switched_body():
     assert v["verdict"] == "SANS_OBJET"
 
 
-def test_verdict_refuses_a_harness_that_lies():
-    with pytest.raises(ValueError):                                     # des CORPS réordonnés (ordre de service changé)
-        _v(_rows(relab_02=_row(8.0, "relab_02", switches=38, relab=2, relab_tick=T1, reordered=3)))
-    with pytest.raises(ValueError):                                     # réindexation qui commute
-        _v(_rows(on=_row(8.0, "on", switches=3, reindex=True, reindex_tick=T1)))
-    with pytest.raises(ValueError):                                     # PREMIÈRE réindexation hors de t1
-        _v(_rows(on=_row(8.0, "on", reindex=True, reindex_tick=T1 + 1)))
-    with pytest.raises(ValueError):                                     # réétiquetage hors de t1
-        _v(_rows(relab_02=_row(8.0, "relab_02", switches=38, relab=2, relab_tick=T1 + 3)))
-    with pytest.raises(ValueError):                                     # réétiquetage au mauvais RNG privé
-        _v(_rows(relab_02=_row(8.0, "relab_02", switches=38, relab=9, relab_tick=T1)))
-    with pytest.raises(ValueError):                                     # contrôle positif sans effet sur la dose
-        _v(_rows(pos=_row(20.0, "pos", switches=40, cut_tick=T1, td=TL - 1)))
-    with pytest.raises(ValueError):                                     # contrôle positif coupé hors de t1
-        _v(_rows(pos=_row(20.0, "pos", switches=40, cut_tick=T1 + 2, td=T1 + 1)))
+def test_verdict_INCOMPLET_names_a_persisted_cost_refusal():
+    """Revue v4, P10.d : un refus de la garde de coût avant la phase B est PERSISTÉ et le verdict le nomme."""
+    rows = {a: None for a in R.ARMS}
+    rows["off"] = _rows()["off"]
+    v = R.identity_cell_verdict(rows, _witness(rows["off"]), 31.5, TL, refus_cout={"refus": "trop cher", "unit_s": 900})
+    assert v["verdict"] == "INCOMPLET" and "garde de coût" in v["why"] and v["refus_cout"]["unit_s"] == 900
 
 
-def test_verdict_BANDE_INERTE_when_the_twelve_relabels_did_not_diverge():
+@pytest.mark.parametrize("over", [
+    {"rep_02": dict(reordered=3)},                                     # des CORPS réordonnés, MESURÉ
+    {"on": dict(switches=3)},                                          # réindexation qui commute
+    {"on": dict(reindex_tick=T1 + 1)},                                 # PREMIÈRE réindexation hors de t1
+    {"rep_02": dict(reseed_tick=T1 + 3)},                              # réensemencement hors de t1
+    {"rep_02": dict(reseed=202609)},                                   # réensemencement d'une autre graine
+    {"rep_02": dict(reseed=None, reseed_tick=None)},                   # réplique jamais réensemencée : une COPIE de off
+    {"on": dict(reseed=None, reseed_tick=None)},                       # correctif non réensemencé
+    {"off": dict(reseed=202600, reseed_tick=T1)},                      # le TÉMOIN réensemencé
+    {"rep_02": dict(reindex=True, reindex_tick=T1)},                   # réplique réindexée
+    {"rep_02": dict(cut_tick=T1)},                                     # réplique coupée
+    {"rep_02": dict(relabel_events=4)},                                # réplique réétiquetée
+    {"pos": dict(td=T1 + 1)},                                          # dose TD du contrôle positif ≠ t1 (v5 P7.4)
+    {"pos": dict(td=TL - 1)},                                          # contrôle positif sans effet sur la dose
+    {"pos": dict(cut_tick=T1 + 2, td=T1 + 2)},                         # coupé hors de t1
+    {"on": dict(p2_dw=0.5)},                                           # phase 2 qui APPREND (v5 P7.1)
+    {"rep_05": dict(dose_p2=False)},                                   # phase 2 sans dose publiée
+    {"on": dict(td=TL - 2)},                                           # dose TD du correctif ≠ ticks_learn - 1 (v6 P7.1)
+    {"rep_03": dict(td=TL - 2)},                                       # dose TD d'une réplique ≠ ticks_learn - 1
+    {"rep_03": dict(episodes=249)},                                    # dose épisodique ≠ bras éteint
+    {"pos": dict(reco1=2)},                                            # population RECONSTRUITE en phase 1
+    {"off": dict(reco1=0)},                                            # aucune construction comptée : non mesuré
+    {"rep_04": dict(corps2=False)},                                    # corps ≠ bassin après la phase 2 (v6 P8.2, E26)
+    {"on": dict(corps1=None)},                                         # corps ILLISIBLE : jamais conforme
+])
+def test_verdict_refuses_a_harness_that_lies(over):
+    (arm, kw), = over.items()
     rows = _rows()
-    for a in R.RELABS:
-        rows[a]["learning"]["dW_abs_sum"] = 11000.0
+    if arm.startswith("rep_"):
+        k = int(arm.split("_")[1])
+        rows[arm] = _rep(REP_S[k - 1], k, **kw)
+    elif arm == "off":
+        rows[arm] = _row(7.0, "off", switches=40, mis=24000, ages=AGES_OFF, dw=DW_OFF, repairings=3, **kw)
+    elif arm == "on":
+        rows[arm] = _row(8.0, "on", **dict(dict(reindex=True, reindex_tick=T1), **kw))
+    else:
+        rows[arm] = _row(20.0, "pos", **dict(dict(switches=40, mis=24000, cut_tick=T1, td=T1), **kw))
+    with pytest.raises(ValueError):
+        _v(rows)
+
+
+def test_verdict_BANDE_DEGENEREE_refuses_a_band_with_copies_of_off():
+    """CONTRE-EXEMPLE GELÉ d'E23 (occ. 4) et d'E18 (occ. 3), revue v5 P4.1 / P5.2 / P6.2 : sept membres de la bande
+    recopient le bras éteint (même Σ|ΔW|, même S). La v5 lisait MATERIEL_HAUSSE avec une fausse alarme ex-aequo de 0,071
+    (PLUS BASSE que 2/14 alors que la vraie montait) ; la v6 refuse toute lecture et ne publie aucune fausse alarme."""
+    rows = _rows(s_on=8.0)
+    for k in range(1, 8):
+        rows[f"rep_{k:02d}"] = _rep(7.0, k, dw=DW_OFF)
     v = _v(rows)
-    assert v["verdict"] == "BANDE_INERTE" and v["band_dW_distincts"] == 1
+    assert v["verdict"] == "BANDE_DEGENEREE" and v["band_dW_distincts"] == 13 - 7
+    assert "fausse_alarme_h0_ex_aequo" not in v and "2/14 une fausse borne" in v["why"]
+    rows = _rows()
+    rows["rep_12"] = _rep(7.5, 12, dw=11000.0 + 11)                    # deux RÉPLIQUES identiques entre elles
+    assert _v(rows)["verdict"] == "BANDE_DEGENEREE"
 
 
-def test_verdict_BANDE_DEPLACEE_when_the_off_arm_is_outside_the_band():
-    """Revue v3, P5.d : si S_off sort de la bande, les témoins ne représentent pas le bras éteint -- aucune lecture, même
-    quand S_on en sort aussi."""
-    v = _v(_rows(s_on=12.0, relab_s=(8.0, 8.5, 9.0, 8.0, 8.5, 9.0, 8.0, 8.5, 9.0, 8.0, 8.5, 9.0)))
-    assert v["verdict"] == "BANDE_DEPLACEE" and v["band_min"] == 8.0 and v["S_off"] == 7.0
-
-
-def test_verdict_band_is_the_relabels_and_its_edges_belong_to_it():
-    """Bande = les 12 réétiquetages [6,5 ; 8,5] ; S_off (7,0) n'en fait pas partie mais doit y tomber. Bords DANS la
-    bande."""
+def test_verdict_band_is_S_off_plus_the_replicas_and_its_edges_belong_to_it():
+    """Revue v4, P4.a : S_off n'est pas un second test contre la bande, il EN FAIT PARTIE -- treize valeurs ; un S_off
+    loin des répliques élargit la bande au lieu de rendre un run illisible. Bords DANS la bande."""
     assert _v(s_on=8.5)["verdict"] == "NON_MATERIEL" and _v(s_on=6.5)["verdict"] == "NON_MATERIEL"
     assert _v(s_on=9.0)["verdict"] == "MATERIEL_HAUSSE" and _v(s_on=6.0)["verdict"] == "MATERIEL_BAISSE"
     v = _v()
-    assert (v["band_min"], v["band_max"]) == (6.5, 8.5) and len(v["band_values"]) == 12 and v["S_off"] == 7.0
+    assert (v["band_min"], v["band_max"]) == (6.5, 8.5) and len(v["band_values"]) == 13 and v["band_values"][0] == 7.0
+    assert v["band_dW_distincts"] == 13
+    v = _v(_rows(s_on=8.5, rep_s=(8.0, 8.5, 9.0) * 4))                 # S_off 7,0 sous les répliques : bande [7 ; 9]
+    assert v["band_min"] == 7.0 and v["verdict"] == "NON_MATERIEL"
 
 
-def test_verdict_NON_TRANCHE_when_the_positive_control_is_not_seen_above_the_band_and_S_off():
-    """Revues v2 P5.c et v3 P6.a : NON_MATERIEL exige S_pos au-dessus de la bande ET de S_off ; sinon NON_TRANCHE."""
-    assert _v(s_on=8.0, s_pos=8.5)["verdict"] == "NON_TRANCHE"
+def test_verdict_NON_TRANCHE_when_the_positive_control_does_not_leave_the_band_upward():
+    """Revue v5, P5.1 : S_off est DANS la bande, donc « au-dessus de la bande » suffit ; une seconde clause « au-dessus de
+    S_off » ne pouvait jamais échouer seule et n'est plus écrite. Le contrôle doit sortir STRICTEMENT par le haut."""
+    assert _v(s_on=8.0, s_pos=8.5)["verdict"] == "NON_TRANCHE"          # au bord : dans la bande
     assert _v(s_on=8.0, s_pos=5.0)["verdict"] == "NON_TRANCHE"          # sortie par le BAS : sens inverse, non vu
     assert _v(s_on=8.0, s_pos=9.0)["verdict"] == "NON_MATERIEL"
     assert _v(s_on=9.0, s_pos=8.0)["verdict"] == "MATERIEL_HAUSSE"       # un effet VU se lit, contrôle ou non
 
 
-def test_verdict_false_alarm_is_computed_with_ties():
-    """Revue v2, P5.d : 2/13 est une BORNE ; sur les valeurs observées, les ex-aequo la réduisent."""
+def test_verdict_false_alarm_is_computed_with_ties_over_distinct_trajectories():
+    """2/14 est une BORNE sous échangeabilité de treize trajectoires distinctes ; sur les survies observées, les
+    ex-aequo (de SURVIE, les trajectoires restant distinctes) la réduisent."""
     v = _v(s_on=8.0)
-    assert v["fausse_alarme_h0_borne"] == pytest.approx(2.0 / 13.0)
-    assert v["fausse_alarme_h0_ex_aequo"] == pytest.approx(2.0 / 13.0)   # max 8,5 et min 6,5 uniques
-    rows = _rows(relab_s=(7.0,) * 12)
-    v = _v(rows)
-    assert v["fausse_alarme_h0_ex_aequo"] == pytest.approx(1.0 / 13.0)   # S_on 8,0 seul au max, min à 12 ex-aequo
+    assert v["fausse_alarme_h0_borne"] == pytest.approx(2.0 / 14.0)
+    assert v["fausse_alarme_h0_ex_aequo"] == pytest.approx(2.0 / 14.0)   # max 8,5 et min 6,5 uniques
+    v = _v(_rows(rep_s=(7.0,) * 12))                                     # douze survies égales, douze Σ|ΔW| distinctes
+    assert v["band_dW_distincts"] == 13 and v["fausse_alarme_h0_ex_aequo"] == pytest.approx(1.0 / 14.0)
 
 
 def test_verdict_publishes_doses_per_arm_the_positive_contrast_the_floor_and_the_starvation_ceiling():
@@ -207,11 +272,21 @@ def test_verdict_publishes_doses_per_arm_the_positive_contrast_the_floor_and_the
     assert v["verdict"] == "MATERIEL_HAUSSE" and v["switches_off"] == 40 and v["t1"] == T1
     assert v["fraction_transitions_td_a_cheval"] == pytest.approx(40 / (12 * (TL - 1)))
     assert v["fraction_fenetres_episodiques_a_cheval_max"] == pytest.approx(40 / (12 * 250))
-    assert set(v["dose"]) == set(R.ARMS) and v["dose"]["pos"]["td_updates"] == T1 + 1
-    assert v["dose"]["relab_03"]["slot_switches"] == 38 and v["dose"]["on"]["slot_switches"] == 0
+    assert set(v["dose"]) == set(R.ARMS) and v["dose"]["pos"]["td_updates"] == T1
+    assert v["dose"]["rep_03"]["slot_switches"] == 38 and v["dose"]["on"]["slot_switches"] == 0
     assert v["dose"]["off"]["consensus_ticks_avec_reecriture"] == 5 and v["dose"]["on"]["rows_reindexed"] == 30
+    assert v["dose"]["off"]["consensus_phase2_ticks"] == 2 and v["dose"]["pos"]["reconstructions_phase2"] == 6
+    assert v["dose"]["rep_03"]["reseed_seed"] == 202603 and v["dose"]["off"]["reseed_seed"] is None
+    assert v["dose"]["on"]["phase2_dW_abs_sum"] == 0.0 and v["dose"]["off"]["rng_appels_apres_t1"] == 50000
+    assert v["dose"]["off"]["phase2_episode_calls"] == 1 and "phase2_episode_updates" not in v["dose"]["off"]
+    assert v["dose"]["pos"]["reconstructions_phase1"] == 1 and v["dose"]["rep_07"]["corps_apres_phase2"] is True
+    assert v["dose"]["off"]["rng_sites_apres_t1"] == 9 and v["dose"]["off"]["rng_reensemencements_monde_apres_t1"] == 0
+    assert v["rng_census_off"]["sites_apres"] == {"src/worlds/world_1_stoneage.py:1233": 1900}
+    assert len(v["switches_band"]) == 13 and v["switches_band"]["off"] == 40 and v["switches_band"]["rep_01"] == 38
+    assert v["repairings_band"]["off"] == 3 and v["repairings_band"]["rep_01"] == 2
+    assert v["reps_part_erosion"]["rep_11"] == pytest.approx(1.5 / 24.5)
     assert v["S_a"] == 31.5 and v["erosion_off"] == 24.5 and v["part_erosion_levee"] == pytest.approx(6.0 / 24.5)
-    assert v["dS_pos"] == 13.0 and len(v["relabs_dS"]) == 12 and v["relabs_dS"]["relab_11"] == 1.5
+    assert v["dS_pos"] == 13.0 and len(v["reps_dS"]) == 12 and v["reps_dS"]["rep_11"] == 1.5
     assert v["sous_plancher_off"] is True and v["thresholds"]["floor"] == 9.0 and v["plafond_famine_ticks"] == 7.2
     assert v["levier_apres_t1"] == pytest.approx((TL - T1) / TL) and v["git_sha"] == "abc123" and "fort" not in v
 
@@ -220,10 +295,65 @@ def test_verdict_NON_MATERIEL_is_upward_only_and_cites_the_cell_and_both_doses()
     v = _v(s_on=7.5, s_pos=20.0)
     assert v["verdict"] == "NON_MATERIEL" and "CETTE cellule" in v["why"] and "vers le HAUT" in v["why"]
     assert "40 commutations" in v["why"] and "30 lignes réindexées" in v["why"] and "vers le BAS, non éprouvé" in v["why"]
+    # v6.2 (porte 23, gel EN CONNAISSANCE décidé par Master 2) : un nul à UN seul pas le dit dans la chaîne rendue
+    assert "au pas publié, invariance au pas non éprouvée (E19)" in v["why"]
+
+
+def test_verdict_declares_and_publishes_the_family_of_two_tests():
+    """CONTRE-EXEMPLE GELÉ d'E23 (occ. 5), revue v6 P4.1 / P5.1 / P6.1 : le contrôle positif est un SECOND test de rang
+    contre la même bande. Déclaré et publié : MATERIEL à tort <= 2/14, contrôle positif passé par hasard <= 1/14,
+    NON_MATERIEL à tort sous double nul <= 12/210, et sa valeur sur les ex-aequo observés, citée dans le « why »."""
+    v = _v(s_on=7.5, s_pos=20.0)
+    f = v["famille"]
+    assert len(f["tests"]) == 2 and f["materiel_a_tort_h0_borne"] == pytest.approx(2 / 14)
+    assert f["controle_positif_passe_par_hasard_borne"] == pytest.approx(1 / 14)
+    assert f["non_materiel_a_tort_double_nul_borne"] == pytest.approx(12 / 210)
+    band = [7.0] + list(REP_S)
+    assert f["non_materiel_a_tort_double_nul_ex_aequo"] == R._non_materiel_a_tort_ex_aequo(7.5, 20.0, band)
+    assert v["verdict"] == "NON_MATERIEL" and "famille de DEUX tests" in v["why"] and "0.057" in v["why"]
+    assert _v(_rows(rep_s=(7.0,) * 12))["famille"]["non_materiel_a_tort_double_nul_borne"] == pytest.approx(12 / 210)
+
+
+def test_non_materiel_by_chance_rate_has_known_answers():
+    """Réponses CONNUES : 15 valeurs distinctes -> 12/210 exactement (le contrôle au sommet, le correctif ni au sommet
+    ni au fond des 14 autres) ; 14 valeurs égales et une plus haute -> 14/210 (les ex-aequo peuvent AUGMENTER le taux) ;
+    15 valeurs égales -> 0 (le contrôle ne dépasse jamais strictement)."""
+    distinct = [float(k) for k in range(13)]
+    assert R._non_materiel_a_tort_ex_aequo(20.0, 30.0, distinct) == pytest.approx(12 / 210)
+    assert R._non_materiel_a_tort_ex_aequo(7.0, 9.0, [7.0] * 13) == pytest.approx(14 / 210)
+    assert R._non_materiel_a_tort_ex_aequo(7.0, 7.0, [7.0] * 13) == 0.0
+
+
+def test_verdict_INCOMPLET_names_a_persisted_budget_cut():
+    """Revue v6, P10.1 (E13) : une coupe au plafond PENDANT la phase B entre dans l'évidence et le verdict la nomme,
+    avec son mur et sa charge -- jamais la cause générique « une cellule manque »."""
+    rows = _rows()
+    rows["rep_09"] = rows["rep_10"] = None
+    coupe = {"coupe": True, "mur_s": 10812.0, "charge": {"cpu_percent_1s": 97.0}, "non_terminees": ["rep_09", "rep_10"]}
+    v = R.identity_cell_verdict(rows, _witness(rows["off"]), 31.5, TL, coupe=coupe)
+    assert v["verdict"] == "INCOMPLET" and "COUPÉE au plafond" in v["why"] and "10812.0" in v["why"]
+    assert v["coupe"]["non_terminees"] == ["rep_09", "rep_10"]
+    assert "une cellule manque" in R.identity_cell_verdict(rows, _witness(rows["off"]), 31.5, TL)["why"]
+
+
+def test_body_matches_bassin_has_known_answers():
+    """Revue v6, P8.2 (E26) : corps identique -> conforme ; un bonus de PV écarté de 1 % -> non conforme, un écart
+    compté ; capacité d'inventaire différente -> non conforme ; attribut absent -> None (illisible, jamais conforme)."""
+    from types import SimpleNamespace as NS
+    want = {"hp_bonus": 688.827, "inv_capacity": 12, "energy_drain": 14.8883}
+
+    def ag(hp=688.827, inv=12, drain=14.8883):
+        return NS(phenotype_hp_bonus=hp, phenotype_inv_capacity=inv, phenotype_energy_drain=drain)
+    assert R.body_matches_bassin([ag(), ag()], want) == {"conforme": True, "n_ecarts": 0, "ecart_rel_max": 0.0}
+    r = R.body_matches_bassin([ag(), ag(hp=688.827 * 1.01)], want)
+    assert r["conforme"] is False and r["n_ecarts"] == 1 and r["ecart_rel_max"] == pytest.approx(0.01)
+    assert R.body_matches_bassin([ag(inv=11)], want)["conforme"] is False
+    assert R.body_matches_bassin([ag(), NS()], want)["conforme"] is None
+    assert R.body_matches_bassin([ag(drain=float("nan"))], want)["conforme"] is None
 
 
 def test_verdict_part_erosion_is_None_without_erosion():
-    rows = _rows(relab_s=(40.0,) * 11 + (40.5,))
+    rows = _rows(rep_s=(40.0,) * 11 + (40.5,))
     rows["off"]["survival"]["survival_median"] = 40.0
     assert _v(rows)["part_erosion_levee"] is None
 
@@ -294,29 +424,38 @@ def test_run_identity_cell_refuses_degenerate_args_before_any_world(monkeypatch)
         raise AssertionError("un monde a été construit avant la garde")
     monkeypatch.setattr(R, "_bassin_cohort", _boom)
     for kw in ({"arm": "maybe"}, {"arm": "on", "num_agents": 0}, {"arm": "off", "ticks_learn": 0},
-               {"arm": "relab_03", "ticks_test": -1}):
+               {"arm": "rep_03", "ticks_test": -1}, {"arm": "relab_03"}):
         with pytest.raises(ValueError):
             R.run_identity_cell(2026, **kw)
 
 
-def test_run_identity_cell_passes_the_arm_treatment_to_phase_1(monkeypatch):
-    seen = []
+def test_run_identity_cell_passes_the_arm_treatment_the_census_and_the_phase2_dose(monkeypatch):
+    seen, seen2 = [], []
     monkeypatch.setattr(R, "_bassin_cohort", lambda seed, n: ["cohorte", seed, n])
+    monkeypatch.setattr(R, "_corps_du_bassin", lambda: {"hp_bonus": 1.0, "inv_capacity": 3, "energy_drain": 1.0})
     monkeypatch.setattr(R, "phase1_learn_immortal",
                         lambda agents, seed, ticks, **kw: seen.append((agents, seed, ticks, kw)) or {"td_updates": 1})
-    monkeypatch.setattr(R, "phase2_survive_mortal", lambda agents, seed, ticks: {"survival_median": 4.0, "ticks": ticks})
+    monkeypatch.setattr(R, "phase2_survive_mortal",
+                        lambda agents, seed, ticks, **kw: seen2.append(kw) or {"survival_median": 4.0, "ticks": ticks})
     on = R.run_identity_cell(2026, "on", num_agents=3, ticks_learn=5, ticks_test=2)
     R.run_identity_cell(2026, "pos", num_agents=3, ticks_learn=5, ticks_test=2)
-    rl = R.run_identity_cell(2026, "relab_04", num_agents=3, ticks_learn=5, ticks_test=2)
-    base = {"identity_audit": True, "slot_reindex": False, "sham_relabel": 0, "cut_credit_at_t1": False}
-    assert seen[0] == (["cohorte", 2026, 3], 2026, 5, dict(base, slot_reindex=True))
-    assert seen[1][3] == dict(base, cut_credit_at_t1=True)
-    assert seen[2][3] == dict(base, sham_relabel=4)
-    assert on["treatment"]["slot_reindex"] is True and rl["arm"] == "relab_04"
+    rp = R.run_identity_cell(2026, "rep_04", num_agents=3, ticks_learn=5, ticks_test=2)
+    R.run_identity_cell(2026, "off", num_agents=3, ticks_learn=5, ticks_test=2)
+    base = {"identity_audit": True, "rng_census": True, "slot_reindex": False, "cut_credit_at_t1": False}
+    assert seen[0] == (["cohorte", 2026, 3], 2026, 5, dict(base, slot_reindex=True, reseed_at_t1=202613))
+    assert seen[1][3] == dict(base, cut_credit_at_t1=True, reseed_at_t1=202614)
+    assert seen[2][3] == dict(base, reseed_at_t1=202604)
+    assert seen[3][3] == dict(base, reseed_at_t1=None)
+    assert seen2 == [{"publier_dose": True}] * 4
+    assert on["treatment"]["slot_reindex"] is True and rp["arm"] == "rep_04"
     assert on["lr"] is None and on["num_agents"] == 3 and on["survival"]["survival_median"] == 4.0
     assert on["cpu_s"] >= 0.0 and on["elapsed_s"] >= 0.0
     assert on["consensus_phase1"] == {"ticks_avec_reecriture": 0, "lignes_reecrites": 0}   # aucun monde : aucun vote
+    assert on["consensus_phase2"] == {"ticks_avec_reecriture": 0, "lignes_reecrites": 0}
+    assert on["reconstructions_phase2"] == {"constructions": 0, "B": []}
+    assert on["reconstructions_phase1"] == {"constructions": 0, "B": []}   # revue v6, P7.1 : compté en phase 1 aussi
     assert on["plafond_famine_ticks"] is None                           # cohorte factice : drain illisible -> None
+    assert on["corps_apres_phase1"]["conforme"] is None and on["corps_apres_phase2"]["conforme"] is None   # illisible
 
 
 def test_starvation_ceiling_is_start_energy_over_metabolic_drain():
@@ -333,7 +472,7 @@ def test_lieu_publishes_the_torch_threads_or_None():
     assert lv["torch_threads"] is None or lv["torch_threads"] >= 1
 
 
-def test_run_identity_cell_real_world_minimal_publishes_the_invariant_and_switch_audit():
+def test_run_identity_cell_real_world_minimal_publishes_the_audit_the_census_and_the_phase2_dose():
     pytest.importorskip("torch")
     on = R.run_identity_cell(2026, "on", num_agents=2, ticks_learn=3, ticks_test=2)
     off = R.run_identity_cell(2026, "off", num_agents=2, ticks_learn=3, ticks_test=2)
@@ -342,4 +481,9 @@ def test_run_identity_cell_real_world_minimal_publishes_the_invariant_and_switch
     assert off["learning"]["slot_identity"]["slot_reindex"] is False
     ident = off["learning"]["slot_identity"]
     assert ident["ticks_known"] == 3 and not any(k.startswith("_") for k in ident)
+    assert ident["rng_census"]["appels_avant"] > 0 and ident["reseed_seed"] is None
+    assert off["survival"]["dose_phase2"]["dW_abs_sum"] == 0.0
+    for row in (on, off):                                               # revue v6, P7.1 et P8.2 : MESURÉS en monde réel
+        assert row["reconstructions_phase1"]["constructions"] == 1 and row["reconstructions_phase1"]["B"] == [2]
+        assert row["corps_apres_phase1"]["conforme"] is True and row["corps_apres_phase2"]["conforme"] is True
     assert np.isfinite(on["survival"]["survival_median"]) and len(on["survival"]["ages"]) == 2
