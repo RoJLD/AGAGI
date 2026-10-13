@@ -2107,6 +2107,21 @@ CALIBRATED = {
                                                         "fuite-git-dir:refusee", "git-dir-du-meme-depot:complet",
                                                         "vieux-git:jamais-complet", "suivis:head-jamais-index",
                                                         "config-heritee:log-showroot"],
+    # P4.19 R3 (2026-10-13) : lecture d'UN pas et synthèse vers l'ADR, confrontées à des réponses CONNUES par INJECTION
+    # (fabrique `base_injection`, 0 simulation) -- f connu -> branche nommée, ordre imposé, égalité à la marge = échec,
+    # instrument rompu bloquant, pas secondaire qui ne refuse jamais seul, TD(0) à dose nette égale qui retient l'entrée.
+    # témoin : tests/sandbox/test_td_step_pilot_r3.py
+    "tools/td_step_pilot_r3.py::classify_pas": ["injection-sans-bruit:f-connu->branche-nommee(7-fractions)",
+                                                "INCOMPLET:cellule-manquante-ou-pre-vol-absent",
+                                                "egalite-exacte-a-la-marge:compte-comme-echec",
+                                                "instrument-rompu:bloque-toute-lecture(3-formes)",
+                                                "chemin-lu-avant-effet", "petit-gain-total:F_INDEFINI",
+                                                "comptes-litteraux-ADR-publies"],
+    "tools/td_step_pilot_r3.py::verdict_synthese": ["ENTRE:TRANSPORTE-aux-deux-pas-et-garde-E19-PASSE",
+                                                    "garde-E19-non-appelee:ATTEND",
+                                                    "pas-secondaire-ne-refuse-jamais-seul:primaire-REFUSEE",
+                                                    "td0-a-dose-nette-egale-fait-jeu-egal:ATTEND",
+                                                    "bras-apparie-non-lisible:manque-nomme"],
 }
 
 _GENOMES = os.path.join("results", "warm007_genomes")
