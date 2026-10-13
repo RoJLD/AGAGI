@@ -9,6 +9,17 @@ from src.worlds.world_1_stoneage import Biosphere3D, WorldConfig
 from src.agents.mamba_agent import MambaAgent
 
 
+# P2.169 (2026-10-13) — GARDE TORCH, par test. Ces tests construisent le backend torch par le harnais
+# (src/agents/backend_torch.py lève NotImplementedError sans torch), sans importer torch eux-mêmes : la CI, qui n'a
+# pas torch, les rendait ROUGES d'environnement — invisibles jusqu'à P2.165, le filet de bail fuité les sautant depuis
+# le 2026-09-16. Mesurés VERTS avec torch avant d'être gardés (P2.169). Les autres tests du fichier tournent en CI.
+import importlib.util  # noqa: E402
+import pytest  # noqa: E402
+_TORCH = importlib.util.find_spec("torch") is not None
+requires_torch = pytest.mark.skipif(not _TORCH, reason="torch absent : le harnais construit le backend torch "
+                                    "(src/agents/backend_torch.py) — P2.169")
+
+
 def _tiny_world(use_torch, n_agents=12):
     cfg = WorldConfig()
     cfg.size = 16
@@ -31,6 +42,7 @@ def test_flag_off_uses_legacy_and_no_persistent_pop():
     assert w._torch_pop is None
 
 
+@requires_torch
 def test_flag_on_returns_persistent_torch_pop():
     w = _tiny_world(use_torch=True)
     if not w.agents:
@@ -42,6 +54,7 @@ def test_flag_on_returns_persistent_torch_pop():
     assert type(bm1).backend == "torch"
 
 
+@requires_torch
 def test_one_tick_torch_forward_and_learn():
     w = _tiny_world(use_torch=True)
     if not w.agents:
@@ -54,6 +67,7 @@ def test_one_tick_torch_forward_and_learn():
     assert W0.shape == W1.shape          # Baldwin : W réécrit, forme stable
 
 
+@requires_torch
 def test_traj_buffer_slides_with_maxlen():
     w = _tiny_world(use_torch=True)
     w.torch_episode_k = 3
@@ -74,6 +88,7 @@ def test_traj_buffer_slides_with_maxlen():
     assert len(ids) == len(acts)                   # ids alignés sur les actions
 
 
+@requires_torch
 def test_learn_episode_applies_real_credit_during_steps():
     """Prouve qu'un crédit épisodique RÉEL (float non-None) est appliqué PENDANT step(), pas
     via un appel manuel post-boucle. L'ancien test (`_maybe_learn_episode` invoqué à la main
@@ -130,6 +145,7 @@ def test_torch_inworld_requires_benchmark_mode():
         w._get_batch_model(models)
 
 
+@requires_torch
 def test_maybe_learn_episode_skips_on_pop_desync():
     # cohorte courante != pop.B -> garde pop_desync -> None sans crash
     w = _tiny_world(use_torch=True)

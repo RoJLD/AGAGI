@@ -1913,7 +1913,10 @@ sous un détenteur FACTICE « un-run (pid=4242) » ; le crochet arme le filet (`
 rien ne le désarmait — chaque copie du conftest a son propre `_NET`. Depuis `7ed985d6` (2026-09-16, P2.69 ii), tout
 test construisant un monde collecté APRÈS ce fichier était SAUTÉ, CI comprise : le journal du job suite-complete du
 run 38393984184 (à `46f30365`) porte, sur les deux rouges flatland de P2.113 (d), « Skipped: [filet runtime] bail
-« kuzu » détenu par un-run (pid=4242) ». **Exposition** : mesurée par la CI qui SUIT le push de ce commit (`tools.ci_diff_failed`) — suite-complete lance `tests/` par répertoire, donc chaque test ressuscité y tournera et chaque rouge sera nommé ; au-dessus des 5 rouges connus, ce sont de VRAIS rouges cachés depuis le 16/09. ⚠️ Angle mort : le sous-ensemble torch, que la CI saute — 36 fichiers collectés après `test_lease_guard.py` dépendent de torch (règle STATIQUE, rien lancé : ordre de pytest, noms triés ; source portant `importorskip("torch")`, `skipif(…torch…)`, `requires_torch`, `_TORCH` ou `import torch`), dont 16 avec un indice de monde : `tests/sandbox/test_mute_orchestrators_injection_3.py`, `tests/sandbox/test_orchestrator_injection.py`, `tests/sandbox/test_rng_census.py`, `tests/sandbox/test_s2_bassin_fragility.py`, `tests/sandbox/test_sim_session.py`, `tests/sandbox/test_td_step_pilot.py`, `tests/sandbox/test_torch_batch_model.py`, `tests/sandbox/test_torch_bptt_meansends.py`, `tests/sandbox/test_torch_effective_step.py`, `tests/sandbox/test_torch_gate_persist_ab.py`, `tests/sandbox/test_torch_parity_probe.py`, `tests/sandbox/test_torch_prod_gate.py`, `tests/sandbox/test_torch_throw_gate_world.py`, `tests/sandbox/test_warmstart_evolution_inworld.py`, `tests/test_bilinear_composition_probe.py`, `tests/test_bilinear_substrate.py` — **exposition torch NON MESURÉE**. ⚠️ Le test censé prouver le NO-OP
+« kuzu » détenu par un-run (pid=4242) ». **Exposition** : mesurée par la CI qui SUIT le push de ce commit (`tools.ci_diff_failed`) — suite-complete lance `tests/` par répertoire, donc chaque test ressuscité y tournera et chaque rouge sera nommé ; au-dessus des 5 rouges connus, ce sont de VRAIS rouges cachés depuis le 16/09. ⚠️ Angle mort : le sous-ensemble torch, que la CI saute — 36 fichiers collectés après `test_lease_guard.py` dépendent de torch (règle STATIQUE, rien lancé : ordre de pytest, noms triés ; source portant `importorskip("torch")`, `skipif(…torch…)`, `requires_torch`, `_TORCH` ou `import torch`), dont 16 avec un indice de monde : `tests/sandbox/test_mute_orchestrators_injection_3.py`, `tests/sandbox/test_orchestrator_injection.py`, `tests/sandbox/test_rng_census.py`, `tests/sandbox/test_s2_bassin_fragility.py`, `tests/sandbox/test_sim_session.py`, `tests/sandbox/test_td_step_pilot.py`, `tests/sandbox/test_torch_batch_model.py`, `tests/sandbox/test_torch_bptt_meansends.py`, `tests/sandbox/test_torch_effective_step.py`, `tests/sandbox/test_torch_gate_persist_ab.py`, `tests/sandbox/test_torch_parity_probe.py`, `tests/sandbox/test_torch_prod_gate.py`, `tests/sandbox/test_torch_throw_gate_world.py`, `tests/sandbox/test_warmstart_evolution_inworld.py`, `tests/test_bilinear_composition_probe.py`, `tests/test_bilinear_substrate.py` — **exposition torch NON MESURÉE**. ⚠️ **RECTIFIÉ le 2026-10-13 (P2.169)** : cette liste était un PLANCHER, et elle
+ne le disait pas. La CI qui a suivi (run 38401933962) a rendu 26 rouges dans 6 fichiers ABSENTS de la liste, qui
+dépendent de torch INDIRECTEMENT — par `src/agents/backend_torch.py` — sans aucun marqueur dans leur source : le motif
+voyait les marqueurs, pas la dépendance. Exposition mesurée par cette CI : 124 sauts de moins (376 → 252). ⚠️ Le test censé prouver le NO-OP
 (`test_the_runtime_net_is_NOT_armed_when_no_lease_is_held`) passait sur l'état FUITÉ : il capturait comme « origine »
 le constructeur déjà remplacé.
 ✅ **FERMÉE le 2026-10-13 (agagi-32)** — (a) le détenteur factice tient un bail PRIVÉ sous `tmp_path` ; les sessions
@@ -1959,6 +1962,32 @@ refus qui nomme les trois essais ; le bloc précède toute porte du crochet vers
 périmètre, dit : `post-commit` appelle encore le `python` du PATH (`check_staged_authorship declare`, sans numpy,
 sous `|| true`). Registre : E35 (classe décidée par Master 2).
 <!-- closes_when:grep_present=tools/hooks/pre-commit::AGAGI:INTERPRETE -->
+
+**P2.169 — rang 2 bis (décidé par Master 2 le 2026-10-13 : la suite de P2.165, avant P2.144 ; fait le soir même sur
+l'ordre DIRECT de robla) — ✅ CLOSE le 2026-10-13 (ouverte et fermée dans la même passe) — 26 tests dépendent de
+torch SANS le dire : la CI, qui n'a pas torch, les rendait ROUGES d'environnement, et la fuite du filet de bail les
+cachait depuis le 2026-09-16.**
+Preuve : la CI suite-complete qui a suivi P2.165 (run 38401933962, à `74c665f3`) contre celle du revert (run
+38393984184) — 29 rouges contre 5, 3948 passés contre 3834, 252 sautés contre 376 (124 sauts de moins : c'est
+l'exposition MESURÉE de la fuite, CI comprise), job de 11 min 22 à 27 min 49. Les 2 flatland de P2.113 (d) ont
+disparu ; 26 rouges sont NOUVEAUX, et TOUS meurent avant leur première assertion de « NotImplementedError: backend
+'torch' : PyTorch non installé », levée par `src/agents/backend_torch.py:104` : `test_s2_credit_ablation.py` (7 sur
+21), `test_s2_credit_ablation_2.py` (6 sur 24), `test_s2_reward_ablation.py` (4 sur 20), `test_torch_inworld.py` (5
+sur 8), `test_torch_throw_gate_factorial.py` (3 sur 6), `test_torch_throw_gate_inworld_ab.py` (1 sur 2). Aucun de
+ces fichiers ne gardait sa dépendance (0 `importorskip`, 0 `skipif` torch) : ils construisent le backend torch PAR
+LE HARNAIS, sans importer torch eux-mêmes — un NotImplementedError n'est pas un ImportError. Vrai rouge ou rouge
+d'environnement ? Tranché AVANT de garder (sinon le saut cacherait de nouveau un vrai rouge, la face E4 qu'on venait
+de fermer) : AVEC torch, sous le 3.13 du projet, les 17 tests S2 sont VERTS — mesures RELAYÉES par Master 2, non
+relancées par agagi-32 : session E34 (agagi-c4) le 2026-10-13 après-midi sur l'état fusionné, 21 / 24 / 20 passés,
+rc 0 ; audit A sur `85e05003`, 21 et 24 ; et les 9 autres VERTS, mesurés par agagi-32 à `b2f39ec8` (torch 2.6.0,
+9 passés en 68 s : 5 + 3 + 1). Les 26 sont donc des rouges d'ENVIRONNEMENT, aucun ne touche un résultat publié.
+✅ **FERMÉE le 2026-10-13 (agagi-32)** — garde PAR TEST, jamais par module (les 55 autres tests de ces 81 tournent
+en CI et doivent continuer) : `_TORCH = importlib.util.find_spec("torch") is not None` et `requires_torch =
+pytest.mark.skipif(not _TORCH, …)`, la convention de `test_s2_bassin_fragility.py`, posés sur les 26 noms relus dans
+le journal CI (jamais recopiés). Windows, avec torch : les 6 fichiers EN ENTIER, 81 passés en 85 s, 0 saut — la garde ne retire rien quand torch est là. Linux (WSL), venv de la CI SANS torch, contrôle
+apparié — qui vaut mutation, puisque retirer la garde EST l'état d'avant : AVANT (copie de d1 b2f39ec8) 26 rouges « PyTorch non installé » et 55 verts, exactement la CI ; APRÈS 55 verts et 26 sautés, chacun nommant P2.169, 0 rouge. Registre : E4 (la liste statique de
+P2.165, ci-dessous).
+<!-- closes_when:grep_present=tests/sandbox/test_torch_inworld.py::requires_torch = pytest.mark.skipif -->
 
 **P2.143 — rang 6, GELÉE jusqu'à la levée du gel de méthode (une porte, qui ne bloque aucun run) (rang fixé par Master 2 le 2026-09-28) — OUVERTE (2026-09-28, extension exécutable d'E8 DÉCIDÉE par Master 2 ; inscrite par la session SCIENCE-HARNAIS) — Un nombre de PROSE qui porte une unité ou un compte, dans un record, DÉCLARE sa source ; une porte la vérifie.**
 Preuve : E8, occurrence du 2026-09-28 — six valeurs recopiées au lieu d'être relues en un jour (0,82 d'un rapport de chemin cité comme un rapport net ; 3 processus pour 6 ; 4e-7 pour 2,1e-5 ; « 24 à 718 », chiffre de conception cité comme mesure ; dose 1,0 pour ≈ 0,66 active ; heures de build estimées), toutes attrapées avant publication par une relecture contre la source — donc par un humain ou une revue, jamais par une porte : la porte 19 ne lit que « nom = valeur » d'un paramètre de régime (revue du record [[EDR-S2-BASSIN-FRAGILITY]], P2.b : elle rend SANS_PARAMETRE sur ce record, qui écrit « phase 2 à 200 ticks »). **Forme** : une balise DÉCLARÉE par l'auteur à côté du nombre — chemin `results/*.json` SUIVI, pointeur JSON, valeur et tolérance — sur le modèle des balises de compte de la porte 8 ; la porte relit le fichier et compare ; une valeur recalculée (médiane, rapport) déclare sa fonction et ses clés d'entrée. Ce qui est porteur est DÉCLARÉ, jamais deviné : la porte ne cherche pas les nombres NON balisés (elle les COMPTE et les rapporte, comme la porte 4 rapporte les entrées sans clause). Contre-exemples gelés : les cinq valeurs de cette occurrence qui ont une source JSON. À la livraison, la forme passe exécutable. *Coût : agent 3-4 h.* Sans clause `closes_when` (déclaré) : le nom de la porte n'est pas fixé.

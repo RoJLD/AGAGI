@@ -32,6 +32,16 @@ from tools.evo_runs import s2_reward_ablation as R  # noqa: E402
 # --------------------------------------------------------------------------------------------------
 
 
+# P2.169 (2026-10-13) — GARDE TORCH, par test. Ces tests construisent le backend torch par le harnais
+# (src/agents/backend_torch.py lève NotImplementedError sans torch), sans importer torch eux-mêmes : la CI, qui n'a
+# pas torch, les rendait ROUGES d'environnement — invisibles jusqu'à P2.165, le filet de bail fuité les sautant depuis
+# le 2026-09-16. Mesurés VERTS avec torch avant d'être gardés (P2.169). Les autres tests du fichier tournent en CI.
+import importlib.util  # noqa: E402
+_TORCH = importlib.util.find_spec("torch") is not None
+requires_torch = pytest.mark.skipif(not _TORCH, reason="torch absent : le harnais construit le backend torch "
+                                    "(src/agents/backend_torch.py) — P2.169")
+
+
 def test_arm_table_declares_the_frozen_control_the_full_reward_and_delta_energy_alone():
     assert R.ARMS == ("a_frozen", "b_full", "b_energy")
     # None = échelle du MONDE (publiée par `reward_defaults`, jamais recopiée) ; 0.0 = terme COUPÉ.
@@ -58,6 +68,7 @@ def test_reward_defaults_are_read_from_a_world_instance():
         e.memory_retriever.stop()
 
 
+@requires_torch
 def test_first_tick_reward_decomposes_exactly_into_delta_energy_plus_novelty_and_a_dead_curiosity():
     """UN agent du bassin, UN tick, quatre mondes au même seed (identiques jusqu'à la récompense) :
     r_energy == Δénergie EXACT ; r_nov − r_energy == 3/√count ; r_cur − r_energy == 2·surprise == 0 (la
@@ -87,6 +98,7 @@ def test_first_tick_reward_decomposes_exactly_into_delta_energy_plus_novelty_and
     assert float(full["rewards"][0]) != pytest.approx(float(energy["rewards"][0]), abs=1e-6)
 
 
+@requires_torch
 def test_preflight_reward_seam_publishes_the_decomposition_on_a_cohort():
     out = R.preflight_reward_seam(2026, num_agents=4)
     for k in ("seed", "num_agents", "max_abs_residual", "intrinsic_share_full", "reward_defaults",
@@ -97,6 +109,7 @@ def test_preflight_reward_seam_publishes_the_decomposition_on_a_cohort():
     assert out["reward_defaults"]["curiosity_scale"] == pytest.approx(2.0)
 
 
+@requires_torch
 def test_curiosity_term_is_structurally_zero_under_the_torch_backend():
     """Trouvé au SMOKE du 2026-09-14 (E2 attrapée avant 10 h de calcul) : sous `use_torch_inworld`, le
     forward torch n'écrit JAMAIS `model.surprise` (seul le forward legacy numpy le pose,
@@ -111,6 +124,7 @@ def test_curiosity_term_is_structurally_zero_under_the_torch_backend():
     assert out["curiosity_scale_default"] == pytest.approx(2.0)
 
 
+@requires_torch
 def test_preflight_curiosity_dead_refuses_a_live_surprise(monkeypatch):
     """Contre-exemple : si la surprise est NON nulle, le pré-vol doit LEVER (le design à 3 bras suppose
     la curiosité morte ; le design à 5 bras du sceau original serait alors requis)."""

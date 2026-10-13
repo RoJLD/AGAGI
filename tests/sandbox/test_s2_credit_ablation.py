@@ -27,6 +27,16 @@ from tools.evo_runs import s2_credit_ablation as R  # noqa: E402
 # --------------------------------------------------------------------------------------------------
 
 
+# P2.169 (2026-10-13) — GARDE TORCH, par test. Ces tests construisent le backend torch par le harnais
+# (src/agents/backend_torch.py lève NotImplementedError sans torch), sans importer torch eux-mêmes : la CI, qui n'a
+# pas torch, les rendait ROUGES d'environnement — invisibles jusqu'à P2.165, le filet de bail fuité les sautant depuis
+# le 2026-09-16. Mesurés VERTS avec torch avant d'être gardés (P2.169). Les autres tests du fichier tournent en CI.
+import importlib.util  # noqa: E402
+_TORCH = importlib.util.find_spec("torch") is not None
+requires_torch = pytest.mark.skipif(not _TORCH, reason="torch absent : le harnais construit le backend torch "
+                                    "(src/agents/backend_torch.py) — P2.169")
+
+
 def test_arm_table_declares_the_frozen_control_the_full_credit_and_four_credit_variants():
     assert R.ARMS == ("a_frozen", "b_full", "b_zero", "b_neg", "b_lr", "b_tdoff")
     assert R.LEARNING_ARMS == ("b_full", "b_zero", "b_neg", "b_lr", "b_tdoff")
@@ -43,6 +53,7 @@ def test_arm_table_declares_the_frozen_control_the_full_credit_and_four_credit_v
 # --------------------------------------------------------------------------------------------------
 
 
+@requires_torch
 def test_learning_trace_full_credit_reaches_the_learner_with_the_published_step():
     t = R._learning_trace(2026, num_agents=2, ticks=16)
     assert t["summary"]["td_updates"] >= 1 and len(t["td_rewards"]) >= 1
@@ -51,6 +62,7 @@ def test_learning_trace_full_credit_reaches_the_learner_with_the_published_step(
     assert all(np.isfinite(t["td_rewards"]))
 
 
+@requires_torch
 def test_learning_trace_zero_scale_passes_only_zero_rewards_to_the_learner():
     """`reward_scale = 0` : le learner d'origine reçoit des récompenses TOUTES nulles (TD et épisodique),
     et met quand même à jour (l'erreur TD = γV' − V n'est pas nulle) : un bras SANS signal, pas sans pas."""
@@ -60,6 +72,7 @@ def test_learning_trace_zero_scale_passes_only_zero_rewards_to_the_learner():
     assert t["summary"]["td_updates"] >= 1 and t["summary"]["reward_scale"] == 0.0
 
 
+@requires_torch
 def test_learning_trace_negative_scale_flips_the_sign_exactly():
     """`reward_scale = −1` : la trace atteignant le learner est la NÉGATION bit-exacte de la trace publiée
     (float32 : −x est exact) sur le PREMIER tick — après, les politiques divergent (elles apprennent
@@ -72,6 +85,7 @@ def test_learning_trace_negative_scale_flips_the_sign_exactly():
     assert any(r != 0.0 for r in full["first_td_rewards"])      # la négation d'un zéro ne prouve rien
 
 
+@requires_torch
 def test_learning_trace_td_off_never_reaches_the_td_learner_but_episodes_do():
     t = R._learning_trace(2026, num_agents=2, ticks=17, td_enabled=False)
     assert t["td_rewards"] == [] and t["summary"]["td_updates"] == 0 and t["summary"]["td_calls"] >= 17
@@ -79,6 +93,7 @@ def test_learning_trace_td_off_never_reaches_the_td_learner_but_episodes_do():
     assert t["summary"]["dW_abs_sum"] > 0.0                     # l'épisodique SEUL bouge les poids
 
 
+@requires_torch
 def test_learning_trace_lr_low_publishes_the_step_and_moves_less():
     full = R._learning_trace(2026, num_agents=2, ticks=16)
     low = R._learning_trace(2026, num_agents=2, ticks=16, lr=0.004)
@@ -86,6 +101,7 @@ def test_learning_trace_lr_low_publishes_the_step_and_moves_less():
     assert 0.0 < low["summary"]["dW_abs_sum"] < full["summary"]["dW_abs_sum"]
 
 
+@requires_torch
 def test_preflight_credit_seams_publishes_the_five_traces():
     out = R.preflight_credit_seams(2026, num_agents=2, ticks=16)
     for k in ("seed", "num_agents", "ticks", "zero_all_rewards_null", "neg_first_tick_exact_negation",
@@ -97,6 +113,7 @@ def test_preflight_credit_seams_publishes_the_five_traces():
     assert set(out["dW_abs_sum"]) == {"full", "zero", "neg", "lr", "tdoff"}
 
 
+@requires_torch
 def test_preflight_credit_seams_refuses_a_leaking_zero_seam(monkeypatch):
     """Contre-exemple : si le bras « zéro » laissait passer une récompense non nulle, le pré-vol LÈVE."""
     from tools.experiment_preflight import PreflightError
