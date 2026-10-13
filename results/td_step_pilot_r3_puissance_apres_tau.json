@@ -1,0 +1,459 @@
+{
+ "modele": "Puissance de la lecture de R3 APRÈS la mesure de τ sur les seeds tenues à l'écart (results/td_step_pilot_r3_tau.json),\npour l'étape (2) de la démarche validée par robla (marge ou compte de PAS_D_EFFET choisis sur cette mesure, modèle de\nbruit DÉCLARÉ). Modèle déclaré, sans bruit d'éval (éval exhaustive, entraînement déterministe par seed) :\n  d_s ~ N(μ, τ) avec μ, τ MESURÉS sur 13-24 ; lam0 = 110 ; lam09 = lam0 + d_s ; sham09 = lam0 + f·d_s + σ_e·z.\nσ_e (écart propre du sham, jamais mesuré avant le sceau -- le sham ne tourne pas sur les seeds tenues à l'écart) est\npris égal à τ (écart d'une DIFFÉRENCE entre deux bras d'un même seed, mesuré), et à 9,3 en sensibilité.\nGrille de candidats : marge ∈ {29, 20, 15, 10, 0} pas × compte ∈ {11, 10}/12. Pour chacun : P(TRANSPORTE | f=0),\nP(PAS_PLUS_GROS | f=1) (puissance), P(TRANSPORTE | f=0,3 ; 0,5) et P(PAS_PLUS_GROS | f=0,6) (fausses lectures).\nVRAIE lecture `classify_pas`, 0 simulation. Usage : python <ce fichier> <racine>",
+ "mu_pas": 34.5,
+ "tau_pas": 6.68104510060841,
+ "source": "results/td_step_pilot_r3_tau.json",
+ "n_rep": 400,
+ "graine": 41902,
+ "resultats": {
+  "marge=29|compte=11|sigma_e=6.7": {
+   "0.0": {
+    "PAS_D_EFFET": 0.825,
+    "SHAM_NUIT": 0.01,
+    "TRANSPORTE": 0.165
+   },
+   "0.3": {
+    "PAS_D_EFFET": 0.7675,
+    "SHAM_PARTIEL": 0.23,
+    "TRANSPORTE": 0.0025
+   },
+   "0.5": {
+    "PAS_D_EFFET": 0.815,
+    "SHAM_PARTIEL": 0.185
+   },
+   "0.6": {
+    "PAS_D_EFFET": 0.81,
+    "SHAM_PARTIEL": 0.19
+   },
+   "1.0": {
+    "PAS_D_EFFET": 0.7975,
+    "PAS_PLUS_GROS": 0.2,
+    "SHAM_PARTIEL": 0.0025
+   }
+  },
+  "marge=29|compte=11|sigma_e=9.3": {
+   "0.0": {
+    "PAS_D_EFFET": 0.7975,
+    "SHAM_NUIT": 0.005,
+    "SHAM_PARTIEL": 0.005,
+    "TRANSPORTE": 0.1925
+   },
+   "0.3": {
+    "PAS_D_EFFET": 0.775,
+    "SHAM_PARTIEL": 0.22,
+    "TRANSPORTE": 0.005
+   },
+   "0.5": {
+    "PAS_D_EFFET": 0.7925,
+    "SHAM_PARTIEL": 0.2075
+   },
+   "0.6": {
+    "PAS_D_EFFET": 0.785,
+    "SHAM_PARTIEL": 0.215
+   },
+   "1.0": {
+    "PAS_D_EFFET": 0.8075,
+    "PAS_PLUS_GROS": 0.1875,
+    "SHAM_PARTIEL": 0.005
+   }
+  },
+  "marge=29|compte=10|sigma_e=6.7": {
+   "0.0": {
+    "PAS_D_EFFET": 0.5275,
+    "SHAM_NUIT": 0.025,
+    "SHAM_PARTIEL": 0.0025,
+    "TRANSPORTE": 0.445
+   },
+   "0.3": {
+    "PAS_D_EFFET": 0.555,
+    "SHAM_PARTIEL": 0.44,
+    "TRANSPORTE": 0.005
+   },
+   "0.5": {
+    "PAS_D_EFFET": 0.535,
+    "SHAM_PARTIEL": 0.465
+   },
+   "0.6": {
+    "PAS_D_EFFET": 0.5325,
+    "SHAM_PARTIEL": 0.4675
+   },
+   "1.0": {
+    "PAS_D_EFFET": 0.5225,
+    "PAS_PLUS_GROS": 0.475,
+    "SHAM_PARTIEL": 0.0025
+   }
+  },
+  "marge=29|compte=10|sigma_e=9.3": {
+   "0.0": {
+    "PAS_D_EFFET": 0.555,
+    "SHAM_NUIT": 0.0475,
+    "SHAM_PARTIEL": 0.015,
+    "TRANSPORTE": 0.3825
+   },
+   "0.3": {
+    "PAS_D_EFFET": 0.52,
+    "SHAM_PARTIEL": 0.47,
+    "TRANSPORTE": 0.01
+   },
+   "0.5": {
+    "PAS_D_EFFET": 0.5425,
+    "SHAM_PARTIEL": 0.4575
+   },
+   "0.6": {
+    "PAS_D_EFFET": 0.5725,
+    "SHAM_PARTIEL": 0.4275
+   },
+   "1.0": {
+    "PAS_D_EFFET": 0.5275,
+    "PAS_PLUS_GROS": 0.4575,
+    "SHAM_PARTIEL": 0.015
+   }
+  },
+  "marge=20|compte=11|sigma_e=6.7": {
+   "0.0": {
+    "PAS_D_EFFET": 0.01,
+    "SHAM_NUIT": 0.0875,
+    "SHAM_PARTIEL": 0.0075,
+    "TRANSPORTE": 0.895
+   },
+   "0.3": {
+    "PAS_D_EFFET": 0.025,
+    "SHAM_PARTIEL": 0.9625,
+    "TRANSPORTE": 0.0125
+   },
+   "0.5": {
+    "PAS_D_EFFET": 0.0175,
+    "SHAM_PARTIEL": 0.9825
+   },
+   "0.6": {
+    "PAS_D_EFFET": 0.0175,
+    "SHAM_PARTIEL": 0.9825
+   },
+   "1.0": {
+    "PAS_D_EFFET": 0.0225,
+    "PAS_PLUS_GROS": 0.9675,
+    "SHAM_PARTIEL": 0.01
+   }
+  },
+  "marge=20|compte=11|sigma_e=9.3": {
+   "0.0": {
+    "PAS_D_EFFET": 0.0175,
+    "SHAM_NUIT": 0.0675,
+    "SHAM_PARTIEL": 0.06,
+    "TRANSPORTE": 0.855
+   },
+   "0.3": {
+    "PAS_D_EFFET": 0.0275,
+    "SHAM_PARTIEL": 0.955,
+    "TRANSPORTE": 0.0175
+   },
+   "0.5": {
+    "PAS_D_EFFET": 0.02,
+    "SHAM_PARTIEL": 0.98
+   },
+   "0.6": {
+    "PAS_D_EFFET": 0.0175,
+    "PAS_PLUS_GROS": 0.0025,
+    "SHAM_PARTIEL": 0.98
+   },
+   "1.0": {
+    "PAS_D_EFFET": 0.01,
+    "PAS_PLUS_GROS": 0.9275,
+    "SHAM_PARTIEL": 0.0625
+   }
+  },
+  "marge=20|compte=10|sigma_e=6.7": {
+   "0.0": {
+    "SHAM_NUIT": 0.0725,
+    "SHAM_PARTIEL": 0.0075,
+    "TRANSPORTE": 0.92
+   },
+   "0.3": {
+    "SHAM_PARTIEL": 0.995,
+    "TRANSPORTE": 0.005
+   },
+   "0.5": {
+    "SHAM_PARTIEL": 1.0
+   },
+   "0.6": {
+    "SHAM_PARTIEL": 1.0
+   },
+   "1.0": {
+    "PAS_PLUS_GROS": 1.0
+   }
+  },
+  "marge=20|compte=10|sigma_e=9.3": {
+   "0.0": {
+    "SHAM_NUIT": 0.0625,
+    "SHAM_PARTIEL": 0.055,
+    "TRANSPORTE": 0.8825
+   },
+   "0.3": {
+    "SHAM_PARTIEL": 0.985,
+    "TRANSPORTE": 0.015
+   },
+   "0.5": {
+    "SHAM_PARTIEL": 1.0
+   },
+   "0.6": {
+    "SHAM_PARTIEL": 1.0
+   },
+   "1.0": {
+    "PAS_PLUS_GROS": 0.925,
+    "SHAM_PARTIEL": 0.075
+   }
+  },
+  "marge=15|compte=11|sigma_e=6.7": {
+   "0.0": {
+    "PAS_D_EFFET": 0.0025,
+    "SHAM_NUIT": 0.075,
+    "SHAM_PARTIEL": 0.0025,
+    "TRANSPORTE": 0.92
+   },
+   "0.3": {
+    "SHAM_PARTIEL": 0.9875,
+    "TRANSPORTE": 0.0125
+   },
+   "0.5": {
+    "SHAM_PARTIEL": 1.0
+   },
+   "0.6": {
+    "SHAM_PARTIEL": 1.0
+   },
+   "1.0": {
+    "PAS_PLUS_GROS": 0.9975,
+    "SHAM_PARTIEL": 0.0025
+   }
+  },
+  "marge=15|compte=11|sigma_e=9.3": {
+   "0.0": {
+    "SHAM_NUIT": 0.0675,
+    "SHAM_PARTIEL": 0.0775,
+    "TRANSPORTE": 0.855
+   },
+   "0.3": {
+    "SHAM_PARTIEL": 0.98,
+    "TRANSPORTE": 0.02
+   },
+   "0.5": {
+    "SHAM_PARTIEL": 1.0
+   },
+   "0.6": {
+    "SHAM_PARTIEL": 1.0
+   },
+   "1.0": {
+    "PAS_PLUS_GROS": 0.95,
+    "SHAM_PARTIEL": 0.05
+   }
+  },
+  "marge=15|compte=10|sigma_e=6.7": {
+   "0.0": {
+    "SHAM_NUIT": 0.0775,
+    "SHAM_PARTIEL": 0.01,
+    "TRANSPORTE": 0.9125
+   },
+   "0.3": {
+    "SHAM_PARTIEL": 0.99,
+    "TRANSPORTE": 0.01
+   },
+   "0.5": {
+    "SHAM_PARTIEL": 1.0
+   },
+   "0.6": {
+    "SHAM_PARTIEL": 1.0
+   },
+   "1.0": {
+    "PAS_PLUS_GROS": 0.99,
+    "SHAM_PARTIEL": 0.01
+   }
+  },
+  "marge=15|compte=10|sigma_e=9.3": {
+   "0.0": {
+    "SHAM_NUIT": 0.085,
+    "SHAM_PARTIEL": 0.075,
+    "TRANSPORTE": 0.84
+   },
+   "0.3": {
+    "SHAM_PARTIEL": 0.99,
+    "TRANSPORTE": 0.01
+   },
+   "0.5": {
+    "SHAM_PARTIEL": 1.0
+   },
+   "0.6": {
+    "SHAM_PARTIEL": 1.0
+   },
+   "1.0": {
+    "PAS_PLUS_GROS": 0.9475,
+    "SHAM_PARTIEL": 0.0525
+   }
+  },
+  "marge=10|compte=11|sigma_e=6.7": {
+   "0.0": {
+    "SHAM_NUIT": 0.065,
+    "SHAM_PARTIEL": 0.005,
+    "TRANSPORTE": 0.93
+   },
+   "0.3": {
+    "SHAM_PARTIEL": 0.9925,
+    "TRANSPORTE": 0.0075
+   },
+   "0.5": {
+    "SHAM_PARTIEL": 1.0
+   },
+   "0.6": {
+    "SHAM_PARTIEL": 1.0
+   },
+   "1.0": {
+    "PAS_PLUS_GROS": 0.9975,
+    "SHAM_PARTIEL": 0.0025
+   }
+  },
+  "marge=10|compte=11|sigma_e=9.3": {
+   "0.0": {
+    "SHAM_NUIT": 0.0725,
+    "SHAM_PARTIEL": 0.0725,
+    "TRANSPORTE": 0.855
+   },
+   "0.3": {
+    "SHAM_PARTIEL": 0.9825,
+    "TRANSPORTE": 0.0175
+   },
+   "0.5": {
+    "SHAM_PARTIEL": 1.0
+   },
+   "0.6": {
+    "PAS_PLUS_GROS": 0.0025,
+    "SHAM_PARTIEL": 0.9975
+   },
+   "1.0": {
+    "PAS_PLUS_GROS": 0.9325,
+    "SHAM_PARTIEL": 0.0675
+   }
+  },
+  "marge=10|compte=10|sigma_e=6.7": {
+   "0.0": {
+    "SHAM_NUIT": 0.065,
+    "TRANSPORTE": 0.935
+   },
+   "0.3": {
+    "SHAM_PARTIEL": 0.99,
+    "TRANSPORTE": 0.01
+   },
+   "0.5": {
+    "SHAM_PARTIEL": 1.0
+   },
+   "0.6": {
+    "SHAM_PARTIEL": 1.0
+   },
+   "1.0": {
+    "PAS_PLUS_GROS": 1.0
+   }
+  },
+  "marge=10|compte=10|sigma_e=9.3": {
+   "0.0": {
+    "SHAM_NUIT": 0.0775,
+    "SHAM_PARTIEL": 0.0575,
+    "TRANSPORTE": 0.865
+   },
+   "0.3": {
+    "SHAM_PARTIEL": 0.9725,
+    "TRANSPORTE": 0.0275
+   },
+   "0.5": {
+    "SHAM_PARTIEL": 1.0
+   },
+   "0.6": {
+    "SHAM_PARTIEL": 1.0
+   },
+   "1.0": {
+    "PAS_PLUS_GROS": 0.9325,
+    "SHAM_PARTIEL": 0.0675
+   }
+  },
+  "marge=0|compte=11|sigma_e=6.7": {
+   "0.0": {
+    "SHAM_NUIT": 0.055,
+    "SHAM_PARTIEL": 0.0025,
+    "TRANSPORTE": 0.9425
+   },
+   "0.3": {
+    "SHAM_PARTIEL": 0.9975,
+    "TRANSPORTE": 0.0025
+   },
+   "0.5": {
+    "SHAM_PARTIEL": 1.0
+   },
+   "0.6": {
+    "SHAM_PARTIEL": 1.0
+   },
+   "1.0": {
+    "PAS_PLUS_GROS": 1.0
+   }
+  },
+  "marge=0|compte=11|sigma_e=9.3": {
+   "0.0": {
+    "SHAM_NUIT": 0.0775,
+    "SHAM_PARTIEL": 0.045,
+    "TRANSPORTE": 0.8775
+   },
+   "0.3": {
+    "SHAM_PARTIEL": 0.98,
+    "TRANSPORTE": 0.02
+   },
+   "0.5": {
+    "SHAM_PARTIEL": 1.0
+   },
+   "0.6": {
+    "PAS_PLUS_GROS": 0.0025,
+    "SHAM_PARTIEL": 0.9975
+   },
+   "1.0": {
+    "PAS_PLUS_GROS": 0.9525,
+    "SHAM_PARTIEL": 0.0475
+   }
+  },
+  "marge=0|compte=10|sigma_e=6.7": {
+   "0.0": {
+    "SHAM_NUIT": 0.065,
+    "SHAM_PARTIEL": 0.005,
+    "TRANSPORTE": 0.93
+   },
+   "0.3": {
+    "SHAM_PARTIEL": 0.99,
+    "TRANSPORTE": 0.01
+   },
+   "0.5": {
+    "SHAM_PARTIEL": 1.0
+   },
+   "0.6": {
+    "SHAM_PARTIEL": 1.0
+   },
+   "1.0": {
+    "PAS_PLUS_GROS": 0.995,
+    "SHAM_PARTIEL": 0.005
+   }
+  },
+  "marge=0|compte=10|sigma_e=9.3": {
+   "0.0": {
+    "SHAM_NUIT": 0.075,
+    "SHAM_PARTIEL": 0.045,
+    "TRANSPORTE": 0.88
+   },
+   "0.3": {
+    "SHAM_PARTIEL": 0.9875,
+    "TRANSPORTE": 0.0125
+   },
+   "0.5": {
+    "SHAM_PARTIEL": 1.0
+   },
+   "0.6": {
+    "SHAM_PARTIEL": 1.0
+   },
+   "1.0": {
+    "PAS_PLUS_GROS": 0.9275,
+    "SHAM_PARTIEL": 0.0725
+   }
+  }
+ }
+}
