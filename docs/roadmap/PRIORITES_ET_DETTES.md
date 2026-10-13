@@ -1715,6 +1715,160 @@ motif (`_EST_DONNEE`) ne retient que les littéraux qui COMMENCENT par une racin
 littéraux de chemin ABSOLU vers un arbre de la machine (lettre de lecteur, `/home/`, `/Users/`, `/mnt/`), baseline
 gelée, contre-exemple = la ligne d'avant P2.142. *Coût : agent 30 min.* Sans clause `closes_when` (déclaré).
 
+**P2.158 — GELÉE jusqu'à la levée du gel de méthode (une porte, qui ne bloque aucun run ; rang à fixer par Master 2) —
+OUVERTE (2026-10-13, incident Antigravity, inscrite par INTEGRATION-LU) — Le portail CI ne juge que la POINTE d'un
+push, et un rouge de CI sur d1 n'arrête rien.**
+Preuve : le job `garde-methodologique` (`.github/workflows/ci.yml`, l. 10-15 : écrit pour le crochet contourné) a
+été ROUGE sur 10 runs consécutifs de d1, de 38051742115 (9a713458) à 38092030292 (857bbafb), puis vert à partir de
+38095375509 (da74d421) ; `test-and-build` est rouge sur les 22 runs de 9a713458 à 40ae4ebc. Les pushes ont continué.
+c593c1d2, rouge aux portes 2, 8, 12 et 14 rejouées, n'a jamais eu de run à lui : il est parti dans un push groupé
+(c593c1d2..9a713458), et le portail ne juge que le dernier commit. Registre : E10, § Incident du 2026-10-13.
+**Forme** : (a) le portail rejoue les portes sur CHAQUE commit du push (`git rev-list before..after`), pas seulement
+la pointe ; (b) un push sur d1 n'est accepté que vert (protection de branche GitHub, contrôles requis : réglage de
+robla) — à défaut, une alerte à Master 2 au premier rouge du portail sur d1. *Coût : agent 1 h, plus la décision de
+robla pour (b).* Sans clause `closes_when` (déclaré).
+
+**P2.159 — GELÉE jusqu'à la levée du gel de méthode (une porte, qui ne bloque aucun run ; rang à fixer par Master 2) —
+OUVERTE (2026-10-13, incident Antigravity, inscrite par INTEGRATION-LU) — La porte 2 accepte n'importe quelle
+déclaration : une dette gelée sans raison, une « non-mesure » dont la raison décrit une mesure.**
+Preuve : `git diff 85e05003 40ae4ebc` — `tools/instrument_calibration_baseline.json` gèle 5 dettes de code neuf
+(`learn_step`, `run_coordination_episode`, `run_single_config` par d9396202 ; `learn_batch` par 21a8a903 ;
+`run_campaign` par c0692561), sans message ni entrée de backlog ; `tests/sandbox/test_instrument_calibration.py`
+reçoit 24 déclarations NOT_AN_INSTRUMENT et 0 CALIBRATED, dont
+`40ae4ebc:tools/g2_strong_emergence_benchmark.py::run_g2_strong_emergence_benchmark`, déclaré « banc officiel de
+validation […] : mesure le comp_rate » — l'instrument du verdict de LOCK-004. La porte vérifie qu'une déclaration
+EXISTE, jamais qu'elle est vraie. Registre : E4, § Incident du 2026-10-13. **Forme** : (a) une entrée NEUVE de la
+baseline porte le numéro de backlog qui la tient (refus d'une entrée nue) ; (b) une raison NOT_AN_INSTRUMENT qui
+emploie un verbe de mesure (mesure, taux, score, ratio, verdict, valide) est REFUSÉE — contre-exemple gelé : la
+déclaration ci-dessus, recopiée ; spécificité : les déclarations légataires passent ; (c) à la réintégration du
+code de `feat/langage-ultime`, le motif s'élargit aux 13 `simulate_campaign_phaseN` et 6
+`compute_sociological_score*` qu'il ne voit pas (relayé, audit des portes). *Coût : agent 1 h 30.* Sans clause
+`closes_when` (déclaré).
+
+**P2.160 — GELÉE jusqu'à la levée du gel de méthode (une porte, qui ne bloque aucun run ; rang à fixer par Master 2) —
+OUVERTE (2026-10-13, incident Antigravity, inscrite par INTEGRATION-LU) — Une évidence SUIVIE peut être modifiée
+par un commit, et rester modifiée sur le disque partagé, sans qu'aucune porte ne le voie.**
+Preuve : `git show c593c1d2 --stat -- results/` — 11 `results/*.json` suivis, 12 insertions et 12 suppressions,
+UNIQUEMENT le champ `commit` (a1a3dd2 devient 3cf5568), données inchangées. Ce sont les 11 fichiers de l'occurrence
+1 d'E27, et 3cf5568 est le HEAD du 2026-09-09 : réécrits par les tests de fumée avant la garde de
+`src/seed_ai/harness.py` (`1e84b827`, 2026-09-15), restés modifiés un mois sur le disque de l'arbre principal, puis
+emportés par un commit nu. La garde d'E27 protège les écritures futures ; les portes 19 et 20 vérifient qu'une
+évidence citée existe et est suivie, jamais qu'elle est intacte. Registre : E8, E27, § Incident du 2026-10-13.
+**Forme** : (a) une porte refuse la modification d'un `results/*.json` déjà présent dans HEAD, sauf rectification
+DÉCLARÉE (clé `rectifie` avec sa raison, ou nouveau fichier `_rerun`) ; contre-exemple : le diff de c593c1d2 ;
+(b) `tools/jobs/doctor.py` signale tout `results/*.json` suivi modifié sur le disque de l'arbre principal (le résidu,
+lecture seule). *Coût : agent 1 h.* Sans clause `closes_when` (déclaré).
+
+**P2.161 — rang 4, fixé par Master 2 le 2026-10-13, juste après P2.157 (une garde qui BLOQUE un run, donc NON gelée ;
+c'est elle qui aurait arrêté la rupture des mondes 2 et 3 avant tout run) — OUVERTE (2026-10-13, incident
+Antigravity, inscrite par INTEGRATION-LU) — Le chemin par défaut des mondes n'a aucune empreinte vérifiée avant un
+run : world_2 et world_3 ont été réécrits, et un transfert de poids nocturne ajouté sans drapeau, sans que rien ne
+refuse un run.**
+Preuve : à 40ae4ebc, `world_2_agricultural` et `world_3_industrial` ne sont plus bit-identiques par défaut (relayé,
+mesure directe au bit de l'audit du chemin par défaut) ; `40ae4ebc:src/worlds/world_1_stoneage.py:1970-1985` fait,
+la nuit, au feu de camp, un `absorb_knowledge` à un pas de 0,1 sans drapeau ; `WorldConfig` a perdu
+`metabolic_cost_coef`. Les seuls goldens comparés au JSON PUBLIÉ sont `tests/sandbox/test_s2_bassin_fragility.py`
+(stoneage, régime S2) et `harness_connectome` (sans monde) : aucun pour world_2, world_3, ni pour une nuit qui
+réunit deux agents autour d'un feu. La CI a tiré pour deux des ruptures, après le push. Registre : E14, E6, E10,
+§ Incident du 2026-10-13. **Forme** : une empreinte du chemin par défaut de CHAQUE monde (hash d'un condensé :
+énergie, position, âge et inventaire de chaque agent à chaque tick, état RNG final, sur une simulation courte à seed
+fixe, nuit comprise, au moins deux agents près d'un feu), gelée au sha courant de d1 dans un fichier suivi ;
+`tools/experiment_preflight.py` la recalcule et LÈVE avant tout run scellé si elle diffère, sauf régime déclaré dans
+le sceau. Contre-exemple : 40ae4ebc (world_2 et feu de camp doivent rougir) ; no-op : 46f30365. Le condensé existe
+déjà comme sonde de l'audit (hors dépôt). *Coût : agent 2 à 3 h, plus une mesure courte sous bail `kuzu`.* Sans
+clause `closes_when` (déclaré).
+
+**P2.162 — rang en attente de robla, décision soumise par Master 2 le 2026-10-13 (une garde qui BLOQUE un run, donc NON gelée, mais qui touche
+le chemin de production) — OUVERTE (2026-10-13, incident Antigravity, inscrite par INTEGRATION-LU) — L'écrivain de
+KuzuDB n'exige aucun bail : un script qui ne coopère pas écrit dans la mémoire que le monde lit.**
+Preuve : du 09 au 11/10, `data/kuzu_graph.db` reçoit 345 574 LogEvent et 22 153 AgentThought, dont 236 entrent dans
+la fenêtre de 500 pensées que lit `src/graph_rag/memory_retriever.py` (requête l. 89-92) (relayé, audit KuzuDB, copies
+en lecture seule). `40ae4ebc:src/evolution/triworld_curriculum.py`, `40ae4ebc:tools/lu_sociologist_benchmark.py`,
+`40ae4ebc:scripts/run_arc5_campaign.py` et `40ae4ebc:tools/register_article_031.py` ne prennent aucun bail ni ne
+coupent KuzuDB (revérifié). Le bail de `tools/jobs/run.py` est coopératif ; la garde de `tests/conftest.py` ne couvre que les tests ;
+`src/graph_rag/async_logger.py` (l. 33, base par défaut) ouvre la base partagée sans condition. Cause racine :
+`docs/archive/GEMINI_AGIseed_2026-06.md` ordonnait ces écritures. Registre : E5, E10, § Incident du 2026-10-13.
+**Forme** : l'écrivain refuse d'ouvrir la base partagée (`src/paths.py::kuzu_graph`) en écriture si le processus ne
+tient pas le bail `kuzu`, en nommant la règle ; une base jetable (tests, `tmp_path`) passe. Contre-exemple : un
+script factice qui journalise sans bail est refusé ; no-op : sous bail, il écrit. À trancher par robla : le backend
+en mode vivant journalise dans cette base, et devra donc tenir le bail, ce qui bloquera les simulations pendant qu'il
+tourne. *Coût : agent 2 h.* Sans clause `closes_when` (déclaré).
+
+**P2.163 — GELÉE jusqu'à la levée du gel de méthode (une porte, qui ne bloque aucun run ; rang à fixer par Master 2) —
+OUVERTE (2026-10-13, incident Antigravity, inscrite par INTEGRATION-LU) — Un record peut porter un verdict, et une SDR
+passer à `validated`, sans règle scellée ni critère exécutable.**
+Preuve : aucun fichier ajouté sous `docs/preregistrations/` dans 85e05003..40ae4ebc ; f7981692 grave EDR-LOCK-004,
+passe `docs/SDR/G2_agent_composes.md` de `open` à `validated` et retire la ligne qui imposait `compute_ab_verdict`.
+`tools/check_preregistration_applied.py` (porte 5) ne juge que les records qui CITENT un sceau : verte à vide ;
+`tools/check_record_links.py` (porte 1) ne lit que le frontmatter. Registre : E11, E9, § Incident du 2026-10-13.
+**Forme** : (a) un record qui porte `tests: [SDR-Gx]` et un `verdict:` doit citer une pré-inscription scellée dont le
+hash se vérifie (`tools/preregister.py`), sinon refus — légataires gelés ; (b) une SDR ne passe à `validated` que
+citée par un record qui satisfait (a), et son critère exécutable ne peut pas disparaître dans le même commit.
+Contre-exemple : f7981692. *Coût : agent 2 h.* Sans clause `closes_when` (déclaré).
+
+**P2.164 — rang à fixer par Master 2 (dette d'INSTRUMENT, aucune porte) — OUVERTE (2026-10-13, vue par l'audit
+scientifique de Master 2, inscrite par INTEGRATION-LU) — Le `comp_rate` d'[[EDR-161]] n'exige ni mémoire ni
+composition conditionnelle : le niveau 2 de SDR-G2 repose sur un instrument sans plafond de l'incapable.**
+Preuve : `tools/compositional_world_probe.py` tire `obs_a` et `obs_b` UNE fois par agent (l. 94-95), constants sur
+les 800 épisodes, et compte `comp_rate` = USE au pas 2 et CRAFT au pas 1 (l. 125 et 129) : une politique en boucle
+ouverte (CRAFT sur `obs_a`, USE sur `obs_b`) atteint le plafond sans rien retenir ni conditionner. `learn_episode`
+détache d'ailleurs l'état récurrent entre les pas (`src/agents/backend_torch.py`, l. 571). `docs/SDR/G2_agent_composes.md`
+(l. 67-76) fait de ce `comp_rate` le KPI du niveau 2. Mesure EXPLORATOIRE (sonde de l'audit, hors dépôt, sans sceau,
+n = 3 seeds, lr 0,005, 64 agents, d = 1, 800 épisodes, chiffres relus dans sa sortie brute) : bras SANS mémoire
+(état remis à zéro avant le pas 2, chaque pas crédité seul) 0,1816 / 0,1825 / 0,1816, contre 0,1416 / 0,1381 /
+0,1349 pour le bras récurrent sans gate, et 0,0178 / 0,0140 / 0,0146 pour la référence lr = 0. ⚠️ Le bras récurrent
+mesuré est le bras « nu » de LOCK-004 (le bras ON d'EDR-161 sans son gate), pas le bras ON publié (gate, 128 agents,
+lr 0,05) : la dette est établie sur la structure de l'instrument, le chiffre ne vaut que pour ce régime.
+**Forme** : (a) mesurer, sous sceau, n = 12, le plafond de l'incapable de l'instrument (bras en boucle ouverte, sans
+mémoire) dans le régime publié d'EDR-161, et confronter la barre de SDR-G2 à ce plafond (`tools/check_bar_separation.py`
+sait le faire) ; (b) si le plafond atteint le bras ON, refaire le monde pour qu'une politique sans mémoire ne puisse
+pas composer (par exemple, une recette tirée à chaque épisode et visible au seul pas 1), et le dire dans SDR-G2 ;
+(c) bandeau sur EDR-161 selon (a). *Coût : run proxy sans monde, quelques minutes, plus le sceau.* Sans clause
+`closes_when` (déclaré).
+
+**P2.166 — EN PAUSE (décision de Master 2 le 2026-10-13 : le choix du corps est une question de conception
+scientifique, soumise à robla) — OUVERTE (2026-10-13, étape 4 d'INTEGRATION-LU) — Réintégration des pièces de
+`feat/langage-ultime`, une à la fois, chacune derrière un drapeau éteint par défaut : le drapeau `isocaloric` de
+MambaAgent d'abord, puis trois mondes « jeux vérifiables » en attente.**
+(1) **Drapeau `isocaloric`** (code de 3bb2cb11, lu à 40ae4ebc). Préparé, non committé, sur la branche
+tmp/integration-lu-iso : éteint par défaut, il ne tire rien et le corps reste identique au bit ; allumé, le corps
+reste constant à travers `update_phenotype`, `mutate`, `absorb_knowledge` et `clone`. Six tests de propriétés
+l'accompagnent (tests/sandbox/test_isocaloric_flag.py, sur cette branche). Une seule question reste ouverte : QUEL
+corps tenir constant. Le monde lit trois grandeurs sur l'agent (`src/worlds/world_1_stoneage.py`, l. 375 : hp de
+naissance ; l. 388 : capacité ; l. 702 : drain par tick ; l. 1652 : plafond de soin).
+- **Option A, le corps d'Antigravity** : hp_bonus 0, capacité 3, drain 1,3, sans l'organe MCTS. C'est le corps d'un
+  génome aux lignes 0-9 nulles. Deux défauts. Il retire AUSSI le surcoût de l'organe MCTS (0,5), qui ne dépend pas
+  des lignes 0-9 : c'est une seconde intervention, non annoncée. Et il place tout run dans un corps « nu », hp 100,
+  contre environ 860 pour le champion (bonus mesuré vers 758, `tools/energy_readout_probe.py`, l. 9) : loin du régime
+  de tous les résultats publiés.
+- **Option B, A en gardant l'organe** : drain 1,3 plus 0,5 si l'organe MCTS est actif. Elle coupe exactement le
+  confond E26 (le corps ne dépend plus des lignes 0-9), et rien d'autre ; le régime reste celui d'un corps nu.
+- **Option C (recommandée), le corps d'une RÉFÉRENCE déclarée, gelé** : le drapeau porte le corps qu'il tient, par
+  exemple `phenotype_of(champion)`, posé à la naissance et jamais recalculé ; éteint, il vaut None. Tous les bras d'un
+  contraste reçoivent le même corps PAR CONSTRUCTION, dans le régime des résultats publiés ; le corps nu de A ou de B
+  reste disponible, comme une référence parmi d'autres, déclarée. C'est l'équivalent, au niveau de l'agent, de
+  `ballast_phenotype` (E26), sans toucher W et sans sa limite (« ne peut qu'ajouter du corps »).
+- **Ce que mesure la garde E26 dans chaque cas.** `phenotype_of` (`tools/experiment_preflight.py`) calcule le corps
+  depuis le GÉNOME, et ses appelants lui passent des génomes (`tools/evo_runs/s2_blind_champion.py`, l. 149 ;
+  `tools/s2_demand_ablation.py`, l. 281). Drapeau allumé, dans A, B comme C, ce n'est plus le corps qui agit. La garde
+  REFUSE alors à tort un contraste dont les corps agissants sont égaux, ce qui reste un refus prudent. Elle ACCEPTE
+  surtout un contraste MIXTE (un bras allumé, l'autre éteint, même W) dont les corps agissants diffèrent : c'est un
+  faux vert. Le défaut ne vient pas que du drapeau : un agent qui apprend garde le corps de sa naissance pendant que W
+  bouge (`tools/evo_runs/s2_bassin_fragility.py`, l. 32-33), et la garde lit alors le W courant. **Forme** : la garde
+  lit le corps AGISSANT (les attributs `phenotype_*` quand on lui passe un agent), avec deux cas gelés : un contraste
+  mixte au même W est REFUSÉ, deux agents allumés aux W différents PASSENT. C'est une garde de pré-vol, qui bloque un
+  run : elle est permise sous le gel.
+- **Recommandation** : l'option C, avec la garde E26 sur le corps agissant dans le même commit. Preuve du chemin éteint
+  au bit : la simulation condensée de l'audit (stoneage S2 champion et frais, évolution avec nuits, agricultural,
+  industrial) contre d1, sous bail, plus les cinq tests de référence de GEMINI.md, chacun lancé séparément.
+(2) **BoardLogicWorld, CartesianPhysicsWorld, AgentVMSandbox** (`40ae4ebc:src/worlds/board_logic_world.py`,
+`40ae4ebc:src/worlds/world_4_cartesian_physics.py`, `40ae4ebc:src/metaprog/agent_vm_sandbox.py`). Ce sont trois
+fichiers neufs, sans dépendance au code du dépôt : le chemin par défaut reste intact par construction. Ils sont
+candidats à la famille « jeux vérifiables » de l'ADR-004 §3. EN ATTENTE de la confirmation de robla et de
+l'ouverture d'une session Task 2 (aucune au 2026-10-13). AgentVMSandbox exécute du code en sous-processus : il devra
+passer par `src/metaprog/secure_sandbox.py` (porte AST et exécution isolée, comme `src/metaprog/sandbox.py`), puis par
+une revue dédiée avant d'entrer. Sans clause `closes_when` (déclaré).
+
 **P2.152 — rang 1 bis (décidé par Master 2 le 2026-09-29 : dans le commit de P2.142) — ✅ CLOSE le 2026-09-29
 (ouverte et fermée le même jour ; trouvée en passant par agagi-32 en préparant la garde de P2.142) — Les délais @slow
 de `tests/conftest.py` étaient MORTS depuis le 2026-09-01 : un second `pytest_collection_modifyitems` remplaçait le
