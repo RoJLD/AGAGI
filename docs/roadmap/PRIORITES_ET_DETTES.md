@@ -1741,6 +1741,51 @@ un dépôt jetable : délai 600 sur le test lent, saut par la garde de bail sous
 répertoire des bails est commun à la flotte), refus de la garde des arbres pendant la même collecte. Registre : E32.
 <!-- closes_when:grep_present=tests/conftest.py::def _delais_slow -->
 
+**P2.165 — rang 2 (fixé par Master 2 le 2026-09-29 : juste après P2.142, avant P2.144 ; la fuite du filet y est
+jointe par Master 2 le 2026-10-13) — ✅ CLOSE le 2026-10-13 (vue par agagi-32 le 2026-09-29, inscrite et fermée dans
+la même passe) — Deux tests de BAIL polluaient les autres : le détenteur factice de `test_lease_skip_guard.py`
+tenait le VRAI bail « kuzu » de la flotte, et `test_lease_guard.py` laissait le filet runtime ARMÉ derrière lui.**
+Preuve (1) : `tests/sandbox/test_lease_skip_guard.py:78-102` (à `46f30365`) — la fixture `detenteur_etranger` lançait
+`hold('kuzu', owner='fake-holder-p282', ttl_s=120)` dans `runs/leases` de l'arbre PRINCIPAL, commun à tous les
+worktrees (P2.69 i), depuis `f3105c21` (2026-09-23, P2.82). Pendant ses 120 s, les tests de monde de TOUTE autre
+session étaient sautés (lisibles comme des verts) et un vrai run qui prenait `kuzu` recevait ResourceBusy ; tué par la
+fixture, il laissait un bail ORPHELIN — mesuré le 2026-09-29 : `kuzu.json`, pid 3660, après 30 témoins Windows,
+réapé par `doctor --kill`. La porte 15 ne lance pas ce fichier (0 occurrence de « lease » dans
+`tools/check_gate_mutation.py`, motif validé sur deux de ses témoins) : l'exposition est tout passage LOCAL de la
+suite par répertoire. Preuve (2) : `tests/sandbox/test_lease_guard.py:55` et `:78` appelaient le crochet de collecte
+sous un détenteur FACTICE « un-run (pid=4242) » ; le crochet arme le filet (`Biosphere3D.__init__` remplacé), et
+rien ne le désarmait — chaque copie du conftest a son propre `_NET`. Depuis `7ed985d6` (2026-09-16, P2.69 ii), tout
+test construisant un monde collecté APRÈS ce fichier était SAUTÉ, CI comprise : le journal du job suite-complete du
+run 38393984184 (à `46f30365`) porte, sur les deux rouges flatland de P2.113 (d), « Skipped: [filet runtime] bail
+« kuzu » détenu par un-run (pid=4242) ». **Exposition** : mesurée par la CI qui SUIT le push de ce commit (`tools.ci_diff_failed`) — suite-complete lance `tests/` par répertoire, donc chaque test ressuscité y tournera et chaque rouge sera nommé ; au-dessus des 5 rouges connus, ce sont de VRAIS rouges cachés depuis le 16/09. ⚠️ Angle mort : le sous-ensemble torch, que la CI saute — 36 fichiers collectés après `test_lease_guard.py` dépendent de torch (règle STATIQUE, rien lancé : ordre de pytest, noms triés ; source portant `importorskip("torch")`, `skipif(…torch…)`, `requires_torch`, `_TORCH` ou `import torch`), dont 16 avec un indice de monde : `tests/sandbox/test_mute_orchestrators_injection_3.py`, `tests/sandbox/test_orchestrator_injection.py`, `tests/sandbox/test_rng_census.py`, `tests/sandbox/test_s2_bassin_fragility.py`, `tests/sandbox/test_sim_session.py`, `tests/sandbox/test_td_step_pilot.py`, `tests/sandbox/test_torch_batch_model.py`, `tests/sandbox/test_torch_bptt_meansends.py`, `tests/sandbox/test_torch_effective_step.py`, `tests/sandbox/test_torch_gate_persist_ab.py`, `tests/sandbox/test_torch_parity_probe.py`, `tests/sandbox/test_torch_prod_gate.py`, `tests/sandbox/test_torch_throw_gate_world.py`, `tests/sandbox/test_warmstart_evolution_inworld.py`, `tests/test_bilinear_composition_probe.py`, `tests/test_bilinear_substrate.py` — **exposition torch NON MESURÉE**. ⚠️ Le test censé prouver le NO-OP
+(`test_the_runtime_net_is_NOT_armed_when_no_lease_is_held`) passait sur l'état FUITÉ : il capturait comme « origine »
+le constructeur déjà remplacé.
+✅ **FERMÉE le 2026-10-13 (agagi-32)** — (a) le détenteur factice tient un bail PRIVÉ sous `tmp_path` ; les sessions
+imbriquées y sont redirigées par un greffon (`-p`), ce processus par monkeypatch — même code de garde, autre
+répertoire ; le détenteur réel éventuel n'est plus consulté, et un factice invisible dans SON dossier ÉCHOUE au lieu
+de sauter. (b) `test_lease_guard.py` : une fixture autouse rend, en finally, `Biosphere3D.__init__` tel qu'il était au
+début du test, quelle que soit la copie qui l'a armé (un détenteur RÉEL l'arme légitimement : on le rend tel quel).
+Témoins (`tests/sandbox/test_lease_skip_guard.py`) : `test_P2_165_le_detenteur_factice_tient_SON_bail_et_JAMAIS_
+celui_de_la_flotte` (contrôle positif dans le dossier privé PUIS absence dans le commun, pendant que le factice
+tient) ; les deux bouts en bout de P2.82, redirigés, qui exigent le saut nommant CE détenteur ;
+`test_P2_165_test_lease_guard_ne_laisse_PAS_le_FILET_arme_apres_lui_en_session_reelle` (le vrai fichier, son vrai
+conftest, sous un dossier de bails VIDE ; à la fin de la session, le constructeur est celui du début). Après correctif, les tests exposés relancés : contrôle apparié sous Windows à 22706020 — test_lease_guard.py puis les deux flatland : 2 rouges « pid=4242 » sur le code vierge, 2 verts sur le code corrigé (9 passés), et les deux flatland seuls : 2 verts ; les autres tests ressuscités tourneront dans la CI qui suit. Windows 32 verts, 0 saut (les deux fichiers de bail, la garde des arbres, l'environnement git), et doctor à 0 bail, 0 orphelin après — l'ancien factice en laissait un ; Linux (WSL) 27 verts dont les deux flatland lancés après test_lease_guard.py, 1 rouge : le bout en bout (a), « HoF vide » (data/ non versionné, absent de la copie), IDENTIQUE sur la copie de d1 sans ces changements ; mutations à la main
+3/3 tuées (filet non restauré ; factice qui tient son bail ailleurs ; processus qui ne lit plus le dossier privé), contrôle intact vert avant chacune ; écartées et dites : les mutations qui feraient tourner un vrai monde ou écrire le vrai dossier de bails. Registre : E4.
+<!-- closes_when:grep_present=tests/sandbox/test_lease_guard.py::def _filet_restaure -->
+
+**P2.157 — rang 3 (fixé par Master 2 le 2026-10-13 : avant P2.144 — il touche chaque commit de chaque session) — OUVERTE (2026-10-13, constat de SCIENCE-HARNAIS relayé
+par Master 2, revérifié par agagi-32) — Le crochet appelle « python » sans épingler l'interpréteur : sur la batcave,
+c'est désormais un Python 3.14 sans numpy ni pytest.**
+Preuve : `command -v python` → `/c/Python314/python`, 3.14.8, `python.exe` daté du 2026-09-30 19:16 ; absent du PATH
+du registre (HKCU et HKLM : 0 occurrence) mais en tête du PATH des processus ; `import numpy` → ModuleNotFoundError.
+Le 3.13.12 du projet (numpy 2.4.3, pytest 9.0.2) est dans `AppData\Local\Programs\Python\Python313`.
+`tools/hooks/pre-commit:25-33` résout `python` par le PATH (`command python "$@"`), et la porte 15 lance
+`sys.executable -m pytest` : sous 3.14, tout commit qui la déclenche est refusé — bruyamment, ce qui est la bonne
+face. ⚠️ Non mesuré, l'autre face : une porte qui AVALE une ImportError rendrait vert sous 3.14. Parade en vigueur :
+le PATH du 3.13 en tête, dans la même commande que `git commit`. **Forme** (Master 2) : le crochet épingle son
+interpréteur — une variable `AGAGI_PYTHON`, un repli sur le 3.13, un REFUS explicite si numpy ou pytest manque —, avec
+un témoin sous un interpréteur sans numpy. *Coût : agent 1 h.*
+
 **P2.143 — rang 6, GELÉE jusqu'à la levée du gel de méthode (une porte, qui ne bloque aucun run) (rang fixé par Master 2 le 2026-09-28) — OUVERTE (2026-09-28, extension exécutable d'E8 DÉCIDÉE par Master 2 ; inscrite par la session SCIENCE-HARNAIS) — Un nombre de PROSE qui porte une unité ou un compte, dans un record, DÉCLARE sa source ; une porte la vérifie.**
 Preuve : E8, occurrence du 2026-09-28 — six valeurs recopiées au lieu d'être relues en un jour (0,82 d'un rapport de chemin cité comme un rapport net ; 3 processus pour 6 ; 4e-7 pour 2,1e-5 ; « 24 à 718 », chiffre de conception cité comme mesure ; dose 1,0 pour ≈ 0,66 active ; heures de build estimées), toutes attrapées avant publication par une relecture contre la source — donc par un humain ou une revue, jamais par une porte : la porte 19 ne lit que « nom = valeur » d'un paramètre de régime (revue du record [[EDR-S2-BASSIN-FRAGILITY]], P2.b : elle rend SANS_PARAMETRE sur ce record, qui écrit « phase 2 à 200 ticks »). **Forme** : une balise DÉCLARÉE par l'auteur à côté du nombre — chemin `results/*.json` SUIVI, pointeur JSON, valeur et tolérance — sur le modèle des balises de compte de la porte 8 ; la porte relit le fichier et compare ; une valeur recalculée (médiane, rapport) déclare sa fonction et ses clés d'entrée. Ce qui est porteur est DÉCLARÉ, jamais deviné : la porte ne cherche pas les nombres NON balisés (elle les COMPTE et les rapporte, comme la porte 4 rapporte les entrées sans clause). Contre-exemples gelés : les cinq valeurs de cette occurrence qui ont une source JSON. À la livraison, la forme passe exécutable. *Coût : agent 3-4 h.* Sans clause `closes_when` (déclaré) : le nom de la porte n'est pas fixé.
 
@@ -2848,7 +2893,9 @@ FileNotFoundError dans tout worktree et tout clone, au lieu d'un skip qui dirait
 suite (un Skipped du filet runtime traverse Starlette et devient « RuntimeError: No response returned », la forme
 de P2.82), verts relancés seuls juste après (2 passés, 0 bail). Le mécanisme n'est PAS établi. Hypothèse : un bail
 « kuzu » transitoire pendant la suite arme le filet runtime, et la fixture `sans_bail_etranger` ne voit plus de
-détenteur au moment du test. À vérifier avec un bail tenu puis relâché pendant une session pytest.
+détenteur au moment du test. À vérifier avec un bail tenu puis relâché pendant une session pytest. → **Mécanisme ÉTABLI le 2026-10-13 (P2.165)** : ce n'était pas un
+bail transitoire mais le détenteur FACTICE « un-run (pid=4242) » de `test_lease_guard.py`, dont le filet restait armé pour
+le reste de la session — la CI le porte en toutes lettres. Corrigé ; après correctif : contrôle apparié sous Windows à 22706020 — test_lease_guard.py puis les deux flatland : 2 rouges « pid=4242 » sur le code vierge, 2 verts sur le code corrigé (9 passés), et les deux flatland seuls : 2 verts ; les autres tests ressuscités tourneront dans la CI qui suit.
 (e) **Le remède « npm ci » de (a) est impossible en l'état : le verrou committé est DÉSYNCHRONISÉ de `package.json`.**
 Mesuré le 2026-09-26 (session FRONT, worktree propre à `9f293762`) : `npm ci` sort en `EUSAGE` — « lock file's
 @emnapi/wasi-threads@1.2.1 does not satisfy @emnapi/wasi-threads@1.2.3 », trois `@emnapi/*` absents du verrou, et
