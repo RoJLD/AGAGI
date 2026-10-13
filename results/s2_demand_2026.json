@@ -1,11 +1,11 @@
 {
   "name": "s2_demand",
   "seed": 2026,
-  "commit": "3cf5568",
+  "commit": "a1a3dd2",
   "git_dirty": true,
   "data": {
     "seed": 2026,
-    "commit": "3cf5568",
+    "commit": "a1a3dd2",
     "K": {
       "stoneage": 2
     },

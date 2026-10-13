@@ -221,34 +221,9 @@ class Biosphere3D(BaseWorld):
         self.consensus = WeightedConsensus(ConsensusConfig())
         self.hgt = HorizontalGeneTransfer(HGTConfig())
         
-        self.campfire_gatherings = 0
-        self.campfire_transfers = 0
-        
         logger.start()
         self.memory_retriever = AsyncMemoryRetriever(logger)
         self.memory_retriever.start()
-
-        # Branche LU (Langage Ultime & Communication Latente Continue)
-        self.enable_lu_communication = getattr(self.config, "enable_lu_communication", False)
-        self.lu_adapter = None
-        if self.enable_lu_communication:
-            from src.environments.lu_inworld_adapter import LUInWorldAdapter, LUInWorldConfig
-            lu_cfg = LUInWorldConfig(
-                latent_dim=getattr(self.config, "lu_latent_dim", 16),
-                noise_level=getattr(self.config, "lu_noise_level", 0.05),
-                hear_radius=getattr(self.config, "lu_hear_radius", 3),
-                alignment_threshold=getattr(self.config, "lu_alignment_threshold", 0.70),
-                alignment_reward=getattr(self.config, "lu_alignment_reward", 0.5),
-                referential_bonus=getattr(self.config, "lu_referential_bonus", 1.0),
-                pack_coordination=getattr(self.config, "lu_pack_coordination", True),
-                signal_metabolic_cost=getattr(self.config, "lu_signal_metabolic_cost", 0.05),
-                cooperative_prey_multiplier=getattr(self.config, "lu_cooperative_prey_multiplier", 2.0),
-                role_specialization=getattr(self.config, "lu_role_specialization", True),
-                emergent_roles=getattr(self.config, "lu_emergent_roles", False),
-                campfire_cultural_boost=getattr(self.config, "lu_campfire_cultural_boost", True),
-                enable_tom=getattr(self.config, "lu_enable_tom", False),
-            )
-            self.lu_adapter = LUInWorldAdapter(self, lu_cfg)
 
     def reset(self):
         """Réinitialise l'environnement (pas les agents)."""
@@ -263,30 +238,6 @@ class Biosphere3D(BaseWorld):
         self._spawn_worms()
         self.pheromone_map.fill(0.0)
         self.is_night = False
-        self.campfire_gatherings = 0
-        self.campfire_transfers = 0
-        
-        # Branche LU (Langage Ultime & Communication Latente Continue)
-        self.enable_lu_communication = getattr(self.config, "enable_lu_communication", False)
-        self.lu_adapter = None
-        if self.enable_lu_communication:
-            from src.environments.lu_inworld_adapter import LUInWorldAdapter, LUInWorldConfig
-            lu_cfg = LUInWorldConfig(
-                latent_dim=getattr(self.config, "lu_latent_dim", 16),
-                noise_level=getattr(self.config, "lu_noise_level", 0.05),
-                hear_radius=getattr(self.config, "lu_hear_radius", 3),
-                alignment_threshold=getattr(self.config, "lu_alignment_threshold", 0.70),
-                alignment_reward=getattr(self.config, "lu_alignment_reward", 0.5),
-                referential_bonus=getattr(self.config, "lu_referential_bonus", 1.0),
-                pack_coordination=getattr(self.config, "lu_pack_coordination", True),
-                signal_metabolic_cost=getattr(self.config, "lu_signal_metabolic_cost", 0.05),
-                cooperative_prey_multiplier=getattr(self.config, "lu_cooperative_prey_multiplier", 2.0),
-                role_specialization=getattr(self.config, "lu_role_specialization", True),
-                emergent_roles=getattr(self.config, "lu_emergent_roles", False),
-                campfire_cultural_boost=getattr(self.config, "lu_campfire_cultural_boost", True),
-                enable_tom=getattr(self.config, "lu_enable_tom", False),
-            )
-            self.lu_adapter = LUInWorldAdapter(self, lu_cfg)
         
     def get_agent_observation(self, agent: dict) -> np.ndarray:
         # Dummy implementation to satisfy BaseWorld ABC.
@@ -379,19 +330,6 @@ class Biosphere3D(BaseWorld):
                 return idx[p["type"]]
         return None
 
-    def _lu_steer_action(self, agent: dict, action: int) -> int:
-        """Oriente le mouvement selon le Gigatoken latent décodé (coordination continue LU)."""
-        bias = agent.pop("lu_steer_bias", None)
-        if bias is None:
-            return action
-        dx, dy = bias
-        if abs(dx) < 0.05 and abs(dy) < 0.05:
-            return action
-        # 2=E(nx+1) 3=W(nx-1) 1=S(ny+1) 0=N(ny-1)
-        if abs(dx) >= abs(dy):
-            return 2 if dx > 0 else 3
-        return 1 if dy > 0 else 0
-
     def _spawn_prey_instance(self, p_type):
         while True:
             x, y, z = np.random.randint(0, self.size, 3) if self.use_3d else (*np.random.randint(0, self.size, 2), 0)
@@ -461,7 +399,6 @@ class Biosphere3D(BaseWorld):
             
         self.agents.append(agent)
         logger.emit("AGENT_BIRTH", {"id": agent_id, "x": x, "y": y})
-        return agent
 
     def item_physics(self, item_type):
         if isinstance(item_type, dict):
@@ -1003,7 +940,7 @@ class Biosphere3D(BaseWorld):
                         b["energy"] -= 15.0
                         child_model = a["model"].clone()
                         child_model.mutate()
-                        new_agents.append((child_model, a["x"], a["y"], 30.0, a["id"], b["id"]))
+                        new_agents.append((child_model, a["x"], a["y"], 30.0))
                         logger.emit("MATE", {"parent1": a["id"], "parent2": b["id"]})
         return new_agents
 
@@ -1052,7 +989,7 @@ class Biosphere3D(BaseWorld):
                             child_model.genome.W = offspring_w
                             child_model.update_phenotype()
                             child_model.reset_state()
-                            new_agents.append((child_model, a["x"], a["y"], 40.0, a["id"], b["id"]))
+                            new_agents.append((child_model, a["x"], a["y"], 40.0))
                             a["energy"] -= 15.0
                             b["energy"] -= 15.0
                             logger.emit("HGT_BREEDING", {"parent1": a["id"], "parent2": b["id"], "position": (a["x"], a["y"])})
@@ -1081,8 +1018,6 @@ class Biosphere3D(BaseWorld):
                     try:
                         agent["model"].absorb_knowledge(best_neighbor["model"].genome, learning_rate=hgt_power)
                         agent["energy"] = max(5.0, agent["energy"] - 5.0)
-                        if getattr(self, "enable_lu_communication", False) and getattr(self, "lu_adapter", None) is not None:
-                            self.lu_adapter.absorb_latent_knowledge(agent["id"], best_neighbor["id"], alpha=hgt_power)
                         logger.emit("SURPRISE_HGT", {
                             "student": agent["id"],
                             "teacher": best_neighbor["id"],
@@ -1407,8 +1342,6 @@ class Biosphere3D(BaseWorld):
             action = int(np.argmax(logits[:8]))
             if getattr(self, "decode_act", False):     # EDR 075 : décoder un signal entendu -> approcher prey / fuir Leurre
                 action = self._decode_act_override(agent, action)
-            if getattr(self, "enable_lu_communication", False) and "lu_steer_bias" in agent:
-                action = self._lu_steer_action(agent, action)
             # ε-greedy (EDR 019/025) : en entraînement, explorer l'espace d'action — mouvement
             # aléatoire + forcer les gestes jamais tirés (grab ; rub pour craft_level>=1).
             force_grab = False
@@ -1646,7 +1579,7 @@ class Biosphere3D(BaseWorld):
 
             # 6. Grab (Inventory mechanics)
             if do_grab > 0:
-                nearby_items = [i for i in self.items if i["x"] == agent["x"] and i["y"] == agent["y"] and i.get("type") != "Fire"]
+                nearby_items = [i for i in self.items if i["x"] == agent["x"] and i["y"] == agent["y"]]
                 if nearby_items:
                     item = nearby_items[0]
                     if len(agent["inventory"]) < agent["inv_capacity"]:
@@ -1849,31 +1782,6 @@ class Biosphere3D(BaseWorld):
             batch_model.compute_policy_gradient(rewards, actions_batch)
                 
         self.agents = survivors
-
-        # ARC 6 / EXP-11 : Enregistrement dans le buffer de replay et consolidation nocturne
-        for idx, surv in enumerate(self.agents):
-            m = surv.get("model")
-            if m is not None and getattr(m, "replay_buffer", None) is not None:
-                o_idx = batch_obs[idx] if idx < len(batch_obs) else np.zeros(m.genome.num_inputs, dtype=np.float32)
-                r_idx = float(rewards[idx]) if idx < len(rewards) else 0.0
-                a_idx = int(surv.get("last_action", 0))
-                c_idx = max(0.0, float(old_energies[idx] - new_energies[idx])) if idx < len(old_energies) else 0.0
-                s_idx = bool(new_energies[idx] > old_energies[idx]) if idx < len(old_energies) else False
-                m.replay_buffer.push(
-                    state=o_idx,
-                    action=a_idx,
-                    reward=r_idx,
-                    next_state=o_idx,
-                    energy_spent=c_idx,
-                    success=s_idx
-                )
-        
-        # Consolidation nocturne vectorisée collective (Commandement 3)
-        if getattr(self, "is_night", False):
-            if not hasattr(self, "_batch_consolidator"):
-                from src.agents.dream_replay import BatchNightConsolidator
-                self._batch_consolidator = BatchNightConsolidator(world_model=getattr(self, "world_model", None))
-            self._batch_consolidator.consolidate_population_batch(self.agents)
         
         seeds_to_remove = []
         for item in self.items:
@@ -1954,43 +1862,10 @@ class Biosphere3D(BaseWorld):
                     
                     # EXP-9 : Social Gathering around fire at night
                     if getattr(self, 'is_night', False) and len(gathered_agents) >= 2:
-                        self.campfire_gatherings += 1
                         agent_ids = [a["id"] for a in gathered_agents]
                         logger.emit("SOCIAL_GATHERING", {"fire_id": item.get("id", "unknown"), "agent_ids": agent_ids})
                         for a in gathered_agents:
                             a["energy"] = min(100.0, a["energy"] + 1.0) # Tribe cohesion bonus
-
-                        # Convergence linguistique (osmose vocale vers le dialecte moyen du groupe)
-                        spoken_vectors = [np.array(a.get("last_spoken", [0.0]*4), dtype=np.float32) for a in gathered_agents]
-                        mean_spoken = np.mean(spoken_vectors, axis=0)
-                        for a in gathered_agents:
-                            cur_v = np.array(a.get("last_spoken", [0.0]*4), dtype=np.float32)
-                            blended = (1.0 - 0.2) * cur_v + 0.2 * mean_spoken
-                            a["last_spoken"] = [float(x) for x in blended]
-
-                        # Transmission culturelle HGT au coin du feu (mentorat de l'aîné/plus fort)
-                        mentor = max(gathered_agents, key=lambda ag: ag.get("energy", 0.0))
-                        for student in gathered_agents:
-                            if student is not mentor and mentor.get("energy", 0.0) > student.get("energy", 0.0):
-                                try:
-                                    student["model"].absorb_knowledge(mentor["model"].genome, learning_rate=0.1)
-                                    self.campfire_transfers += 1
-                                    logger.emit("CAMPFIRE_CULTURE_TRANSFER", {
-                                        "fire_id": item.get("id", "unknown"),
-                                        "mentor": mentor["id"],
-                                        "student": student["id"]
-                                    })
-                                except Exception as e:
-                                    logger.emit("CAMPFIRE_TRANSFER_FAILED", {"error": str(e)})
-
-                        # Amplification latente LU si activee
-                        if getattr(self, "enable_lu_communication", False) and getattr(self, "lu_adapter", None) is not None:
-                            for student in gathered_agents:
-                                if student is not mentor:
-                                    try:
-                                        self.lu_adapter.absorb_latent_knowledge(student["id"], mentor["id"], alpha=0.15)
-                                    except Exception:
-                                        pass
 
         for s in sparks_to_remove + fires_to_remove + flammable_to_remove + seeds_to_remove:
             if s in self.items:
@@ -2007,10 +1882,6 @@ class Biosphere3D(BaseWorld):
             hgt_new_agents = self._apply_hgt_breeding()
             self._apply_surprise_hgt()
         
-        # Résolution de la communication continue LU (Gigatokens)
-        if getattr(self, "enable_lu_communication", False) and getattr(self, "lu_adapter", None) is not None:
-            self.lu_adapter.step()
-        
         self._add_offspring(new_agents + social_new_agents + hgt_new_agents)
 
     def _add_offspring(self, offspring):
@@ -2019,15 +1890,10 @@ class Biosphere3D(BaseWorld):
         population intra-épisode -> borne le coût O(N²) d'_apply_hgt_breeding (anti-runaway
         survie-longue, post-EDR090)."""
         cap = getattr(self.config, "max_population", None)
-        for item in offspring:
+        for (g, x, y, e) in offspring:
             if cap is not None and len(self.agents) >= cap:
                 break
-            g, x, y, e = item[0], item[1], item[2], item[3]
-            p1 = item[4] if len(item) > 4 else None
-            p2 = item[5] if len(item) > 5 else None
-            child = self.add_agent(g, x=x, y=y, energy=e)
-            if p1 and getattr(self, "enable_lu_communication", False) and getattr(self, "lu_adapter", None) is not None:
-                self.lu_adapter.inherit_latent_traits(child["id"], p1, p2)
+            self.add_agent(g, x=x, y=y, energy=e)
 
     def render(self):
         print(f"--- BIOSPHERE V14 TensorWorld | {len(self.agents)} AGENTS EN VIE | TICK: {self.ticks} ---")
@@ -2036,6 +1902,3 @@ class Biosphere3D(BaseWorld):
             return
         # Simplified rendering
         print(f"Entities: {len(self.agents)} Agents, {len(self.preys)} Preys, {len(self.items)} Items")
-
-# Alias normalisé pour le curriculum tri-mondes
-World1StoneAge = Biosphere3D

@@ -193,15 +193,6 @@ def main():
                               # FIX : posé ICI (config vivant) — l'ancienne pose était écrasée par cette
                               # ré-instanciation de config. Défaut WorldConfig reste 0 (tests/outils inchangés).
 
-    # Option A (Physique & Biosphère) : Câblage direct des Gigatokens LU
-    enable_lu = os.getenv("ENABLE_LU", "0") == "1"
-    if enable_lu:
-        config.enable_lu_communication = True
-        config.lu_latent_dim = int(os.getenv("LU_LATENT_DIM", "16"))
-        config.lu_noise_level = float(os.getenv("LU_NOISE_LEVEL", "0.05"))
-        config.lu_hear_radius = int(os.getenv("LU_HEAR_RADIUS", "3"))
-        logger.info(f"🌐 [LU] Communication Latente Continue ACTIVÉE (Dim: {config.lu_latent_dim}, Radius: {config.lu_hear_radius})")
-
     # D1 — provenance : seed le RNG global au boot et LOGGE la graine (rejouable via EXPERIMENT_SEED).
     # Placé ICI (après la 2e instanciation de config) pour que experiment_seed survive sur le config
     # réellement utilisé par la boucle.
@@ -289,18 +280,13 @@ def main():
                 best_agent = max(env.agents, key=lambda a: a["energy"])
                 try:
                     import json
-                    snapshot_payload = {
+                    async_logger.emit("COGNITIVE_SNAPSHOT", {
                         "agent_id": best_agent["id"][:8],
                         "tick": env.ticks,
                         "ntm_memory": json.dumps(best_agent["model"].ntm_memory.tolist() if hasattr(best_agent["model"], "ntm_memory") else []),
                         "attention_mask": json.dumps(best_agent["model"].attention_mask.tolist() if hasattr(best_agent["model"], "attention_mask") else []),
                         "w_connectome": json.dumps(best_agent["model"].genome.W.tolist())
-                    }
-                    if getattr(env, "enable_lu_communication", False) and "lu_latent" in best_agent:
-                        snapshot_payload["lu_gigatoken"] = json.dumps(best_agent["lu_latent"].tolist())
-                        if getattr(env, "lu_adapter", None) is not None:
-                            snapshot_payload["lu_thought_fr"] = env.lu_adapter.explain_agent_thought(best_agent, lang="fr")
-                    async_logger.emit("COGNITIVE_SNAPSHOT", snapshot_payload)
+                    })
                 except Exception as e:
                     pass
 
@@ -357,18 +343,7 @@ def main():
                     state_data = {
                         "size": int(env.size),
                         "is_night": bool(getattr(env, "is_night", False)),
-                        "agents": [
-                            {
-                                "x": int(a["x"]),
-                                "y": int(a["y"]),
-                                "energy": float(a["energy"]),
-                                "id": str(a["id"]),
-                                "role": str(a.get("role", "HUNTER")),
-                                "gigatoken": [round(float(v), 3) for v in a["lu_latent"][:8]] if "lu_latent" in a else [],
-                                "thought": env.lu_adapter.explain_agent_thought(a, lang="fr") if getattr(env, "enable_lu_communication", False) and getattr(env, "lu_adapter", None) else ""
-                            }
-                            for a in env.agents
-                        ],
+                        "agents": [{"x": int(a["x"]), "y": int(a["y"]), "energy": float(a["energy"]), "id": str(a["id"])} for a in env.agents],
                         "items": [{"x": int(it["x"]), "y": int(it["y"]), "type": str(it.get("type", "unknown"))} for it in env.items],
                         "preys": [{"x": int(p["x"]), "y": int(p["y"]), "type": str(p["type"])} for p in env.preys],
                         "trees": [{"x": int(t[0]), "y": int(t[1])} for t in env.trees]
@@ -378,7 +353,6 @@ def main():
                         json.dump(state_data, f)
                 except Exception as e:
                     logger.error(f"Erreur d'export state.json: {e}")
-
 
             # Fast forward in headless mode: removed time.sleep(0.05) to speed up 30 eras.
             

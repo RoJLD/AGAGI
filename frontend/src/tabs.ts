@@ -14,7 +14,6 @@ import {
   MapIcon,
   Network,
   NotebookPen,
-  Radio,
   ShieldAlert,
   ShieldCheck,
   Spline,
@@ -37,7 +36,6 @@ export const TAB_KEYS = [
   "cohorte",
   "energie",
   "forage",
-  "lu",
   "parcours",
   "laboratoire",
   "sandbox",
@@ -97,7 +95,6 @@ export const TAB_FAMILIES: TabFamily[] = [
   {
     family: "Expérimentation",
     tabs: [
-      { key: "lu", label: "Langage Ultime", icon: Radio },
       { key: "parcours", label: "Parcours", icon: Compass },
       { key: "laboratoire", label: "Laboratoire", icon: FlaskConical },
       { key: "sandbox", label: "Bac à sable", icon: Gamepad2 },

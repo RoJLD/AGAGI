@@ -38,9 +38,6 @@ const PilotageRoadmapView = lazy(() =>
 const PilotagePortesView = lazy(() =>
   import("./components/pilotage/PilotagePortesView").then((m) => ({ default: m.PilotagePortesView })),
 );
-const LangageUltimeView = lazy(() =>
-  import("./components/LangageUltimeView").then((m) => ({ default: m.LangageUltimeView })),
-);
 
 export default function App() {
   const { theme, toggle } = useTheme();
@@ -100,7 +97,6 @@ export default function App() {
           {tab === "forage" && <ForageFunnelView />}
           {tab === "academy" && <AcademyView />}
           {tab === "laboratoire" && <LaboratoryView />}
-          {tab === "lu" && <LangageUltimeView />}
           {tab === "timeline" && <TimelineViewer />}
           {tab === "provenance" && <ProvenanceView />}
           {tab === "carnet" && <CarnetView />}

@@ -8,7 +8,7 @@
 > l'intelligence *trouvée* (connectomes évolués, bottom-up), pas *donnée*.
 >
 > **Cette page = ce qui reste à faire + où on en est.** L'**historique** scientifique :
-> [`../FIL_CONDUCTEUR.md`](../FIL_CONDUCTEUR.md) (récit) + [`../EDR/`](../EDR/) (détail — **335 records** <!-- count:records_total=335 --> au graphe).
+> [`../FIL_CONDUCTEUR.md`](../FIL_CONDUCTEUR.md) (récit) + [`../EDR/`](../EDR/) (détail — **334 records** <!-- count:records_total=334 --> au graphe).
 > Les **idées futures / aspirationnel** : [`../BACKLOG.md`](../BACKLOG.md). Méthode : **Commandement 15**
 > (1 variable, ≥... mesures, valide ou revert — *powerer avant de conclure*).
 
@@ -47,15 +47,9 @@ mesuré 0.866), pas un déplacement de seuil. ⚠️ Portée : D=0 — à D=2 la
 | 1 | L'Animal (Survie) | ✅ TERMINÉ |
 | 2 | Le Primate (Outils) | ✅ TERMINÉ (V14) |
 | 3 | L'Homo Habilis (Crafting) | ✅ chaîne moyens→fins émergente+robuste (`027-030`) |
-| **4** | **L'Homo Sapiens (Langage)** | ✅ **TERMINÉ** — Résolu par Langage Ultime (LU) continu (`docs/0_Langage_Ultime_Resolution_Arc4.md`) |
-| **5** | **La Tribu (Culture)** | ✅ **TERMINÉ** — Dialectes de meute, division du travail & craft partagé |
-| **6** | **Le Penseur (Méta-Simulation)** | ✅ **TERMINÉ** — Rêve contrefactuel & délibération au feu de camp (Article 020) |
-| **7** | **La Noosphère (Hyper-Conscience)** | ✅ **TERMINÉ** — Réaction-diffusion & Hyper-Connectome fédéral (Article 021-022) |
-| **8** | **L'Omniconscience (Autopoïèse)** | ✅ **TERMINÉ** — Clôture autopoïétique & holographie frontière (Article 023) |
-| **9** | **La Démiurgie (Multivers)** | ✅ **TERMINÉ** — Intrication Bell & onde avancée rétrocausale (Article 024) |
-| **10** | **The Foundation Bridge (LLMs)** | ✅ **TERMINÉ** — Extraction continue, StateBridge M2M & soft-prompting (Article 025) |
-| **11** | **Swarm Foundation & Embodied LLMs** | ✅ **TERMINÉ** — Consensus Weiszfeld BFT, embodiment & dream replay (Article 026) |
-| **12** | **Multimodal Latent MCTS & Self-Reflection** | 🚀 **DÉMARRÉ** — Méta-raisonnement spatial, search sans tokens & gradient réflexif |
+| **4** | **L'Homo Sapiens (Langage)** | 🔵 **EN COURS** — code référentiel fiable câblé (`072-074`) ; bénéfice fonctionnel en cours de test rigoureux (`087`) |
+| 5 | La Tribu (Culture) | ⚪ après clôture Arc 4 |
+| 6-7 | Penseur, Conscience | ⚪ gelé (`docs/BACKLOG.md`) |
 
 ## Diagnostic — 3 causes-racines (orientation)
 
@@ -86,52 +80,14 @@ mesuré 0.866), pas un déplacement de seuil. ⚠️ Portée : D=0 — à D=2 la
 > *générateur d'hypothèses* : 2 « criticals » vérifiés et **réfutés** (World Model est bien actif,
 > surprise=0.25 ; le dé-bruitage HoF tient). *Vérifier avant d'agir.*
 
-## 🔬 Frontière scientifique — Arc 5 & Écosystème Multivers
+## 🔬 Frontière scientifique — prochains leviers
 
-### 1. Clôture Arc 4 & Déploiement Arc 5 (La Tribu, Division du Travail & Multivers)
-- **Arc 4 Validé (Langage Ultime)** : Codage référentiel continu en Gigatokens $\mathbb{R}^D$, alignement CKA $0.8842$, gain de survie $+245\%$, transfert horizontal de gènes (HGT).
-- **Arc 5 Opérationnel (Curriculum Tri-Mondes & Rôles Tribaux)** :
-  - **Monde 1 (Pierre / Survie)** : Chasse coopérative, autels, allumage du feu.
-  - **Monde 2 (Agricole / Saisons & Résilience)** : Cycle 4 saisons, gel hivernal (pénalité cognitive de $-1.5$ HP/tick par grand froid), obligation d'engranger au grenier en été/automne sous peine d'extinction.
-  - **Monde 3 (Industriel / Métallurgie & Écologie)** : Extraction de minerai de fer, chauffe du haut-fourneau ($>50^\circ\text{C}$), forgeage d'outils métalliques et gestion de la pollution atmosphérique.
-- **Rôles Tribaux Spécialisés** :
-  - **SCOUT** (Éclaireur, or `#f59e0b`) : Exploration rapide, communication à longue portée, repérage des proies et gisements.
-  - **HUNTER** (Chasseur, rouge `#e11d48`) : Traque meute, harcèlement coordonné, partage d'énergie.
-  - **CRAFTER** (Artisan, cyan `#06b6d4`) : Manipulation d'objets, friction, alimentation du fourneau, forge.
-- **Visualisation & Streaming Live** :
-  - Dashboard réactif (`FlatlandViewer.tsx`) restituant les ondes concentriques améthystes (`rgba(192, 132, 252, 0.7)`) lors de l'émission de Gigatokens LU.
-  - Coloration dynamique selon le rôle et carte d'inspection interactive de l'agent.
-- **Persistance & Lattice Memory (Commandement 5)** :
-  - Enregistrement dans KuzuDB du nœud `PhylogeneticRun` et de la relation `PASSED_THROUGH` vers `WorldVersion`.
-  - CLI dédiée : `tools/register_phylogenetic_run.py`.
-- **Boucle RSI Autonome (#8 Ollama & AST)** :
-  - Générateur d'hypothèses de mutation de code via LLM local (Ollama) avec fallback AST déterministe.
-  - Sandbox isolée avec timeout strict et validation `pytest` préalable (Commandements 6 & 7).
-
-```mermaid
-flowchart TD
-    subgraph Arc5_Curriculum [Curriculum Phylogénétique Tri-Mondes]
-        W1[Monde 1: Pierre / Survie\nBiosphere3D] -->|Transfert Champions| W2[Monde 2: Agricole / Grenier\nAgriculturalWorld]
-        W2 -->|Transfert Champions| W3[Monde 3: Industriel / Forge\nIndustrialWorld]
-    end
-
-    subgraph Specialisation [Spécialisation Tribale Multivers]
-        W3 -.-> R1[SCOUT: Éclaireur Or]
-        W3 -.-> R2[HUNTER: Chasseur Rouge]
-        W3 -.-> R3[CRAFTER: Artisan Cyan]
-    end
-
-    subgraph Observabilite [Observabilité & Lattice Memory]
-        W1 & W2 & W3 -->|Métriques & Champions| KUZU[(KuzuDB: PhylogeneticRun\nPASSED_THROUGH)]
-        W1 & W2 & W3 -->|WebSocket 8000| UI[Dashboard Frontend\nFlatlandViewer Canvas + Gigatokens LU]
-    end
-
-    subgraph RSI [Méta-Évolution RSI #8]
-        KUZU -->|Audit Performance| OLLAMA[RSI Loop: Ollama Proposer]
-        OLLAMA -->|Code Patch| SANDBOX[Sandbox Process & Pytest]
-        SANDBOX -->|Code Validé| W1
-    end
-```
+1. **Clore le bénéfice fonctionnel du langage (Arc 4)** — re-test `087` (FIABLE vs BROUILLÉ, isole le *contenu* du téléguidage) + **power (R≥4)** : à survie longue, le contenu référentiel paye-t-il ? Si oui → Arc 4 clos. *(Prérequis de CAPACITÉ désormais dé-risqués en proxy : trilogie `LANG-001/002/003` — cf. § Fil langage.)*
+2. **Prouver que chaque monde EXIGE l'intelligence** *(hygiène fondatrice, scan S2)* — benchmark **agent dummy vs champion HoF** (ratio de survie par monde). Si ratio≈1 → le monde est factice et toute mesure de « compétence » y est du bruit. Conditionne la validité du curriculum.
+3. **Vrai planning** *(scan S6)* — le « dreaming/MCTS » est du **random-shooting latent** (perturbe `H`, n'exploite PAS le World Model). Le brancher sur `world_model.predict()` pour simuler des trajectoires (obs→action→reward) → imagination instrumentale.
+4. **Co-évoluer l'usage du langage** (`083`, +0.29 sous 2 SE) — pression de sélection explicite sur l'écoute ; + **récompenses intrinsèques** (curiosité comme fitness — le World Model EST actif).
+5. **Régler le sweet spot d'énergie** (`085`) comme variable d'expérience ; **étoffer les mondes 2&3** (Agri=anticipation, Industrial=coopération) — substrat de l'Arc 5 *(design détaillé → `../BACKLOG.md`)*.
+6. **Vraie RSI** (#8 armé `065-069`) — **après** durcir la sandbox (cf. garde-fous) ; Arc 5 **après** clôture Arc 4.
 
 > **Audit Mémoire & Typologie d'intelligence (2026-06-30)** → backlog priorisé complet dans
 > [`../AUDIT_MEMOIRE_INTELLIGENCE.md`](../AUDIT_MEMOIRE_INTELLIGENCE.md). Constat : mémoire surtout

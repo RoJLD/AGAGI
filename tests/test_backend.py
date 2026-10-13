@@ -1198,14 +1198,3 @@ def test_index_import_refuse_est_NOMME(monkeypatch) -> None:
     ix._vider_cache()
     d = client.get("/api/pm/index").json()
     assert d["aveugle"][0].startswith("index: ImportError") and "yaml" in d["aveugle"][0]
-
-
-def test_sandbox_iterate_rsi() -> None:
-    response = client.post("/api/sandbox/iterate_rsi")
-    assert response.status_code == 200
-    payload = response.json()
-    assert payload["status"] == "success"
-    assert "proposal" in payload
-    assert payload["proposal"]["kind"] in ("activation", "world_demand")
-    assert payload["proposal"]["name"] in ("swish", "gelu_approx", "softsign")
-    assert payload["validation"]["ok"] is True

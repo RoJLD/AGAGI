@@ -132,18 +132,6 @@
 - ponts_actifs: [BIND, SUB]
 - filiation: —
 
-### LU — Langage Ultime & Communication Latente M2M
-- statut: actif (branche ouverte le 2026-10-09)
-- couche: Langage / Sémiotique Latente & M2M
-- question_phare: Représentation et transmission optimale continue sans downsampling 1D (Gigatokens, StateBridge, DSL)
-- fichiers_possedes: src/metaprog/lu_*.py, tests/test_lu_*.py, tools/lu_measurement_bench.py, docs/roadmap/LANGAGE_ULTIME.md, docs/0_Langage_Ultime_*.md
-- memoire: docs/0_Langage_Ultime_Theorie.md, docs/0_Langage_Ultime_StateBridge.md, docs/0_Langage_Ultime_Etat_de_l_Art.md, docs/0_Langage_Ultime_AutoTraducteur_Latent.md
-- legacy_edr: — (poursuite/extension de l'Arc 4 & fil LANG-001..006)
-- frontiere_courante: Jalon M5 — Déploiement Swarm NAS & Preuve in-world (Banc A/B)
-- ponts_actifs: [COG (cognition symbolique), SUB (moteur vectoriel), PROD (KuzuDB / Lattice Memory), INFRA]
-- filiation: [Arc 4 Langage, LANG-001..006]
-
-
 ## Doublons legacy connus (à nettoyer de façon coordonnée, cf. cartographe)
 
 EDR-093, EDR-094, EDR-100, EDR-105, EDR-113 : deux records distincts partagent le numéro (collisions

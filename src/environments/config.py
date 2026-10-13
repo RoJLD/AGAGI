@@ -95,20 +95,7 @@ class WorldConfig:
 
     # NAS Axe D-1 (coût métabolique d'activation) : énergie drainée par nœud actif/tick.
     # 0.0 = off (non-régression bit-exacte). Seule variable d'expérience ; sweep typique 0 -> 0.01.
-    # Branche LU (Langage Ultime & Communication Latente Continue)
-    enable_lu_communication: bool = False  # Strict non-régression (Commandement 15)
-    lu_latent_dim: int = 16
-    lu_noise_level: float = 0.05
-    lu_hear_radius: int = 3
-    lu_alignment_threshold: float = 0.70
-    lu_alignment_reward: float = 0.5
-    lu_referential_bonus: float = 1.0
-    lu_pack_coordination: bool = True
-    lu_signal_metabolic_cost: float = 0.05
-    lu_cooperative_prey_multiplier: float = 2.0
-    lu_role_specialization: bool = True
-    lu_emergent_roles: bool = False
-    lu_campfire_cultural_boost: bool = True
+    metabolic_cost_coef: float = 0.0
 
     agent: AgentConfig = field(default_factory=AgentConfig)
     biome: BiomeConfig = field(default_factory=BiomeConfig)

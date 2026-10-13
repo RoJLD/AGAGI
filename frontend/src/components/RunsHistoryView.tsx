@@ -14,7 +14,6 @@ import { useToast } from "../contexts/ToastContext";
 import { useHashRoute } from "../hooks/useHashRoute";
 import { TAB_KEYS } from "../tabs";
 import { RunNotes } from "./RunNotes";
-import { TriWorldCurriculumView } from "./TriWorldCurriculumView";
 
 export function RunsHistoryView({ onCompare }: { onCompare?: (condition: string) => void }) {
   const { query } = useHashRoute(TAB_KEYS, "runs");
@@ -73,78 +72,74 @@ export function RunsHistoryView({ onCompare }: { onCompare?: (condition: string)
 
   if (runsQuery.isLoading) return <Loading label="Chargement des runs…" />;
   if (runsQuery.error) return <ErrorState error={runsQuery.error} onRetry={() => runsQuery.refetch()} />;
+  if (!runs.length) {
+    return <Empty message="Aucun run dans results/. Lance des expériences via le Bac à sable (lanceur multi-seed)." />;
+  }
+
   return (
     <div>
-      <TriWorldCurriculumView />
-
-      <h2 style={{ marginTop: "2rem" }}>Historique des runs standards</h2>
+      <h2>Historique des runs</h2>
       <p className="edr-intro">
         {runs.length} runs · {conditionCount} conditions. Provenance (commit), graine et KPIs de chaque
         réplicat écrit dans <code>results/</code> — la traçabilité des expériences.
       </p>
 
-      {!runs.length ? (
-        <Empty message="Aucun run standard dans results/. Lance des expériences via le Bac à sable." />
-      ) : (
-        <>
-          <div className="row mb-4" style={{ maxWidth: 320 }}>
-            <Field label="Filtrer par condition">
-              <input value={filter} onChange={(e) => setFilter(e.target.value)} placeholder="ex: robust_eval" />
-            </Field>
-          </div>
+      <div className="row mb-4" style={{ maxWidth: 320 }}>
+        <Field label="Filtrer par condition">
+          <input value={filter} onChange={(e) => setFilter(e.target.value)} placeholder="ex: robust_eval" />
+        </Field>
+      </div>
 
-          <Panel>
-            <table className="runs-table">
-              <thead>
-                <tr>
-                  <th>Condition</th>
-                  <th>Seed</th>
-                  <th>Commit</th>
-                  <th>Métriques</th>
-                  <th aria-label="actions" />
-                </tr>
-              </thead>
-              <tbody>
-                {filtered.map((r) => (
-                  <tr key={r.run_id} className={selected === r.run_id ? "is-selected" : undefined}>
-                    <td>
-                      {r.name}
-                      {articleLinks[r.run_id]?.length ? (
-                        <>
-                          {" "}
-                          <Badge variant="purple">{articleLinks[r.run_id].length} article(s)</Badge>
-                        </>
-                      ) : null}
-                    </td>
-                    <td>{r.seed}</td>
-                    <td>
-                      <code>{r.commit ?? "—"}</code>
-                    </td>
-                    <td className="text-dim">{r.metrics.join(", ") || "—"}</td>
-                    <td className="text-right">
-                      <Button variant="ghost" size="sm" onClick={() => setSelected(r.run_id)}>
-                        Détail
-                      </Button>
-                      {onCompare && (
-                        <Button variant="ghost" size="sm" onClick={() => onCompare(r.name)}>
-                          Comparer
-                        </Button>
-                      )}
-                    </td>
-                  </tr>
-                ))}
-                {!filtered.length && (
-                  <tr>
-                    <td colSpan={5} className="text-dim">
-                      Aucune condition ne correspond au filtre.
-                    </td>
-                  </tr>
-                )}
-              </tbody>
-            </table>
-          </Panel>
-        </>
-      )}
+      <Panel>
+        <table className="runs-table">
+          <thead>
+            <tr>
+              <th>Condition</th>
+              <th>Seed</th>
+              <th>Commit</th>
+              <th>Métriques</th>
+              <th aria-label="actions" />
+            </tr>
+          </thead>
+          <tbody>
+            {filtered.map((r) => (
+              <tr key={r.run_id} className={selected === r.run_id ? "is-selected" : undefined}>
+                <td>
+                  {r.name}
+                  {articleLinks[r.run_id]?.length ? (
+                    <>
+                      {" "}
+                      <Badge variant="purple">{articleLinks[r.run_id].length} article(s)</Badge>
+                    </>
+                  ) : null}
+                </td>
+                <td>{r.seed}</td>
+                <td>
+                  <code>{r.commit ?? "—"}</code>
+                </td>
+                <td className="text-dim">{r.metrics.join(", ") || "—"}</td>
+                <td className="text-right">
+                  <Button variant="ghost" size="sm" onClick={() => setSelected(r.run_id)}>
+                    Détail
+                  </Button>
+                  {onCompare && (
+                    <Button variant="ghost" size="sm" onClick={() => onCompare(r.name)}>
+                      Comparer
+                    </Button>
+                  )}
+                </td>
+              </tr>
+            ))}
+            {!filtered.length && (
+              <tr>
+                <td colSpan={5} className="text-dim">
+                  Aucune condition ne correspond au filtre.
+                </td>
+              </tr>
+            )}
+          </tbody>
+        </table>
+      </Panel>
 
       {selected && (
         <Panel className="mt-4">

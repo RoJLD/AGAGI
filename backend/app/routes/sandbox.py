@@ -161,34 +161,3 @@ def get_latest_article():
         if 'db' in locals(): del db
         
     return {"title": "En attente du Superviseur Ollama...", "content": "Aucun article publié pour l'instant. Cochez 'Superviseur IA' pour lancer la rédaction automatique.", "timestamp": 0}
-
-
-class RsiIterateRequest(BaseModel):
-    use_llm: bool = False
-    model: str = "llama3:latest"
-
-
-@router.post("/iterate_rsi", dependencies=[Depends(require_token)])
-def iterate_rsi(req: Optional[RsiIterateRequest] = None):
-    from src.metaprog.rsi_loop import rsi_step
-    try:
-        use_llm = req.use_llm if req else False
-        model = req.model if req else "llama3:latest"
-        context = {"trend": {"direction": "stable"}, "recent": []}
-        proposal, ok, reason = rsi_step(context, use_llm=use_llm, ollama_model=model)
-        return {
-            "status": "success",
-            "proposal": {
-                "name": proposal.name,
-                "kind": proposal.kind,
-                "code": proposal.code,
-                "rationale": proposal.rationale,
-                "params": proposal.params,
-            },
-            "validation": {
-                "ok": ok,
-                "reason": reason
-            }
-        }
-    except Exception as e:
-        return {"status": "error", "message": str(e)}

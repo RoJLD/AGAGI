@@ -71,8 +71,7 @@ class ExperimentGraph:
             "CREATE NODE TABLE Species (name STRING, base_inputs INT64, base_outputs INT64, base_nodes INT64, traits STRING, PRIMARY KEY (name))",
             "CREATE NODE TABLE WorldVersion (name STRING, type STRING, complexity INT64, PRIMARY KEY (name))",
             "CREATE NODE TABLE CognitiveSnapshot (id STRING, agent_id STRING, tick INT64, ntm_memory STRING, attention_mask STRING, w_connectome STRING, PRIMARY KEY (id))",
-            "CREATE NODE TABLE Hyperparameters(id STRING, params STRING, PRIMARY KEY (id))",
-            "CREATE NODE TABLE PhylogeneticRun (id STRING, transfer_ratio DOUBLE, stone_score DOUBLE, agri_score DOUBLE, indus_score DOUBLE, status STRING, timestamp STRING, PRIMARY KEY (id))"
+            "CREATE NODE TABLE Hyperparameters(id STRING, params STRING, PRIMARY KEY (id))"
         ]:
             self._safe_execute(table)
         
@@ -93,8 +92,7 @@ class ExperimentGraph:
             "CREATE REL TABLE TOOK_SNAPSHOT (FROM Agent TO CognitiveSnapshot)",
             "CREATE REL TABLE TIMELINE_NEXT (FROM Species TO Species)",
             "CREATE REL TABLE CREATED_SPECIES (FROM Experiment TO Species)",
-            "CREATE REL TABLE HAS_HYPERPARAMETERS(FROM Experiment TO Hyperparameters)",
-            "CREATE REL TABLE PASSED_THROUGH (FROM PhylogeneticRun TO WorldVersion, score DOUBLE)"
+            "CREATE REL TABLE HAS_HYPERPARAMETERS(FROM Experiment TO Hyperparameters)"
         ]:
             self._safe_execute(rel)
 
@@ -247,54 +245,3 @@ class ExperimentGraph:
                 "date": row[3]
             })
         return articles
-
-    def log_phylogenetic_run(self, run_id: str, curriculum_report: dict, timestamp: str = ""):
-        """Enregistre un run du curriculum tri-mondes dans KuzuDB (Commandement 5)."""
-        if not timestamp:
-            import datetime
-            timestamp = datetime.datetime.now().isoformat()
-        scores = curriculum_report.get("scores_progression", [0.0, 0.0, 0.0])
-        stone_s = float(scores[0]) if len(scores) > 0 else 0.0
-        agri_s = float(scores[1]) if len(scores) > 1 else 0.0
-        indus_s = float(scores[2]) if len(scores) > 2 else 0.0
-        ratio = float(curriculum_report.get("transfer_ratio", 0.0))
-        status = curriculum_report.get("status", "completed")
-
-        self._safe_execute(
-            f"MERGE (p:PhylogeneticRun {{id: '{run_id}'}}) "
-            f"SET p.transfer_ratio = {ratio}, p.stone_score = {stone_s}, "
-            f"p.agri_score = {agri_s}, p.indus_score = {indus_s}, "
-            f"p.status = '{status}', p.timestamp = '{timestamp}'"
-        )
-
-        stages_map = [
-            ("StoneAge_World1", stone_s),
-            ("Agricultural_World2", agri_s),
-            ("Industrial_World3", indus_s),
-        ]
-        for stage_name, score in stages_map:
-            self._safe_execute(f"MERGE (w:WorldVersion {{name: '{stage_name}'}}) ON CREATE SET w.type = '{stage_name}', w.complexity = 1")
-            self._safe_execute(
-                f"MATCH (p:PhylogeneticRun {{id: '{run_id}'}}), (w:WorldVersion {{name: '{stage_name}'}}) "
-                f"MERGE (p)-[r:PASSED_THROUGH]->(w) SET r.score = {score}"
-            )
-
-    def get_phylogenetic_runs(self) -> list[dict]:
-        """Récupère l'historique des runs phylogénétiques tri-mondes."""
-        res = self.conn.execute(
-            "MATCH (p:PhylogeneticRun) RETURN p.id, p.transfer_ratio, p.stone_score, p.agri_score, p.indus_score, p.status, p.timestamp ORDER BY p.timestamp DESC"
-        )
-        runs = []
-        while res.has_next():
-            row = res.get_next()
-            runs.append({
-                "id": row[0],
-                "transfer_ratio": row[1],
-                "stone_score": row[2],
-                "agri_score": row[3],
-                "indus_score": row[4],
-                "status": row[5],
-                "timestamp": row[6],
-            })
-        return runs
-

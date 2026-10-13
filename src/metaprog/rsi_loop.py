@@ -162,46 +162,69 @@ class LLMProposer(Proposer):
         return parse_demand_response(self.llm_fn(build_demand_prompt(context)))
 
 
-class OllamaProposer(LLMProposer):
-    """Générateur de proposition RSI armé par Ollama local, borné par la frontière ALLOWED_DEMAND_PARAMS."""
-    def __init__(self, host: str = "http://localhost:11434", model: str = "llama3:latest", timeout: float = 3.0):
-        self.host = host.rstrip("/")
-        self.model = model
-        self.timeout = timeout
-        super().__init__(llm_fn=self._query_ollama)
+class WorldDemandProposer(Proposer):
+    """Générateur DIRIGÉ (non-LLM) de DEMANDES de monde — le périmètre le plus puissant (EDR 051).
 
-    def _query_ollama(self, prompt: str) -> str:
-        import urllib.request
-        import json
-        url = f"{self.host}/api/generate"
-        payload = json.dumps({
-            "model": self.model,
-            "prompt": prompt,
-            "stream": False,
-            "format": "json"
-        }).encode("utf-8")
-        req = urllib.request.Request(url, data=payload, headers={"Content-Type": "application/json"})
-        with urllib.request.urlopen(req, timeout=self.timeout) as resp:
-            data = json.loads(resp.read().decode("utf-8"))
-            return data.get("response", "{}")
+    Catalogue des demandes qu'on a conçues/mesurées à la main (047 succès, 045/050 échecs). La
+    boucle les ré-essaie et les CLASSE par la mesure — exactement la recherche que la conception
+    manuelle rate (cf. EDR 050 : 4 designs, 3+ échecs). Le LLMProposer s'y substituerait pour en
+    INVENTER de nouvelles, en lisant les échecs passés via l'ontologie.
+
+    Chaque demande = des `params` à poser sur le monde + une métrique cible. L'évaluation (évoluer
+    sous la demande + mesurer) est injectée par le caller (rsi_loop reste agnostique du monde)."""
+    CATALOG = [
+        ("lewis_2ref", {"lewis": True}, "demande referentielle reelle (Lewis 2 ref, EDR 047 succes)"),
+        ("referential_pressure", {"lewis": True, "referential_scale": 0.5}, "pression scriptee (EDR 045 echec)"),
+        ("speaker_reciprocity", {"lewis": True, "speaker_reward": 5.0}, "reciprocite du locuteur (EDR 050 echec)"),
+    ]
+
+    def __init__(self):
+        self._i = 0
+
+    def propose(self, context: dict) -> Proposal:
+        name, params, rationale = self.CATALOG[self._i % len(self.CATALOG)]
+        self._i += 1
+        return Proposal("world_demand", name, rationale=rationale, params=dict(params))
+
+
+def rsi_demand_step(context: dict, measure_fn, proposer: Proposer = None, graph=None):
+    """UN pas de la boucle #8 sur les DEMANDES de monde : PROPOSER -> MESURER (via `measure_fn`,
+    injecté : il applique la demande, évolue, et renvoie un score) -> ENREGISTRER (ontologie).
+    `measure_fn(proposal) -> (score: float, detail: str)`. Renvoie (proposal, score, detail)."""
+    if proposer is None:
+        proposer = WorldDemandProposer()
+    proposal = proposer.propose(context)
+    score, detail = measure_fn(proposal)
+    if graph is not None:
+        hid = f"rsi_demand_{proposal.name}"
+        graph.log_hypothesis(hid, f"La demande {proposal.name} fait emerger la capacite cible",
+                             status="proposed")
+        graph.log_fact(f"rsi_demand_eval_{proposal.name}", f"score mesure={score:.4f} ({detail})",
+                       hid, relation="SUPPORTS" if score > 0 else "REFUTES")
+    return proposal, score, detail
+
+
+def make_powered_measure(run_seed_fn, seeds=(0, 1, 2)):
+    """Fabrique un `measure_fn` PUISSANT pour `rsi_demand_step` — le 2ᵉ prérequis d'armement du #8
+    (EDR 059/061). Évalue chaque demande en MULTI-SEED via le harnais (EDR 052) au lieu d'un run
+    unique : sans ça, la boucle CLASSE LE BRUIT (EDR 051, démontré). World-agnostique : `run_seed_fn`
+    (params, seed) -> float (le gain mesuré d'UN réplicat) est injecté par le caller.
+
+    Renvoie measure(proposal) -> (score=moyenne sur seeds, detail='moy±σ (n)')."""
+    from src.seed_ai.eval_harness import powered_eval
+
+    def measure(proposal):
+        res = powered_eval({proposal.name: proposal.params}, run_seed_fn, seeds=seeds)
+        d = res[proposal.name]
+        return d["mean"], f"gain={d['mean']:.4f}+/-{d['std']:.4f} (n={d['n']})"
+
+    return measure
 
 
 def evaluate_proposal(proposal: Proposal):
     """VALIDE une proposition (périmètre + gate AST + test isolé). N'INSTALLE PAS. -> (ok, raison)."""
     if proposal.kind not in ALLOWED_KINDS:
         return False, f"kind hors perimetre: {proposal.kind}"
-
-    if proposal.kind == "world_demand":
-        # Vérification stricte des paramètres autorisés et bornés
-        for k, v in proposal.params.items():
-            if k not in ALLOWED_DEMAND_PARAMS:
-                return False, f"parametre non autorise: {k}"
-            typ, rng = ALLOWED_DEMAND_PARAMS[k]
-            if rng is not None:
-                if not (rng[0] <= float(v) <= rng[1]):
-                    return False, f"valeur hors bornes pour {k}: {v}"
-        return True, "world_demand validee (parametres conformes et bornes)"
-
     fn = first_def_name(proposal.code)
     if fn is None:
         return False, "aucune fonction definie"
@@ -215,20 +238,17 @@ def evaluate_proposal(proposal: Proposal):
     return run_sandboxed(proposal.code, test)
 
 
-def rsi_step(context: dict, proposer: Proposer = None, graph=None, use_llm: bool = False, ollama_model: str = "llama3:latest"):
+def rsi_step(context: dict, proposer: Proposer = None, graph=None):
     """UN pas de la boucle #8 : PROPOSER -> VALIDER -> ENREGISTRER (ontologie si `graph`).
-    Si use_llm=True, tente OllamaProposer avec repli gracieux et sécurisé sur TemplateProposer.
-    Renvoie (proposal, ok, reason)."""
+    NON ARMÉ par défaut (TemplateProposer). L'INSTALLATION du code validé reste au caller
+    (pour garder l'effet de bord explicite). Renvoie (proposal, ok, reason)."""
     if proposer is None:
-        if use_llm:
-            proposer = OllamaProposer(model=ollama_model)
-        else:
-            proposer = TemplateProposer()
+        proposer = TemplateProposer()
     try:
         proposal = proposer.propose(context)
-    except Exception as e:
-        proposal = TemplateProposer().propose(context)      # repli sûr : LLM indisponible ou non armé
-        proposal.rationale += f" [repli: {type(e).__name__}]"
+    except NotImplementedError:
+        proposal = TemplateProposer().propose(context)      # repli sûr : LLM non armé
+        proposal.rationale += " [repli: LLM non arme]"
 
     ok, reason = evaluate_proposal(proposal)
 

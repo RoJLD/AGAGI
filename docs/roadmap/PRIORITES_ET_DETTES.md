@@ -69,9 +69,6 @@ et le coût estimé.
    « aucun contrôle positif constructible » de SUBJECT-VARIANCE sont des ARTEFACTS CANDIDATS.** Vérifiable
    à ZÉRO simulation (réponses exactes par la formule) ; `phenotype_of`
    (`tools/evo_runs/evo011_preflight.py:300`) existe déjà et n'est appelé que par EVO-011.
-   *Résolu (2026-10-09) :* Introduction du phénotype `isocaloric=True` dans `MambaAgent` fixant strictement
-   `phenotype_energy_drain = 1.3`, `hp_bonus = 0.0`, `inv_capacity = 3`, validé sans régression dans
-   `tests/test_isocaloric_deconfounding.py`. Permet d'isoler la politique de tout biais métabolique.
 
 ### Direction (décidée le 2026-09-14) — A + B en parallèle, C en réserve
 
