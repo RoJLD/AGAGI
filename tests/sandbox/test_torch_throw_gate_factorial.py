@@ -17,6 +17,18 @@ import itertools
 from tools.torch_throw_gate_inworld_ab import run_arm, compare_factorial, _factorial_effects
 
 
+# P2.169 (2026-10-13) — GARDE TORCH, par test. Ces tests construisent le backend torch par le harnais
+# (src/agents/backend_torch.py lève NotImplementedError sans torch), sans importer torch eux-mêmes : la CI, qui n'a
+# pas torch, les rendait ROUGES d'environnement — invisibles jusqu'à P2.165, le filet de bail fuité les sautant depuis
+# le 2026-09-16. Mesurés VERTS avec torch avant d'être gardés (P2.169). Les autres tests du fichier tournent en CI.
+import importlib.util  # noqa: E402
+import pytest  # noqa: E402
+_TORCH = importlib.util.find_spec("torch") is not None
+requires_torch = pytest.mark.skipif(not _TORCH, reason="torch absent : le harnais construit le backend torch "
+                                    "(src/agents/backend_torch.py) — P2.169")
+
+
+@requires_torch
 def test_run_arm_accepts_factorial_knobs():
     """run_arm accepte no_consume/weightless/conditional_credit et complete un run court sans crash,
     en renvoyant les cles attendues (les flags sont poses sur le monde avant la boucle)."""
@@ -28,6 +40,7 @@ def test_run_arm_accepts_factorial_knobs():
     assert isinstance(out["binding_gap_inworld"], float)
 
 
+@requires_torch
 def test_compare_factorial_returns_16_cells():
     """compare_factorial produit les 16 cellules 2^4 distinctes, dont la cellule-0 tout-propre
     (T,T,T,T), chacune avec verdict + diffs. Config minuscule (smoke)."""
@@ -77,6 +90,7 @@ def test_compare_factorial_night_param_defaults_false():
     assert sig.parameters["night"].default is False
 
 
+@requires_torch
 def test_compare_factorial_accepts_night_true():
     """compare_factorial accepte night=True (regime letal) et complete un run court sans crash,
     en renvoyant les 16 cellules."""

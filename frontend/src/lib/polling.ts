@@ -15,6 +15,13 @@ export const PILOTAGE_POLL = {
   refetchIntervalInBackground: false,
 } as const;
 
+/** Options react-query de l'index des artefacts : 60 s, le cache du backend (l'index relit ~770 fichiers). */
+export const INDEX_POLL = {
+  refetchInterval: 60_000,
+  staleTime: 10_000,
+  refetchIntervalInBackground: false,
+} as const;
+
 /** Options react-query pour une query live de LiveDashboard, à intervalle donné.
  *  staleTime 0 (données fraîches à l'affichage) ; pas de polling en arrière-plan. */
 export function livePoll(intervalMs: number) {

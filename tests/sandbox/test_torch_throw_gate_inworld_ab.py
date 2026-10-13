@@ -6,6 +6,18 @@ if _ROOT not in sys.path:
     sys.path.insert(0, _ROOT)
 
 
+# P2.169 (2026-10-13) — GARDE TORCH, par test. Ces tests construisent le backend torch par le harnais
+# (src/agents/backend_torch.py lève NotImplementedError sans torch), sans importer torch eux-mêmes : la CI, qui n'a
+# pas torch, les rendait ROUGES d'environnement — invisibles jusqu'à P2.165, le filet de bail fuité les sautant depuis
+# le 2026-09-16. Mesurés VERTS avec torch avant d'être gardés (P2.169). Les autres tests du fichier tournent en CI.
+import importlib.util  # noqa: E402
+import pytest  # noqa: E402
+_TORCH = importlib.util.find_spec("torch") is not None
+requires_torch = pytest.mark.skipif(not _TORCH, reason="torch absent : le harnais construit le backend torch "
+                                    "(src/agents/backend_torch.py) — P2.169")
+
+
+@requires_torch
 def test_run_arm_smoke_keys_and_bounds():
     from tools.torch_throw_gate_inworld_ab import run_arm
     r = run_arm(shuffle=False, seed=0, ticks=40, warmup=20, n_agents=8)

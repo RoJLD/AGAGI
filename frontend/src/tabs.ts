@@ -10,6 +10,7 @@ import {
   Gauge,
   GraduationCap,
   History,
+  Library,
   ListChecks,
   MapIcon,
   Network,
@@ -48,6 +49,7 @@ export const TAB_KEYS = [
   "flotte",
   "roadmap",
   "portes",
+  "index",
 ] as const;
 
 export type TabKey = (typeof TAB_KEYS)[number];
@@ -113,12 +115,14 @@ export const TAB_FAMILIES: TabFamily[] = [
   },
   {
     // Lecture seule de GET /api/pm/pilotage (spec 2026-09-22) : flotte du tick PM, backlog, portes du hook.
+    // Index : GET /api/pm/index (P2.87, spec 2026-09-26) — les familles d'artefacts et ce que l'index n'a pas su lire.
     family: "Pilotage",
     tabs: [
       { key: "flotte", label: "Flotte", icon: Users },
       // MapIcon, jamais Map : Map masquerait le global JavaScript dans ce module.
       { key: "roadmap", label: "Roadmap", icon: MapIcon },
       { key: "portes", label: "Portes", icon: ShieldCheck },
+      { key: "index", label: "Index", icon: Library },
     ],
   },
 ];

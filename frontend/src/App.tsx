@@ -38,6 +38,7 @@ const PilotageRoadmapView = lazy(() =>
 const PilotagePortesView = lazy(() =>
   import("./components/pilotage/PilotagePortesView").then((m) => ({ default: m.PilotagePortesView })),
 );
+const IndexView = lazy(() => import("./components/pilotage/IndexView").then((m) => ({ default: m.IndexView })));
 
 export default function App() {
   const { theme, toggle } = useTheme();
@@ -112,6 +113,7 @@ export default function App() {
           {tab === "flotte" && <PilotageFlotteView />}
           {tab === "roadmap" && <PilotageRoadmapView />}
           {tab === "portes" && <PilotagePortesView />}
+          {tab === "index" && <IndexView />}
           </Suspense>
           </ErrorBoundary>
         </section>

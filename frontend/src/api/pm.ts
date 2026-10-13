@@ -7,6 +7,9 @@ export type Roadmap = components["schemas"]["Roadmap"];
 export type RoadmapEntree = components["schemas"]["RoadmapEntree"];
 export type Porte = components["schemas"]["Porte"];
 export type Charge = components["schemas"]["Charge"];
+export type IndexV1 = components["schemas"]["IndexV1"];
+export type IndexFamille = components["schemas"]["IndexFamille"];
+export type IndexArtefact = components["schemas"]["IndexArtefact"];
 
 /** Timeout du recalcul `?frais=1`. Mesuré le 2026-09-24 : `snapshot()` coûte 15,6-18,1 s (spec §3.2), or `apiFetch`
  *  coupe à 10 s par défaut — le seul chemin qui paie encore ce coût expirerait par construction. Marge sur le
@@ -19,4 +22,10 @@ export const FRAIS_TIMEOUT_MS = 40_000;
 export function fetchPilotage(frais = false): Promise<PilotageV1> {
   if (frais) return apiFetch<PilotageV1>("/api/pm/pilotage?frais=1", { timeoutMs: FRAIS_TIMEOUT_MS });
   return apiFetch<PilotageV1>("/api/pm/pilotage");
+}
+
+/** Chemin LITTÉRAL, premier argument direct d'`apiFetch` (porte de parité). Aucun recalcul côté serveur au-delà de
+ *  la lecture des fichiers : git n'est jamais lancé dans la requête (spec P2.87 §9, D1). */
+export function fetchIndex(): Promise<IndexV1> {
+  return apiFetch<IndexV1>("/api/pm/index");
 }

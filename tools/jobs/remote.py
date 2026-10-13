@@ -104,6 +104,13 @@ INIT_RECEVOIR = {"requests": {"cpu": "50m", "memory": "64Mi"}, "limits": {"cpu":
 # Objets du namespace que « namespace --appliquer » RETIRE après avoir appliqué les gabarits (remplacés par un autre).
 OBJETS_RETIRES = (("limitrange", "elysium-limitrange-standard"),)
 JOURNAL_LOCAL = "runs/deport"          # runs/ est ignoré par git : journaux et MANIFEST des runs
+# Accrocs de l'API du cluster — mesurés le 2026-09-26 à 20:25 (la sonde s'arrêtait) et le 2026-10-13 de 16:25 à 16:30
+# (7 « executer » sur 10 interrompus pendant une vague du pilote τ, 5 sorties récupérées à la main). Un appel IDEMPOTENT
+# est rejoué jusqu'à ECHECS_API_MAX échecs CONSÉCUTIFS — le plafond de la sonde (P2.137) —, chacun imprimé et compté.
+ECHECS_API_MAX = 3
+PAUSE_API_S = 15
+_API_TRANSITOIRE = re.compile(r"Unable to connect to the server|pas de réponse en|connection refused|connection reset"
+                              r"|i/o timeout|TLS handshake timeout|unexpected EOF|http2: client connection lost", re.I)
 MARGE_TRANSFERT_S = 1200               # préparation + tirage d'image + envoi des sources, borne haute
 ATTENTE_MIN_S = 60
 # Environnement de `local` : le strict nécessaire pour qu'un python tourne, RIEN de la session appelante.
@@ -637,6 +644,68 @@ class Kube:
         return [f"{e.get('reason')}: {e.get('message')}" for e in evs]
 
 
+def est_accroc_api(e: BaseException) -> bool:
+    """Un refus qui a la forme d'une coupure TRANSITOIRE de l'API — jamais un NotFound, un Forbidden, une admission."""
+    return isinstance(e, Refus) and bool(_API_TRANSITOIRE.search(str(e)))
+
+
+class Accrocs:
+    """Rejoue un appel IDEMPOTENT tant que l'API est coupée, au plus `echecs_max` fois DE SUITE : chaque accroc est
+    imprimé et compté par étape ; au-delà, abandon par un Refus qui dit QUOI faire et JUSQU'À QUAND. Jamais une boucle
+    muette, et jamais un refus de fond rejoué (il remonte tel quel)."""
+
+    def __init__(self, job, sortie=print, echecs_max=ECHECS_API_MAX, pause_s=PAUSE_API_S, dormir=time.sleep):
+        self.job, self.sortie, self.echecs_max, self.pause_s, self.dormir = job, sortie, echecs_max, pause_s, dormir
+        self.compte = {}
+
+    def appeler(self, etape, f, conseil=""):
+        suite = 0
+        while True:
+            try:
+                return f()
+            except Refus as e:
+                if not est_accroc_api(e):
+                    raise
+                suite += 1
+                self.compte[etape] = self.compte.get(etape, 0) + 1
+                self.sortie(f"[remote] {self.job} : accroc de l'API pendant « {etape} » ({suite}/{self.echecs_max} "
+                            f"consécutifs) : {str(e)[:160]}")
+                if suite >= self.echecs_max:
+                    raise Refus(f"{self.job} : API du cluster injoignable {suite} fois de suite pendant « {etape} » — "
+                                f"abandon. {conseil}".rstrip())
+                self.dormir(self.pause_s)
+
+    def publier(self, racine) -> dict:
+        """Ajoute les comptes, étape par étape, au journal local du Job : runs/deport/<job>/accrocs_api.json."""
+        d = Path(racine) / JOURNAL_LOCAL / self.job
+        d.mkdir(parents=True, exist_ok=True)
+        f = d / "accrocs_api.json"
+        tout = json.loads(f.read_text(encoding="utf-8")) if f.is_file() else {}
+        for etape, n in self.compte.items():
+            tout[etape] = tout.get(etape, 0) + n
+        f.write_text(json.dumps(tout, indent=1, ensure_ascii=False, sort_keys=True), encoding="utf-8")
+        return tout
+
+
+def _attente_du_job(j: dict) -> int | None:
+    """La fenêtre de rapatriement (--attente-s) déclarée sur le Job, lue dans les arguments de son conteneur `run` ;
+    None si illisible (jamais une valeur devinée)."""
+    for c in j.get("spec", {}).get("template", {}).get("spec", {}).get("containers", []):
+        args = c.get("args") or []
+        if "--attendre-rapatriement" in args:
+            try:
+                return int(float(args[args.index("--attendre-rapatriement") + 1]))
+            except (IndexError, ValueError):
+                return None
+    return None
+
+
+def _conseil_rapatriement(job, attente_s) -> str:
+    fenetre = f"{attente_s} s" if attente_s is not None else "la durée --attente-s déclarée à la soumission"
+    return (f"Le pod garde sa sortie au plus {fenetre} après la fin du runner : relancer « python -m tools.jobs.remote "
+            f"rapatrier {job} » avant — après, elle est PERDUE et le Job sort en {E.NON_RAPATRIE}.")
+
+
 def noeud_pret(kube: Kube, noeud: str):
     """(prêt, raison). Un nœud absent, NotReady ou non ordonnançable n'est PAS prêt."""
     try:
@@ -678,7 +747,7 @@ def garde_image(info: dict, sha: str, racine: Path) -> str:
 # ------------------------------------------------------------------------------------------ étapes
 def soumettre(commande, *, sha="HEAD", cpu=2.0, req_cpu=1.0, mem="4Gi", req_mem=None,
               attente_s=3600, deadline_s=2 * 3600, image_divergente_ok=False,
-              env=None, kube=None, racine=None, sortie=print, maintenant=None, cfg=None) -> str:
+              env=None, kube=None, racine=None, sortie=print, maintenant=None, cfg=None, dormir=time.sleep) -> str:
     cfg = cfg or charger_config()
     noeud = cfg["noeud"]
     req_mem = req_mem or requete_memoire_defaut(mem)
@@ -723,14 +792,32 @@ def soumettre(commande, *, sha="HEAD", cpu=2.0, req_cpu=1.0, mem="4Gi", req_mem=
                         source_sha256=hashlib.sha256(archive).hexdigest(), env_declare=env_declare)
     kube.creer(job)
     sortie(f"[remote] Job {nom} créé (sha {sha[:8]}, image {info['tag']}, garde d'image : {mode_garde})")
+    acc = Accrocs(nom, sortie, dormir=dormir)
+    paquet = paquet_de_transfert(archive, entry)
+    essais = []
+
+    def envoyer():
+        # Un envoi déjà tenté a pu ABOUTIR avant que sa réponse se perde : si l'init a fini en 0, les sources sont là
+        # (le paquet pose `.ready` en DERNIER) — on ne renvoie pas ; sinon on renvoie le même paquet (idempotent).
+        if essais:
+            p = kube.pod_du_job(nom)
+            st = {c["name"]: c for c in (p or {}).get("status", {}).get("initContainerStatuses", [])}
+            fini = (st.get("recevoir", {}).get("state") or {}).get("terminated") or {}
+            if fini.get("exitCode") == 0:
+                return "déjà reçues"
+        essais.append(1)
+        kube.executer_dans(pod, "recevoir", ["tar", "-x", "-C", "/xfer"], entree=paquet)
+        return "envoyées"
+
     try:
-        pod = _attendre_recevoir(kube, nom, sortie)
-        kube.executer_dans(pod, "recevoir", ["tar", "-x", "-C", "/xfer"], entree=paquet_de_transfert(archive, entry))
+        pod = _attendre_recevoir(kube, nom, sortie, acc)
+        livraison = acc.appeler("envoi des sources", envoyer)
     except Refus:
         # Rien n'a tourné : un Job laissé en place démarrerait PLUS TARD sans sources et échouerait à 900 s.
         kube.supprimer_job(nom)
+        acc.publier(racine)
         raise
-    sortie(f"[remote] sources envoyées ({len(archive)} o) au pod {pod}")
+    sortie(f"[remote] sources {livraison} ({len(archive)} o) au pod {pod}")
     j = racine / JOURNAL_LOCAL / nom
     j.mkdir(parents=True, exist_ok=True)
     (j / "soumission.json").write_text(json.dumps(
@@ -742,19 +829,21 @@ def soumettre(commande, *, sha="HEAD", cpu=2.0, req_cpu=1.0, mem="4Gi", req_mem=
                         "quota_hard": hard},
          "soumis_utc": _dt.datetime.now(_dt.timezone.utc).isoformat()}, indent=2, ensure_ascii=False),
         encoding="utf-8")
+    acc.publier(racine)
     return nom
 
 
 _FATAL = ("FailedMount", "ErrImagePull", "ImagePullBackOff", "InvalidImageName", "FailedScheduling")
 
 
-def _attendre_recevoir(kube: Kube, job: str, sortie, delai_s=900) -> str:
+def _attendre_recevoir(kube: Kube, job: str, sortie, acc=None, delai_s=900) -> str:
     """Attend que l'init `recevoir` tourne. Un pod absent après 30 s = refus d'admission SILENCIEUX (Kyverno)
     ou quota plein : on le dit avec les événements du Job. Une panne de tirage d'image est rapportée telle
-    quelle. (L'appelant retire le Job : rien n'a tourné.)"""
+    quelle. (L'appelant retire le Job : rien n'a tourné.) La lecture du pod tolère les accrocs de l'API (comptés)."""
+    acc = acc or Accrocs(job, sortie)
     t0 = time.monotonic()
     while True:
-        pod = kube.pod_du_job(job)
+        pod = acc.appeler("attente du pod", lambda: kube.pod_du_job(job))
         age = time.monotonic() - t0
         if pod is None:
             evs = kube.evenements(job)
@@ -822,51 +911,82 @@ def lire_fin(job_obj: dict, pod: dict | None, noeud_pret_maintenant: bool) -> di
     return {"etat": etat, "relancable": etat in ("oom", "evince", "preempte", "noeud_perdu"), **preuves}
 
 
-def attendre(job, *, kube=None, delai_s=8 * 3600, sortie=print, cfg=None) -> dict:
+def attendre(job, *, kube=None, delai_s=8 * 3600, sortie=print, cfg=None, racine=None, dormir=time.sleep) -> dict:
     """Attend la FIN du runner : `.pret` posé dans /out (rapatriable) ou Job terminé. États DISTINCTS :
     `pret`, `termine`, et pour un échec ceux de `lire_fin` (preempte, noeud_perdu, delai_depasse, oom,
-    refus_entree, non_rapatrie, evince, pod_disparu, sources_non_recues, inconnu), ou `expire`."""
+    refus_entree, non_rapatrie, evince, pod_disparu, sources_non_recues, inconnu), ou `expire`. Les lectures
+    tolèrent les accrocs de l'API (comptés, publiés dans le journal du Job) ; un abandon dit jusqu'à quand le pod
+    garde la sortie. À l'état `pret`, l'heure LIMITE du rapatriement est rendue et imprimée."""
     cfg = cfg or charger_config()
     kube = kube or Kube.depuis(cfg)
-    t0, dernier = time.monotonic(), None
-    while time.monotonic() - t0 < delai_s:
+    acc = Accrocs(job, sortie, dormir=dormir)
+    t0, dernier, attente_s = time.monotonic(), None, None
+
+    def lire():
         j = kube.json(["get", "job", job])
-        conds = {c["type"] for c in j.get("status", {}).get("conditions", []) if c.get("status") == "True"}
-        pod = kube.pod_du_job(job)
-        if "Complete" in conds:
-            return {"etat": "termine", "job": job}
-        if "Failed" in conds:
-            noeud = (pod or {}).get("spec", {}).get("nodeName") or cfg["noeud"]
-            return {"job": job, **lire_fin(j, pod, noeud_pret(kube, noeud)[0])}
-        if pod is not None and pod.get("status", {}).get("phase") == "Running":
-            r = kube.executer_dans(pod["metadata"]["name"], "run", ["test", "-f", "/out/.pret"], timeout=60,
-                                   verifier=False)
-            if r.returncode == 0:
-                return {"etat": "pret", "job": job, "pod": pod["metadata"]["name"]}
-        phase = (pod or {}).get("status", {}).get("phase")
-        if phase != dernier:
-            sortie(f"[remote] {job} : pod {phase}")
-            dernier = phase
-        time.sleep(15)
-    return {"etat": "expire", "job": job}
+        return j, kube.pod_du_job(job)
+
+    try:
+        while time.monotonic() - t0 < delai_s:
+            j, pod = acc.appeler("attente de la fin", lire, _conseil_rapatriement(job, attente_s))
+            attente_s = _attente_du_job(j) if attente_s is None else attente_s
+            conds = {c["type"] for c in j.get("status", {}).get("conditions", []) if c.get("status") == "True"}
+            if "Complete" in conds:
+                return {"etat": "termine", "job": job}
+            if "Failed" in conds:
+                noeud = (pod or {}).get("spec", {}).get("nodeName") or cfg["noeud"]
+                return {"job": job, **lire_fin(j, pod, noeud_pret(kube, noeud)[0])}
+            if pod is not None and pod.get("status", {}).get("phase") == "Running":
+                r = kube.executer_dans(pod["metadata"]["name"], "run", ["test", "-f", "/out/.pret"], timeout=60,
+                                       verifier=False)
+                if r.returncode == 0:
+                    limite = None
+                    if attente_s is not None:
+                        limite = (_dt.datetime.now(_dt.timezone.utc)
+                                  + _dt.timedelta(seconds=attente_s)).isoformat(timespec="seconds")
+                        sortie(f"[remote] {job} : sortie prête — le pod la garde jusqu'à ~{limite} (UTC, horloge "
+                               f"locale, attente-s = {attente_s} s) ; rapatrier avant")
+                    return {"etat": "pret", "job": job, "pod": pod["metadata"]["name"],
+                            "rapatrier_avant_utc": limite}
+            phase = (pod or {}).get("status", {}).get("phase")
+            if phase != dernier:
+                sortie(f"[remote] {job} : pod {phase}")
+                dernier = phase
+            dormir(15)
+        return {"etat": "expire", "job": job}
+    finally:
+        acc.publier(racine or racine_depot())
 
 
-def rapatrier(job, *, into=None, kube=None, racine=None, sortie=print) -> dict:
+def rapatrier(job, *, into=None, kube=None, racine=None, sortie=print, dormir=time.sleep) -> dict:
     """Tire la sortie d'un run depuis son pod VIVANT, la CONTRÔLE contre son MANIFEST et contre la soumission
     (sha, job, entrée), l'installe, puis libère le pod (`.rapatrie`). Sortie intègre mais en conflit : elle
     est conservée localement et le pod est libéré quand même — la donnée est en sûreté, rien n'est perdu.
-    Sortie corrompue : le pod n'est PAS libéré (on peut retirer tant que sa fenêtre court)."""
+    Sortie corrompue : le pod n'est PAS libéré (on peut retirer tant que sa fenêtre court). Les lectures et le tirage
+    (idempotents) tolèrent les accrocs de l'API, comptés et publiés ; un abandon dit jusqu'à quand le pod garde la sortie."""
     kube = kube or Kube.depuis(charger_config())
     racine = racine or racine_depot()
     dest = Path(into) if into else racine
-    j = kube.json(["get", "job", job])
+    acc = Accrocs(job, sortie, dormir=dormir)
+    try:
+        return _rapatrier(job, kube, racine, dest, sortie, acc)
+    finally:
+        acc.publier(racine)
+
+
+def _rapatrier(job, kube, racine, dest, sortie, acc) -> dict:
+    j = acc.appeler("rapatriement : lecture du Job", lambda: kube.json(["get", "job", job]),
+                    _conseil_rapatriement(job, None))
+    conseil = _conseil_rapatriement(job, _attente_du_job(j))
     ann = j["metadata"].get("annotations", {})
     attendu = {"sha": ann.get("agagi.io/sha"), "job": job, "entry_sha256": ann.get("agagi.io/entry-sha256")}
-    pod = kube.pod_du_job(job)
+    pod = acc.appeler("rapatriement : lecture du pod", lambda: kube.pod_du_job(job), conseil)
     if pod is None or pod.get("status", {}).get("phase") != "Running":
         raise Refus(f"{job} : pod absent ou terminé — sa sortie (emptyDir) est PERDUE ; relancer le run")
     nom_pod = pod["metadata"]["name"]
-    brut = kube.executer_dans(nom_pod, "run", ["tar", "-c", "-C", "/out", "."], timeout=1800).stdout
+    brut = acc.appeler("rapatriement : tirage de la sortie",
+                       lambda: kube.executer_dans(nom_pod, "run", ["tar", "-c", "-C", "/out", "."], timeout=1800).stdout,
+                       conseil)
     conflit = None
     with tempfile.TemporaryDirectory(prefix="agagi-rapatrie-") as tmp:
         with tarfile.open(fileobj=io.BytesIO(brut), mode="r:") as tf:
@@ -876,8 +996,13 @@ def rapatrier(job, *, into=None, kube=None, racine=None, sortie=print) -> dict:
             bilan = installer_sorties(Path(tmp), dest, job, attendu)
         except Refus as e:
             conflit = e                                    # sortie vérifiée conservée par installer_sorties
-    r = kube.executer_dans(nom_pod, "run", ["touch", "/out/.rapatrie"], timeout=60, verifier=False)
-    if r.returncode != 0:
+    try:
+        acc.appeler("libération du pod",
+                    lambda: kube.executer_dans(nom_pod, "run", ["touch", "/out/.rapatrie"], timeout=60))
+        libere = True
+    except Refus:
+        libere = False
+    if not libere:
         sortie(f"[remote] ⚠ {job} : sortie en sûreté sur la batcave, mais le pod n'a pas pu être libéré — il sortira "
                f"en {E.NON_RAPATRIE} à l'échéance ; ce n'est PAS une perte.")
     if conflit is not None:
@@ -1359,6 +1484,7 @@ def main(argv=None) -> int:
                 return 0
             fin = attendre(job)
             if fin["etat"] == "pret":
+                # rapatrier lit lui-même le Job et le pod : un accroc entre les deux étapes est toléré et compté
                 return code_de_sortie(rapatrier(job, into=a.into)["returncode"])
             print(f"[remote] {job} : {json.dumps(fin, ensure_ascii=False)}", file=sys.stderr)
             return 1

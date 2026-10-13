@@ -153,6 +153,11 @@ jobs:
 
   test-and-build:
     runs-on: ubuntu-latest
+    # P2.151 (2026-09-28) : sous WSL, pytest tests/test_backend.py finit ses tests puis peut rester BLOQUÉ À LA SORTIE ;
+    # sans borne, ce job tournerait jusqu'aux 6 h par défaut de GitHub et bloquerait la lecture de chaque push. Durée
+    # mesurée sur 5 runs réussis de d1 (2026-09-26/28) : 4,1 à 5,1 min — la borne en vaut environ quatre fois le maximum.
+    # Garde bon marché, à retirer quand la cause est trouvée.
+    timeout-minutes: 20
     steps:
       - uses: actions/checkout@v4
 

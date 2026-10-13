@@ -1,0 +1,104 @@
+{
+ "graine": 41900,
+ "n_rep": 1000,
+ "profil_d_pas": [
+  38.69999313354492,
+  46.80000686645508,
+  45.90000343322754,
+  43.20000171661377,
+  36.89999485015869,
+  63.90000343322754,
+  35.10000514984131,
+  29.70000171661377,
+  32.40000343322754,
+  33.29999828338623,
+  29.70000171661377,
+  38.69999313354492
+ ],
+ "par_sigma": {
+  "9.3": {
+   "0.0": {
+    "PAS_D_EFFET": 0.894,
+    "SHAM_NUIT": 0.003,
+    "TRANSPORTE": 0.088,
+    "SHAM_PARTIEL": 0.015
+   },
+   "0.3": {
+    "PAS_D_EFFET": 0.896,
+    "SHAM_PARTIEL": 0.104
+   },
+   "0.5": {
+    "PAS_D_EFFET": 0.884,
+    "SHAM_PARTIEL": 0.116
+   },
+   "0.6": {
+    "PAS_D_EFFET": 0.9,
+    "SHAM_PARTIEL": 0.1
+   },
+   "0.8": {
+    "PAS_D_EFFET": 0.9,
+    "PAS_PLUS_GROS": 0.012,
+    "SHAM_PARTIEL": 0.088
+   },
+   "1.0": {
+    "PAS_D_EFFET": 0.888,
+    "PAS_PLUS_GROS": 0.092,
+    "SHAM_PARTIEL": 0.02
+   }
+  },
+  "13.2": {
+   "0.0": {
+    "PAS_D_EFFET": 0.945,
+    "SHAM_NUIT": 0.002,
+    "TRANSPORTE": 0.032,
+    "SHAM_PARTIEL": 0.021
+   },
+   "0.3": {
+    "PAS_D_EFFET": 0.953,
+    "TRANSPORTE": 0.001,
+    "SHAM_PARTIEL": 0.046
+   },
+   "0.5": {
+    "PAS_D_EFFET": 0.939,
+    "SHAM_PARTIEL": 0.061
+   },
+   "0.6": {
+    "PAS_D_EFFET": 0.946,
+    "SHAM_PARTIEL": 0.054
+   },
+   "0.8": {
+    "PAS_D_EFFET": 0.936,
+    "PAS_PLUS_GROS": 0.006,
+    "SHAM_PARTIEL": 0.058
+   },
+   "1.0": {
+    "PAS_D_EFFET": 0.94,
+    "PAS_PLUS_GROS": 0.038,
+    "SHAM_PARTIEL": 0.022
+   }
+  }
+ },
+ "_provenance": {
+  "objet": "calibration de la lecture de TD-STEP-PILOT-R3 AVANT sceau (règle en brouillon v1, non scellée)",
+  "git_head": "b84e19f7c742b09817dde0e56579b8b11fb1aa0e",
+  "code_lecture_sha256": "a1f33f2d3e48df84059360fc8b47133d1a0921fdebb34549747cb74e247b8de9",
+  "brouillon_regle_sha256": "ec1a30c61e444d3de2f1e6d6523ffe5eb6fd3634e0a71d42f682de1a00d4e079",
+  "profil_source": "results/td_step_pilot_r0.json (sceau TD-STEP-PILOT-R0 vérifié), (tdlam − td0) × 576 par seed",
+  "duree_s": 9.64993929862976,
+  "python": "3.13.12"
+ },
+ "exigences_avant_sceau": {
+  "9.3": {
+   "P_TRANSPORTE_si_f0": 0.088,
+   "P_PAS_PLUS_GROS_si_f1": 0.092,
+   "faux_TRANSPORTE_si_f0.5": 0.0,
+   "faux_TRANSPORTE_si_f0.6": 0.0
+  },
+  "13.2": {
+   "P_TRANSPORTE_si_f0": 0.032,
+   "P_PAS_PLUS_GROS_si_f1": 0.038,
+   "faux_TRANSPORTE_si_f0.5": 0.0,
+   "faux_TRANSPORTE_si_f0.6": 0.0
+  }
+ }
+}

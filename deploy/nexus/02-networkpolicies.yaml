@@ -9,7 +9,9 @@
 # (ELYSIUM gitops/charts/policy-engine-opa/templates/networkpolicy.yaml) — UN SEUL élément `to:` qui porte
 # namespaceSelector ET podSelector (un ET ; deux éléments feraient un OU). Mesuré par elysium-91 : CoreDNS = 1 pod
 # k8s-app=kube-dns dans kube-system, Service kube-dns (ClusterIP) → port 53 du pod (la politique voit le port APRÈS DNAT),
-# pods en dnsPolicy=ClusterFirst, pas de NodeLocal DNS. Fragilité hors de notre portée : CoreDNS n'a qu'une réplique.
+# pods en dnsPolicy=ClusterFirst, pas de NodeLocal DNS. Relu le 2026-10-13 : le Service kube-dns a TROIS endpoints
+# prêts (coredns sur orbit-01, coredns-elysium sur orbit-03 et sur nexus), tous k8s-app=kube-dns, donc tous couverts
+# par cette règle — la « réplique unique » notée le 2026-09-28 n'est plus vraie.
 #
 # Seul le build Kaniko sort : PyPI / download.pytorch.org / Docker Hub / deb.debian.org en 443, et le registre
 # souverain (adresse et port rendus depuis la configuration) pour pousser. Ciblé par le label app.kubernetes.io/component=image-build.

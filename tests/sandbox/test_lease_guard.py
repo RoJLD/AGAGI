@@ -30,6 +30,30 @@ def _load_conftest():
     return mod
 
 
+@pytest.fixture(autouse=True)
+def _filet_restaure():
+    """P2.165 (2026-10-13) — ce fichier ne laisse JAMAIS le filet runtime armé derrière lui. Deux de ses tests
+    (`…_SKIPS_world_tests_…`, `…_SPARES_pure_tests_…`) appellent le crochet de collecte sous un détenteur FACTICE
+    (« un-run (pid=4242) ») ; le crochet arme le filet (`Biosphere3D.__init__` remplacé) et rien ne le désarmait :
+    chaque copie du conftest a son propre `_NET`, donc aucune autre ne pouvait le retirer. Depuis le 2026-09-16
+    (`7ed985d6`, P2.69), tout test construisant un monde collecté APRÈS ce fichier était SAUTÉ — CI comprise, où
+    les deux rouges `test_backend` flatland portaient « pid=4242 » (P2.113 d). La restauration vit ici, en
+    finally, pour TOUT test du fichier : elle rend le constructeur tel qu'il était au début du test, quelle que soit
+    la copie qui l'a armé (un détenteur RÉEL arme légitimement le filet de la vraie session : on le rend tel quel).
+    Témoin, en session RÉELLE : `test_lease_skip_guard.py::test_P2_165_…_FILET_…`."""
+    try:
+        from src.worlds.world_1_stoneage import Biosphere3D
+    except Exception:                               # noqa: BLE001 — monde inimportable : le filet ne s'arme pas non plus
+        yield
+        return
+    avant = Biosphere3D.__init__
+    try:
+        yield
+    finally:
+        if Biosphere3D.__init__ is not avant:
+            Biosphere3D.__init__ = avant
+
+
 class _Item:
     """Un item pytest minimal : un module (donc un fichier source) et des marqueurs collectés."""
 

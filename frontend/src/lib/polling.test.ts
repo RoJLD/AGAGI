@@ -1,5 +1,5 @@
 import { test, expect } from "vitest";
-import { PILOTAGE_POLL, STATUS_POLL, livePoll } from "./polling";
+import { INDEX_POLL, PILOTAGE_POLL, STATUS_POLL, livePoll } from "./polling";
 
 test("PILOTAGE_POLL : 30 s, staleTime 5 s, pas de polling en fond", () => {
   expect(PILOTAGE_POLL).toEqual({
@@ -24,4 +24,8 @@ test("livePoll : intervalle paramétré, staleTime 0, pas de polling en fond", (
     refetchIntervalInBackground: false,
   });
   expect(livePoll(2000).refetchInterval).toBe(2000);
+});
+
+test("INDEX_POLL : 60 s, staleTime 10 s, pas de polling en fond", () => {
+  expect(INDEX_POLL).toEqual({ refetchInterval: 60_000, staleTime: 10_000, refetchIntervalInBackground: false });
 });

@@ -574,6 +574,9 @@ summary:focus-visible {
 }
 .aveugle-banner__bloc--alerte { border-left-color: var(--color-danger); }
 .aveugle-banner__bloc ul { margin: var(--space-2) 0 0; padding-left: var(--space-5); }
+/* Une ligne d'aveuglement porte souvent un CHEMIN absolu sans espace : sans coupure, elle élargissait la page de 82 px à
+   390 px de large (mesuré le 2026-09-28 sur l'onglet Index). */
+.aveugle-banner__bloc li { overflow-wrap: anywhere; }
 .pilotage-alertes { list-style: none; padding: 0; margin: 0 0 var(--space-4); display: grid; gap: var(--space-2); }
 .pilotage-alerte { font-size: var(--font-size-sm); }
 .pilotage-preuve {

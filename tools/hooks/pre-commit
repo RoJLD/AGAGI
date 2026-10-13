@@ -6,6 +6,63 @@
 # Bypass d'urgence (déconseillé) : git commit --no-verify
 fail=0
 
+# >>> AGAGI:INTERPRETE >>>
+# L'INTERPRÉTEUR DES PORTES EST CHOISI, PAS HÉRITÉ (P2.157, 2026-10-13). Le crochet appelait le « python » du PATH :
+# le 30/09, un Python 3.14 SANS numpy ni pytest s'est installé en tête du PATH des processus de la batcave (absent du
+# PATH du registre), et la porte 15 (`sys.executable -m pytest`) refusait tout commit qui la déclenchait. Une porte
+# qui avalerait l'ImportError rendrait vert sous le même interpréteur. Ordre : `AGAGI_PYTHON` (ÉPINGLÉ : s'il ne
+# convient pas, REFUS — jamais remplacé en silence), puis `python`, `python3`, enfin `py -3.13` (lanceur Windows).
+# « Convient » = numpy ET pytest trouvables (`importlib.util.find_spec` : présence, sans le coût d'un import). Aucun
+# candidat -> REFUS qui nomme chaque essai. Le choix est DIT sur une ligne. Rien que des commandes internes du shell :
+# le bloc tient sous un PATH réduit. Le bloc AGAGI:PORTE-ABSENTE lance `${AGAGI_PY:-python}` : sans ce bloc-ci (un
+# squelette de test), il retombe sur l'ancien comportement. Contre-exemples gelés : tests/sandbox/test_hook_interprete.py.
+_agagi_essai() {
+  _agagi_vu=$("$@" -c "import sys, importlib.util as u; m = [n for n in ('numpy', 'pytest') if u.find_spec(n) is None]; print('Python ' + sys.version.split()[0] + (' SANS ' + ', '.join(m) if m else '')); sys.exit(1 if m else 0)" 2>&1)
+}
+AGAGI_PY=""
+AGAGI_PY_ARG=""
+_agagi_essais=""
+if [ -n "${AGAGI_PYTHON:-}" ]; then
+  if _agagi_essai "$AGAGI_PYTHON"; then
+    AGAGI_PY="$AGAGI_PYTHON"
+  else
+    echo "[agagi/pre-commit] REFUS (P2.157) : AGAGI_PYTHON=$AGAGI_PYTHON ne convient pas ($_agagi_vu)."
+    echo "   Un interpréteur ÉPINGLÉ qui manque numpy ou pytest n'est jamais remplacé en silence : corrige AGAGI_PYTHON, ou retire-la."
+    exit 1
+  fi
+else
+  for _agagi_c in python python3; do
+    if command -v "$_agagi_c" >/dev/null 2>&1; then
+      if _agagi_essai command "$_agagi_c"; then
+        AGAGI_PY="$_agagi_c"
+        break
+      fi
+      _agagi_essais="$_agagi_essais $_agagi_c ($_agagi_vu) ;"
+    else
+      _agagi_essais="$_agagi_essais $_agagi_c (absent) ;"
+    fi
+  done
+  if [ -z "$AGAGI_PY" ]; then
+    if command -v py >/dev/null 2>&1; then
+      if _agagi_essai command py -3.13; then
+        AGAGI_PY=py
+        AGAGI_PY_ARG=-3.13
+      else
+        _agagi_essais="$_agagi_essais py -3.13 ($_agagi_vu) ;"
+      fi
+    else
+      _agagi_essais="$_agagi_essais py -3.13 (absent) ;"
+    fi
+  fi
+  if [ -z "$AGAGI_PY" ]; then
+    echo "[agagi/pre-commit] REFUS (P2.157) : aucun interpréteur n'a numpy ET pytest —$_agagi_essais"
+    echo "   Les portes tourneraient sans les dépendances du projet. Fixe AGAGI_PYTHON=<le python du projet>."
+    exit 1
+  fi
+fi
+echo "[agagi/pre-commit] interpréteur des portes : $AGAGI_PY${AGAGI_PY_ARG:+ $AGAGI_PY_ARG} ($_agagi_vu)"
+# <<< AGAGI:INTERPRETE <<<
+
 # >>> AGAGI:PORTE-ABSENTE >>>
 # UNE BRANCHE ANTÉRIEURE À UNE PORTE NE DOIT PAS ÊTRE BLOQUÉE PAR ELLE (2026-09-24, déploiement flotte).
 # `core.hooksPath` vaut un chemin ABSOLU vers le `.git/hooks` du dépôt principal : TOUS les worktrees
@@ -30,7 +87,7 @@ python() {
         return 0
       fi ;;
   esac
-  command python "$@"
+  command "${AGAGI_PY:-python}" ${AGAGI_PY_ARG:-} "$@"
 }
 # <<< AGAGI:PORTE-ABSENTE <<<
 
