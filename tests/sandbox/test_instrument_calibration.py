@@ -2122,6 +2122,12 @@ CALIBRATED = {
                                                     "pas-secondaire-ne-refuse-jamais-seul:primaire-REFUSEE",
                                                     "td0-a-dose-nette-egale-fait-jeu-egal:ATTEND",
                                                     "bras-apparie-non-lisible:manque-nomme"],
+    # P4.19 (c) (2026-10-13) : τ = dispersion VRAIE de l'effet entre seeds TENUES À L'ÉCART, avant le sceau de R3.
+    # témoin : tests/sandbox/test_td_step_pilot_r3_tau.py
+    "tools/td_step_pilot_r3_tau.py::measure_tau": ["reponse-connue:d-constant->tau-0;d-alterne-30/50->tau-10,4446",
+                                                   "egalite-exacte-a-la-marge:pas-au-dessus",
+                                                   "incomplet:tau-None-jamais-0-fabrique",
+                                                   "seed-du-verdict:raises"],
 }
 
 _GENOMES = os.path.join("results", "warm007_genomes")
