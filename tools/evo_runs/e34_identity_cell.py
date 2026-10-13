@@ -432,7 +432,8 @@ def identity_cell_verdict(rows, witness, s_frozen, ticks_learn, band_publiee=Non
                         f"contrôle positif en sort par le haut (S_pos {s_pos}) : aucun effet vers le HAUT de "
                         f"l'ampleur de la variation entre trajectoires sur CETTE cellule, à SA dose (défaut : "
                         f"{desc['switches_off']} commutations ; correctif : {desc['rows_reindexed_on']} lignes réindexées) "
-                        "; vers le BAS, non éprouvé (plancher) ; famille de DEUX tests : NON_MATERIEL à tort sous double "
+                        "; vers le BAS, non éprouvé (plancher) ; au pas publié, invariance au pas non éprouvée (E19) "
+                        "; famille de DEUX tests : NON_MATERIEL à tort sous double "
                         f"nul <= {out['famille']['non_materiel_a_tort_double_nul_borne']:.3f} (12/210), "
                         f"{out['famille']['non_materiel_a_tort_double_nul_ex_aequo']:.3f} sur les ex-aequo observés")
     return dict(out, verdict="NON_TRANCHE",

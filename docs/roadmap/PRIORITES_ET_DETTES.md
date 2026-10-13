@@ -1544,7 +1544,11 @@ confirmé par Master 2 le 2026-09-29, règle d'arrêt NON déclenchée) : la v6.
 corps du bassin, nomme la coupe au plafond, et ne change ni les bras, ni la bande, ni la décision MATERIEL ; table
 critique → changement → test : `docs/reviews/2026-09-29-E34-IDENTITY-CELL.v6.correctifs.md`, vérification ciblée par un
 agent avant le sceau. Témoins de la revue v6 INDISCRIMINANTS : lecture de Master 2, l'indiscrimination porte sur la
-SPÉCIFICITÉ, la sensibilité tient (3/3). 15 cellules sur la batcave : après le sceau v6.1. **La clause ci-dessous reste celle de l'entrée** : elle décrit la vraie clôture (le correctif devenu le
+SPÉCIFICITÉ, la sensibilité tient (3/3). Au sceau (2026-09-29), la porte 23 a classé la règle `indetermine` (un seul pas
+déclaré en prose, aucune forme pour le dire) : décision de Master 2, v6.2 d'une ligne (le verdict NON_MATERIEL dit « au
+pas publié, invariance au pas non éprouvée (E19) ») et gel EN CONNAISSANCE de la baseline de la porte 23, la forme
+manquante étant inscrite en P2.156. Reprise le 2026-10-13 (pause de deux semaines, d1 rétabli par 4d08b025 sans toucher au
+harnais). 15 cellules sur la batcave : après le commit du sceau, avec l'interpréteur Python 3.13 nommé en chemin complet. **La clause ci-dessous reste celle de l'entrée** : elle décrit la vraie clôture (le correctif devenu le
 DÉFAUT, après P4.18 et, si la sonde rend MATERIEL, le plan n = 12) ; la sonde ne ferme qu'un sous-item.
 **Addendum CALIB-LEARNER (2026-09-26, session E34, vu en lisant la recette)** : la MÊME recette vit dans
 `tools/cognitive_demand_inworld.py:575-587` (`run_learner_probe`, contrôle POSITIF de l'apprenant, EDR-CALIB-LEARNER
@@ -1769,6 +1773,25 @@ Preuve : `tools/learning_events.py:16` annonce « ceux qui ont réellement mis �
 corriger change des comptes publiés, d'où le classement par Master 2 ; la sonde E34 publie `episode_calls` en phase 2 en
 attendant. Forme à trancher : n'incrémenter que si ΔW > 0 (avec un compteur à pas nul à part), ou renommer. *Coût : agent
 1 h, plus la revue des comptes publiés.* Sans clause `closes_when` (déclaré).
+
+**P2.156 — rang 5 ter (Master 2, 2026-09-29 : à la suite de P2.146, file d'agagi-32) — OUVERTE (2026-09-29, décidée par
+Master 2 au sceau d'E34-IDENTITY-CELL ; inscrite par la session E34 le 2026-10-13) — La porte 23 n'a AUCUNE forme pour
+une règle HONNÊTE à un seul pas : « invariance au pas non revendiquée, portée : au pas publié ». Une telle règle ne
+passe que par un gel de baseline, qui use le cliquet.**
+Preuve : `tools/check_e19_optimizer_sweep.py:161` (`sous_gradient`) ne reconnaît que des formes qui CLASSENT la règle
+« sous gradient » (`clause_E19`, `sender_lr`, `cellule.lr` nul ou à plusieurs pas, `cellule.bras`, `cellule.lr_*`,
+`cellules[*].lr`), donc qui exigent la garde de balayage ; `:221` (`mentionne_le_pas`) classe `indetermine` toute
+règle dont la prose nomme le pas sans forme reconnue, et un `indetermine` NEUF bloque (`:68`, `:440`). Cas fondateur :
+E34-IDENTITY-CELL v6.1 (sceau a04677d4), qui déclare en prose un seul pas identique dans les quinze bras et aucune
+invariance revendiquée ; son verdict NON_MATERIEL le dit (« au pas publié, invariance au pas non éprouvée (E19) »,
+v6.2). La porte l'a refusée au premier sceau, le 2026-09-29, et elle n'est passée que GELÉE EN CONNAISSANCE
+(`--update-baseline`), sur décision de Master 2. Forme proposée, à trancher : une clé structurée déclarée par
+l'auteur (par exemple `pas` = {invariance : non revendiquée, portée : au pas publié}) qui sort la règle de
+l'indétermination SANS la classer sous gradient, à deux conditions vérifiées par la porte : (a) la règle ne compare
+qu'UN pas (sinon `nu`, comme aujourd'hui) ; (b) le runner rend la portée dans la chaîne de son verdict nul (une forme
+déclarée que rien ne confronte serait une étiquette). Contre-exemple gelé à écrire avec la forme : une règle à deux pas
+qui se déclare « non revendiquée » reste `nu`. *Coût : agent 1 h, plus la mutation de la porte 15.* Sans clause
+`closes_when` (déclaré).
 
 **P2.133 — rang 6 — ✅ CLOSE le 2026-09-26 (ouverte le même jour, vue en passant par la session SCIENCE-HARNAIS pendant la revue v6 de
 S2-BASSIN-FRAGILITY) — Le Refutateur sort encore NUL sur une revue saine : le vérificateur a rendu `refus = "aucun"`, et

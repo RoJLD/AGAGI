@@ -295,6 +295,8 @@ def test_verdict_NON_MATERIEL_is_upward_only_and_cites_the_cell_and_both_doses()
     v = _v(s_on=7.5, s_pos=20.0)
     assert v["verdict"] == "NON_MATERIEL" and "CETTE cellule" in v["why"] and "vers le HAUT" in v["why"]
     assert "40 commutations" in v["why"] and "30 lignes réindexées" in v["why"] and "vers le BAS, non éprouvé" in v["why"]
+    # v6.2 (porte 23, gel EN CONNAISSANCE décidé par Master 2) : un nul à UN seul pas le dit dans la chaîne rendue
+    assert "au pas publié, invariance au pas non éprouvée (E19)" in v["why"]
 
 
 def test_verdict_declares_and_publishes_the_family_of_two_tests():
