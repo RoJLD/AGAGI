@@ -284,7 +284,9 @@ pour décider d'un lieu par le coût.
 * DNS restreint à kube-dns (P2.127, même accord) : bloc repris d'opa-ingress, UN élément `to:` qui porte
   namespaceSelector ET podSelector. Validation après application : un pod de l'image runner SANS le label de build doit
   résoudre `pypi.org` et `kubernetes.default` et ÉCHOUER à ouvrir `pypi.org:443` (contrôle négatif du default-deny) ;
-  AVEC le label de build, le 443 doit passer. CoreDNS n'a qu'une réplique : fragilité d'ELYSIUM, hors de notre portée.
+  AVEC le label de build, le 443 doit passer. kube-dns : relu le 2026-10-13, TROIS endpoints prêts (coredns sur
+  orbit-01, coredns-elysium sur orbit-03 et sur nexus), tous `k8s-app=kube-dns`, donc tous couverts par la règle ; la
+  « réplique unique » du 2026-09-28 n'est plus vraie.
 
 ## Coordination
 
