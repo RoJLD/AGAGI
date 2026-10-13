@@ -27,6 +27,16 @@ from tools.evo_runs import s2_credit_ablation_2 as R  # noqa: E402
 # --------------------------------------------------------------------------------------------------
 
 
+# P2.169 (2026-10-13) — GARDE TORCH, par test. Ces tests construisent le backend torch par le harnais
+# (src/agents/backend_torch.py lève NotImplementedError sans torch), sans importer torch eux-mêmes : la CI, qui n'a
+# pas torch, les rendait ROUGES d'environnement — invisibles jusqu'à P2.165, le filet de bail fuité les sautant depuis
+# le 2026-09-16. Mesurés VERTS avec torch avant d'être gardés (P2.169). Les autres tests du fichier tournent en CI.
+import importlib.util  # noqa: E402
+_TORCH = importlib.util.find_spec("torch") is not None
+requires_torch = pytest.mark.skipif(not _TORCH, reason="torch absent : le harnais construit le backend torch "
+                                    "(src/agents/backend_torch.py) — P2.169")
+
+
 def test_arm_table_declares_the_frozen_control_the_full_credit_and_three_credit_variants():
     assert R.ARMS == ("a_frozen", "b_full", "b_tdonly", "b_const", "b_eplr")
     assert R.LEARNING_ARMS == ("b_full", "b_tdonly", "b_const", "b_eplr")
@@ -43,6 +53,7 @@ def test_arm_table_declares_the_frozen_control_the_full_credit_and_three_credit_
 # --------------------------------------------------------------------------------------------------
 
 
+@requires_torch
 def test_credit_variant_defaults_are_a_bit_exact_noop_against_the_P49_trace():
     """No-op EXACT : sous `credit_variant()` par défaut, la trace du learner d'origine est identique à celle de
     `_learning_trace` (P4.9, sans credit_variant) au même seed — premier tick et Σ|ΔW| bit-égaux."""
@@ -54,6 +65,7 @@ def test_credit_variant_defaults_are_a_bit_exact_noop_against_the_P49_trace():
     assert got["summary"]["episode_updates"] == ref["summary"]["episode_updates"] >= 1
 
 
+@requires_torch
 def test_episode_disabled_never_reaches_the_original_learn_episode_but_td_does():
     t = R._learning_trace_2(2026, num_agents=2, ticks=17, episode_enabled=False)
     assert t["episode_rewards"] == [] and t["summary"]["episode_updates"] == 0
@@ -62,6 +74,7 @@ def test_episode_disabled_never_reaches_the_original_learn_episode_but_td_does()
     assert t["summary"]["dW_abs_sum"] > 0.0                       # le TD seul bouge les poids
 
 
+@requires_torch
 def test_reward_const_passes_only_the_constant_to_both_paths_and_still_updates():
     t = R._learning_trace_2(2026, num_agents=2, ticks=17, reward_const=1.0)
     assert len(t["td_rewards"]) >= 1 and all(r == 1.0 for r in t["td_rewards"])
@@ -70,12 +83,14 @@ def test_reward_const_passes_only_the_constant_to_both_paths_and_still_updates()
     assert t["summary"]["dW_abs_sum"] > 0.0
 
 
+@requires_torch
 def test_episodic_only_at_low_step_publishes_the_step_and_never_calls_td():
     t = R._learning_trace_2(2026, num_agents=2, ticks=17, td_enabled=False, lr=0.004)
     assert t["td_rewards"] == [] and t["summary"]["td_updates"] == 0
     assert t["summary"]["episode_updates"] >= 1 and t["lr_effective"] == pytest.approx(0.004)
 
 
+@requires_torch
 def test_preflight_credit_seams_2_publishes_the_four_traces():
     out = R.preflight_credit_seams_2(2026, num_agents=2, ticks=17)
     for k in ("seed", "num_agents", "ticks", "noop_exact_vs_P49", "tdonly_episode_never_called", "tdonly_td_alive",
@@ -88,6 +103,7 @@ def test_preflight_credit_seams_2_publishes_the_four_traces():
     assert set(out["dW_abs_sum"]) == {"full", "tdonly", "const", "eplr"}
 
 
+@requires_torch
 def test_preflight_credit_seams_2_refuses_a_leaking_const_seam(monkeypatch):
     from tools.experiment_preflight import PreflightError
     real = R._learning_trace_2

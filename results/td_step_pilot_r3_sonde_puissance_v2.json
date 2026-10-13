@@ -1,0 +1,118 @@
+{
+ "modele": "Sonde de SENSIBILITÉ du modèle de bruit de la calibration (hors règle, pour la revue et robla). Le brouillon v1\ninjecte σ = 9,3 pas sur CHAQUE bras : c'est le bruit BINOMIAL de l'éval TIRÉE de R0 (640 tirages, sqrt(p(1−p)/640)×576\n≈ 8,4-10,4), alors que l'éval de R3 est EXHAUSTIVE (sans tirage), et que le profil R0 porte déjà ce bruit -- double\ncompte. Ici : lam0 et lam09 SANS bruit d'éval ; vrai d_s = μ + τ·z_s (τ = dispersion VRAIE entre seeds, inconnue) ;\nsham09 = lam0 + f·d_s + σ_e·z'_s (σ_e = écart propre du sham, inconnu). μ ∈ {moyenne R0 39,5 ; moins un ET 35,7}.\nAucune simulation : la VRAIE lecture `classify_pas` sur 400 injections par point. Usage : python <ce fichier> <racine>",
+ "n_rep": 400,
+ "graine": 41901,
+ "resultats": {
+  "mu=39.5|tau=0.0|sigma_e=5.0|f=0.0": {
+   "SHAM_NUIT": 0.055,
+   "TRANSPORTE": 0.945
+  },
+  "mu=39.5|tau=0.0|sigma_e=5.0|f=1.0": {
+   "PAS_PLUS_GROS": 1.0
+  },
+  "mu=39.5|tau=0.0|sigma_e=9.3|f=0.0": {
+   "SHAM_NUIT": 0.0725,
+   "SHAM_PARTIEL": 0.0075,
+   "TRANSPORTE": 0.92
+  },
+  "mu=39.5|tau=0.0|sigma_e=9.3|f=1.0": {
+   "PAS_PLUS_GROS": 0.965,
+   "SHAM_PARTIEL": 0.035
+  },
+  "mu=39.5|tau=5.0|sigma_e=5.0|f=0.0": {
+   "PAS_D_EFFET": 0.0375,
+   "SHAM_NUIT": 0.05,
+   "TRANSPORTE": 0.9125
+  },
+  "mu=39.5|tau=5.0|sigma_e=5.0|f=1.0": {
+   "PAS_D_EFFET": 0.0325,
+   "PAS_PLUS_GROS": 0.9675
+  },
+  "mu=39.5|tau=5.0|sigma_e=9.3|f=0.0": {
+   "PAS_D_EFFET": 0.0325,
+   "SHAM_NUIT": 0.075,
+   "SHAM_PARTIEL": 0.0175,
+   "TRANSPORTE": 0.875
+  },
+  "mu=39.5|tau=5.0|sigma_e=9.3|f=1.0": {
+   "PAS_D_EFFET": 0.0275,
+   "PAS_PLUS_GROS": 0.955,
+   "SHAM_PARTIEL": 0.0175
+  },
+  "mu=39.5|tau=9.3|sigma_e=5.0|f=0.0": {
+   "PAS_D_EFFET": 0.5575,
+   "SHAM_NUIT": 0.035,
+   "TRANSPORTE": 0.4075
+  },
+  "mu=39.5|tau=9.3|sigma_e=5.0|f=1.0": {
+   "PAS_D_EFFET": 0.48,
+   "PAS_PLUS_GROS": 0.52
+  },
+  "mu=39.5|tau=9.3|sigma_e=9.3|f=0.0": {
+   "PAS_D_EFFET": 0.5575,
+   "SHAM_NUIT": 0.0425,
+   "SHAM_PARTIEL": 0.01,
+   "TRANSPORTE": 0.39
+  },
+  "mu=39.5|tau=9.3|sigma_e=9.3|f=1.0": {
+   "PAS_D_EFFET": 0.5375,
+   "PAS_PLUS_GROS": 0.4525,
+   "SHAM_PARTIEL": 0.01
+  },
+  "mu=35.7|tau=0.0|sigma_e=5.0|f=0.0": {
+   "SHAM_NUIT": 0.0525,
+   "TRANSPORTE": 0.9475
+  },
+  "mu=35.7|tau=0.0|sigma_e=5.0|f=1.0": {
+   "PAS_PLUS_GROS": 1.0
+  },
+  "mu=35.7|tau=0.0|sigma_e=9.3|f=0.0": {
+   "SHAM_NUIT": 0.085,
+   "SHAM_PARTIEL": 0.06,
+   "TRANSPORTE": 0.855
+  },
+  "mu=35.7|tau=0.0|sigma_e=9.3|f=1.0": {
+   "PAS_PLUS_GROS": 0.9625,
+   "SHAM_PARTIEL": 0.0375
+  },
+  "mu=35.7|tau=5.0|sigma_e=5.0|f=0.0": {
+   "PAS_D_EFFET": 0.3425,
+   "SHAM_NUIT": 0.045,
+   "TRANSPORTE": 0.6125
+  },
+  "mu=35.7|tau=5.0|sigma_e=5.0|f=1.0": {
+   "PAS_D_EFFET": 0.3425,
+   "PAS_PLUS_GROS": 0.6575
+  },
+  "mu=35.7|tau=5.0|sigma_e=9.3|f=0.0": {
+   "PAS_D_EFFET": 0.36,
+   "SHAM_NUIT": 0.0575,
+   "SHAM_PARTIEL": 0.0275,
+   "TRANSPORTE": 0.555
+  },
+  "mu=35.7|tau=5.0|sigma_e=9.3|f=1.0": {
+   "PAS_D_EFFET": 0.365,
+   "PAS_PLUS_GROS": 0.5875,
+   "SHAM_PARTIEL": 0.0475
+  },
+  "mu=35.7|tau=9.3|sigma_e=5.0|f=0.0": {
+   "PAS_D_EFFET": 0.84,
+   "SHAM_NUIT": 0.005,
+   "TRANSPORTE": 0.155
+  },
+  "mu=35.7|tau=9.3|sigma_e=5.0|f=1.0": {
+   "PAS_D_EFFET": 0.82,
+   "PAS_PLUS_GROS": 0.18
+  },
+  "mu=35.7|tau=9.3|sigma_e=9.3|f=0.0": {
+   "PAS_D_EFFET": 0.8675,
+   "SHAM_NUIT": 0.0125,
+   "SHAM_PARTIEL": 0.01,
+   "TRANSPORTE": 0.11
+  },
+  "mu=35.7|tau=9.3|sigma_e=9.3|f=1.0": {
+   "PAS_D_EFFET": 0.885,
+   "PAS_PLUS_GROS": 0.115
+  }
+ }
+}

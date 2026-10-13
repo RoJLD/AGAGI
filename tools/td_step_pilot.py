@@ -65,11 +65,118 @@ from tools.grid_compare import cmp_grille  # noqa: E402  (P2.105, porte 24 : l'a
 # JSON suivis (--lecture) sont bit-identiques — le défaut restait LATENT, comme la revue d'agagi-52 l'avait mesuré.
 
 
+class _InstrumentDose:
+    """P4.19 R3 -- la dose MESURÉE dans le modèle, jamais nominale : par paramètre (ordre de l'optimiseur : W, puis
+    U, V, W_bl) et PAR AGENT (tête B), accumulée en float64 :
+      * chemin = Σ_mises-à-jour ‖Δθ‖₁ -- ce que l'apprenant a PARCOURU ;
+      * net = ‖θ_T − θ_0‖₁ -- où il a ABOUTI (θ_0 cloné ici : `_write_back` ne persiste que W) ;
+      * net par BLOC de `bloc` épisodes (‖θ_fin − θ_début‖₁ du bloc) -- la base de l'appariement PAR BLOC.
+    Enveloppe d'INSTANCE autour de `_td_update` : elle attrape `learn` (transition t-1) ET `_flush_terminal`
+    (dernière transition, la SEULE qui porte la trace à D=1) -- `count_learning_events` ne patche que `learn` et
+    raterait la seconde. Même instrument à λ = 0 (opt.step) et à λ > 0 (add_ direct). Ne tire rien, ne touche à
+    aucun tenseur : un bras instrumenté est bit-identique au même bras nu (témoin dans les tests)."""
+
+    def __init__(self, agent, bloc):
+        import torch
+        self._torch = torch
+        self.agent, self.bloc = agent, int(bloc)
+        self.params = agent._trace_params()
+        self.noms = ["W", "U", "V", "W_bl"][:len(self.params)] if len(self.params) <= 4 else [
+            f"p{i}" for i in range(len(self.params))]
+        self.theta0 = [q.detach().clone() for q in self.params]
+        self.debut_bloc = [q.detach().clone() for q in self.params]
+        self.chemin = [torch.zeros(agent.B, dtype=torch.float64) for _ in self.params]
+        self.net_blocs = []                      # un dict {nom: [B floats]} par bloc achevé
+        self.appels = 0
+        self.porte_rang0_non_nul = 0             # sous sham : trace NON nulle juste après un reset (compte d'agents)
+        self._orig = agent._td_update
+        agent._td_update = self._enveloppe       # attribut d'INSTANCE : masque la méthode pour cette seule instance
+
+    @staticmethod
+    def _par_agent(x):
+        return x.abs().reshape(x.shape[0], -1).sum(dim=1).double()
+
+    def _enveloppe(self, prev, v_next):
+        avant = [q.detach().clone() for q in self.params]
+        out = self._orig(prev, v_next)
+        for i, (q, a) in enumerate(zip(self.params, avant)):
+            self.chemin[i] += self._par_agent(q.detach() - a)
+        self.appels += 1
+        return out
+
+    def apres_reset(self):
+        """Sous sham : le terme porté doit être EXACTEMENT nul au rang 0 (traces remises à zéro)."""
+        a = self.agent
+        if a.e_a is None:
+            return
+        for e in list(a.e_a) + list(a.e_v):
+            if e is not None:
+                self.porte_rang0_non_nul += int((self._par_agent(e) > 0).sum().item())
+
+    def fin_episode(self, ep):
+        if (ep + 1) % self.bloc == 0:
+            self.net_blocs.append({n: self._par_agent(q.detach() - d).tolist()
+                                   for n, q, d in zip(self.noms, self.params, self.debut_bloc)})
+            self.debut_bloc = [q.detach().clone() for q in self.params]
+
+    def retirer(self):
+        """Rend la méthode de classe à l'instance ; l'instrument ne survit pas à la cellule."""
+        if self.agent.__dict__.get("_td_update") is not None:
+            del self.agent.__dict__["_td_update"]
+
+    def resume(self):
+        net = [self._par_agent(q.detach() - q0) for q, q0 in zip(self.params, self.theta0)]
+        ch_tot = sum(self.chemin)
+        net_tot = sum(net)
+        return {"dose_instrument": {
+            "appels_td_update": int(self.appels),
+            "chemin_par_param": {n: c.tolist() for n, c in zip(self.noms, self.chemin)},
+            "net_par_param": {n: x.tolist() for n, x in zip(self.noms, net)},
+            "chemin_par_agent": ch_tot.tolist(), "net_par_agent": net_tot.tolist(),
+            "chemin_total": float(ch_tot.sum().item()), "net_total": float(net_tot.sum().item()),
+            "net_sur_chemin": (float(net_tot.sum().item()) / float(ch_tot.sum().item()))
+            if float(ch_tot.sum().item()) > 0 else None,        # lr 0 : None, jamais 0/0 ni un 0 fabriqué
+            "bloc_episodes": self.bloc, "net_blocs": self.net_blocs,
+            "porte_rang0_non_nul": int(self.porte_rang0_non_nul)}}
+
+
+def _eval_exhaustive(agent, K, same_tick):
+    """P4.19 R3 -- évaluation EXHAUSTIVE : les K² couples (key, q), chacun présenté aux B agents à la fois (tous les
+    agents voient la même paire), argmax DÉTERMINISTE, AUCUN tirage. Rend le nombre de succès PAR AGENT (entiers,
+    0..K²) : le total vit sur la grille B·K² (576 à B = 16, K = 6), sans le bruit binomial des 40 lots tirés."""
+    import torch
+    n = agent.B
+    succes = np.zeros(n, dtype=np.int64)
+    for kk in range(K):
+        for qq in range(K):
+            key, q = np.full(n, kk), np.full(n, qq)
+            seq, _ = _make_seq(key, q, "composition", K, agent.I, n, same_tick=same_tick)
+            agent.H = torch.zeros((n, agent.N))
+            logits = None
+            for x in seq:
+                logits, _ = agent.forward(x)
+            succes += (np.asarray(logits)[:, :K].argmax(axis=1) == (qq + kk) % K).astype(np.int64)
+    return succes
+
+
 def _train_eval_td_step(seed, lam, episodes, n_agents, K, lr, eval_batches=40, trace_reset_per_episode=True,
-                        same_tick=False):
+                        same_tick=False, sham=None, mesure_dose=False, eval_exhaustive=False, bloc_dose=500,
+                        lr_blocs=None, controle_delta=False):
     """Entraîne la composition (différée 2 pas ; ou same-tick 1 pas = contrôle positif du CHEMIN de crédit : sans
     délai, TD par pas doit pouvoir apprendre à cette dose, sinon un nul à D=1 ne dit rien du délai) par crédit TD
-    PAR PAS ; rend (accuracy éval argmax, dose)."""
+    PAR PAS ; rend (accuracy éval argmax, dose).
+
+    P4.19 R3 (tous à défaut NEUTRE : R0-R2 rejoués au bit, aucun tirage ni opération ajoutés sur le chemin par
+    défaut) : `sham` pose `CREDIT_TRACE_DELTA_SHAM` (None / "decale" / "identite" ; le backend REFUSE λ = 0) ;
+    `mesure_dose` installe `_InstrumentDose` (chemin, net, net par bloc de `bloc_dose` épisodes) ; `eval_exhaustive`
+    ajoute, APRÈS les lots tirés (qui restent identiques), l'éval des K² couples ; `lr_blocs` = multiplicateurs du
+    pas PAR BLOC (bras TD(0) apparié en net) ; `controle_delta` (sham seul) publie E[δ1|clé] et E[δ̃|clé].
+    `eval_batches=0` : aucune éval tirée, accuracy None (références lr 0 à éval exhaustive seule)."""
+    # refus EN TÊTE, avant toute pose de drapeau (le finally ne couvre que le try)
+    if lr_blocs is not None and not mesure_dose:
+        raise ValueError("lr_blocs sans mesure_dose : un bras apparié PAR BLOC doit publier le net qu'il a atteint")
+    if controle_delta and sham is None:
+        raise ValueError("controle_delta exige un sham : le δ par rang n'est gardé que sous CREDIT_TRACE_DELTA_SHAM")
     import torch
     from src.agents.mamba_agent import MambaAgent
     from src.agents.backend_torch import TorchPopulationModel as T
@@ -80,17 +187,21 @@ def _train_eval_td_step(seed, lam, episodes, n_agents, K, lr, eval_batches=40, t
     T.BILINEAR_RANK = 16
     T.CREDIT_TRACE_LAMBDA = float(lam)
     T.CREDIT_TRACE_BYPASS_OPTIMIZER = False              # SGD pur : rien à contourner
-    T.CREDIT_TRACE_DELTA_SHAM = None                     # P4.19 (a) : épinglé ÉTEINT -- λ > 0 et reset par épisode
-    #                                                      réunissent ici les conditions du sham : un drapeau resté posé
-    #                                                      ailleurs rejouerait R1/R2 SHAMÉS, en silence
+    T.CREDIT_TRACE_DELTA_SHAM = sham                     # P4.19 : épinglé à la valeur DEMANDÉE (None par défaut) --
+    #                                                      λ > 0 et reset par épisode réunissent ici les conditions du
+    #                                                      sham : un drapeau resté posé ailleurs rejouerait R1/R2 SHAMÉS
     try:
         np.random.seed(seed)
         torch.manual_seed(seed)
         agent = T([MambaAgent() for _ in range(n_agents)], lr=lr)
         I = agent.I
+        instr = _InstrumentDose(agent, bloc_dose) if mesure_dose else None
+        cdelta = {"d1": np.zeros((K, 2)), "dtilde": np.zeros((K, 2))} if controle_delta else None
         rng = np.random.RandomState(seed + 1)
         updates = 0
-        for _ in range(episodes):
+        for ep in range(episodes):
+            if lr_blocs is not None:
+                agent.opt.param_groups[0]["lr"] = float(lr) * float(lr_blocs[ep // int(bloc_dose)])
             key = rng.randint(0, K, size=n_agents)
             q = rng.randint(0, K, size=n_agents)
             seq, _ = _make_seq(key, q, "composition", K, I, n_agents, same_tick=same_tick)
@@ -99,6 +210,8 @@ def _train_eval_td_step(seed, lam, episodes, n_agents, K, lr, eval_batches=40, t
             agent._prev = None
             if trace_reset_per_episode:
                 agent.reset_traces()
+                if instr is not None and sham is not None:
+                    instr.apres_reset()
             for t, x in enumerate(seq):
                 logits, _ = agent.forward(x)
                 a = _sample(logits, K, rng, n_agents)        # pas encode : action de nuisance, récompense 0
@@ -108,6 +221,18 @@ def _train_eval_td_step(seed, lam, episodes, n_agents, K, lr, eval_batches=40, t
                     updates += 1                            # transition t-1, bootstrap V(s_t)
             _flush_terminal(agent, n_agents)                # dernière transition, bootstrap 0
             updates += 1
+            if cdelta is not None:
+                d1, dt = agent._delta_cour.get(1), agent._delta_prec.get(1)   # δ1 VRAI de l'épisode, δ̃ qu'il a reçu
+                for kk in range(K):
+                    m = key == kk
+                    if d1 is not None and m.any():
+                        cdelta["d1"][kk] += (float(d1.numpy()[m].sum()), int(m.sum()))
+                    if dt is not None and m.any():
+                        cdelta["dtilde"][kk] += (float(dt.numpy()[m].sum()), int(m.sum()))
+            if instr is not None:
+                instr.fin_episode(ep)
+        if instr is not None:
+            instr.retirer()
         hits = []
         for _ in range(eval_batches):
             key = rng.randint(0, K, size=n_agents)
@@ -120,7 +245,24 @@ def _train_eval_td_step(seed, lam, episodes, n_agents, K, lr, eval_batches=40, t
             hits.append((np.asarray(logits)[:, :K].argmax(axis=1) == (q + key) % K).astype(np.float32))
         dose = {"updates": int(updates), "trace_updates": int(agent.trace_updates),
                 "trace_resets": int(agent.trace_resets), "lr_effective_per_agent": agent.effective_lr_per_agent}
-        return float(np.mean(np.concatenate(hits))), dose
+        if instr is not None:
+            dose.update(instr.resume())
+        if sham is not None:
+            dose["sham"] = {"mode": sham, "sham_omis": int(agent.sham_omis),
+                            "chemin_porte_applique": float(agent.chemin_porte_applique),
+                            "chemin_porte_contrefactuel": float(agent.chemin_porte_contrefactuel),
+                            "chemin_td0": float(agent.chemin_td0)}
+        if lr_blocs is not None:
+            dose["lr_blocs"] = [float(lr) * float(x) for x in lr_blocs]
+        if cdelta is not None:
+            dose["controle_delta"] = {
+                nom: {"moyenne_par_cle": [(v[0] / v[1]) if v[1] > 0 else None for v in cdelta[nom]],
+                      "n_par_cle": [int(v[1]) for v in cdelta[nom]]} for nom in ("d1", "dtilde")}
+        if eval_exhaustive:
+            s_ag = _eval_exhaustive(agent, K, same_tick)
+            dose["eval_exhaustive"] = {"succes_par_agent": s_ag.tolist(), "succes": int(s_ag.sum()),
+                                       "n": int(n_agents * K * K)}
+        return (float(np.mean(np.concatenate(hits))) if hits else None), dose
     finally:
         (T.CONDITION_GATE, T.GATE_TARGET, T.BILINEAR, T.BILINEAR_RANK, T.CREDIT_TRACE_LAMBDA,
          T.CREDIT_TRACE_BYPASS_OPTIMIZER, T.CREDIT_TRACE_DELTA_SHAM) = saved

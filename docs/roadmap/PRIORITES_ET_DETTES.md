@@ -832,6 +832,8 @@ appariée en Σ|ΔW| ». Mesuré le 2026-09-24, aucun des deux n'existe :
   **nul**, et à faire AVANT tout nouveau tir, sinon le tir suivant sera à refaire.
 Tant que (a) et (b) ne sont pas payés, la pièce reste « attend » au registre du harnais (la session harnais l'y
 maintient avec ces deux manques nommés). Prérequis de l'ENTRÉE de la pièce, pas dette diffuse.
+(c) **2026-10-13 — code de R3 committé, règle NON scellée ; la calibration de sa LECTURE, faite AVANT le sceau (leçon de P4.18), la dit SOUS-PUISSANTE en l'état.** Code : `tools/td_step_pilot_r3.py` (lecture par pas `classify_pas`, synthèse `verdict_synthese`, f̂ et IC90 par bootstrap apparié, bras TD(0) apparié par bloc, garde E19), cellule étendue dans `tools/td_step_pilot.py` (défauts AU BIT : 4/4 cellules identiques à la version d'avant, b84e19f7), 38 cas de test (27 fonctions) ; 7 mutations à la main, toutes tuées. Calibration par injection dans la VRAIE lecture, 0 simulation : avec le modèle de bruit du brouillon v1 (σ = 9,3 pas sur CHAQUE bras), P(TRANSPORTE | f = 0) = 0,088 et P(PAS_PLUS_GROS | f = 1) = 0,092, pour 0,8 exigé — `results/td_step_pilot_r3_calibration_lecture_brouillon_v1.json`. Ce modèle DOUBLE-COMPTE : 9,3 pas est le bruit BINOMIAL de l'éval TIRÉE de R0 (√(p(1−p)/640) × 576 ≈ 8,4-10,4), que l'éval EXHAUSTIVE de R3 n'a pas, et le profil d'effet de R0 le porte déjà (ET observé 9,6 entre seeds, sous les 13,2 attendus du seul bruit d'éval). Sonde de sensibilité SANS bruit d'éval (`results/td_step_pilot_r3_sonde_puissance_v2.json`) : la puissance dépend de la dispersion VRAIE de l'effet entre seeds, τ, que R0 n'identifie pas — 0,92 à 0,95 si τ = 0, 0,88 à 0,91 si τ = 5, 0,39 à 0,41 si τ = 9,3 (μ = moyenne de R0, 39,5 pas) ; à μ moins une erreur type (35,7), 0,55 à 0,61 dès τ = 5. Le verrou est la branche PAS_D_EFFET (marge 29 pas sur ≥ 11/12) : deux seeds de R0 (8 et 11) sont À la marge (29,7 pas). Et à f = 0 vrai, SHAM_NUIT sort 5 à 8 % du temps. **Avant sceau, à trancher (revue puis robla), sans regarder une cellule de R3** : le modèle de bruit DÉCLARÉ de la calibration ; la marge sur la grille exhaustive (0,05 couvrait un bruit d'éval qui n'existe plus) ou le compte 11/12 de PAS_D_EFFET ; ou mesurer τ sur des seeds TENUES À L'ÉCART (13-24, ≈ 30 min) avant de sceller sur 1-12. Au passage : le sham retenu est « décalé d'un épisode » (décision du 2026-09-28) — la clause ci-dessous (« permut ») ne se satisfera pas telle quelle ; à ré-ancrer quand R3 aura rendu sa lecture.
+(d) **2026-10-13 — τ MESURÉ sur les seeds TENUES À L'ÉCART (démarche validée par robla : (3) mesurer τ, (2) choisir la marge ou le compte sur cette mesure, (1) déclarer le modèle de bruit ; puis revue, puis sceau).** Runner `tools/td_step_pilot_r3_tau.py` (lam0 et lam09 seulement, JAMAIS le sham ; seeds 1-12 refusées en tête), 24 cellules sur nexus au sha 67888a3a, image sha256:d5341acf, 1 CPU et 1 thread, toutes rc 0 et dirty False (`results/td_step_pilot_r3_tau.json`) : d (lam09 − lam0, pas de 576) = 44, 26, 41, 26, 37, 43, 33, 26, 41, 32, 34, 31 → moyenne 34,5 (R0 : 39,5 en éval tirée), **τ = 6,68 pas**, 9/12 seeds au-dessus de la marge 29 — la lecture du brouillon v1 aurait rendu PAS_D_EFFET sur ces seeds. Puissance de la VRAIE lecture sous le modèle déclaré (sans bruit d'éval ; d ~ N(34,5 ; 6,68) ; écart propre du sham σ_e = τ, et 9,3 en sensibilité ; `results/td_step_pilot_r3_puissance_apres_tau.json`) : marge 29 / 11 sur 12 → P(TRANSPORTE | f = 0) 0,17-0,19 ; 29 / 10 → 0,38-0,45 ; **20 / 11 → 0,86-0,90 et P(PAS_PLUS_GROS | f = 1) 0,93-0,97** ; 15, 10 ou 0 n'ajoutent presque rien (plafond ≈ 0,86-0,94, tenu par SHAM_NUIT et la largeur de l'IC, pas par la marge) ; fausses lectures ≤ 2,8 % partout (TRANSPORTE à f = 0,3 ou 0,5 ; PAS_PLUS_GROS à f = 0,6). Coût mesuré sur nexus, 10 Jobs simultanés : lam0 médiane 107 s, lam09 158 s de mur par cellule (29 s pour une cellule seule). Reste à décider avant sceau (revue puis robla) : la marge retenue (20 est le coude), et si la même marge sert au contrôle du chemin, à la barre littérale de l'ADR et au bras apparié, que la règle v1 lie à un seul `marge_pas`.
 <!-- closes_when:grep_present=tools/td_step_pilot.py::permut -->
 
 **P4.20 — rang 12 — OUVERTE (2026-09-24, balayage demandé par la session qui porte le harnais) — Deux familles de clauses `closes_when`
@@ -1911,7 +1913,10 @@ sous un détenteur FACTICE « un-run (pid=4242) » ; le crochet arme le filet (`
 rien ne le désarmait — chaque copie du conftest a son propre `_NET`. Depuis `7ed985d6` (2026-09-16, P2.69 ii), tout
 test construisant un monde collecté APRÈS ce fichier était SAUTÉ, CI comprise : le journal du job suite-complete du
 run 38393984184 (à `46f30365`) porte, sur les deux rouges flatland de P2.113 (d), « Skipped: [filet runtime] bail
-« kuzu » détenu par un-run (pid=4242) ». **Exposition** : mesurée par la CI qui SUIT le push de ce commit (`tools.ci_diff_failed`) — suite-complete lance `tests/` par répertoire, donc chaque test ressuscité y tournera et chaque rouge sera nommé ; au-dessus des 5 rouges connus, ce sont de VRAIS rouges cachés depuis le 16/09. ⚠️ Angle mort : le sous-ensemble torch, que la CI saute — 36 fichiers collectés après `test_lease_guard.py` dépendent de torch (règle STATIQUE, rien lancé : ordre de pytest, noms triés ; source portant `importorskip("torch")`, `skipif(…torch…)`, `requires_torch`, `_TORCH` ou `import torch`), dont 16 avec un indice de monde : `tests/sandbox/test_mute_orchestrators_injection_3.py`, `tests/sandbox/test_orchestrator_injection.py`, `tests/sandbox/test_rng_census.py`, `tests/sandbox/test_s2_bassin_fragility.py`, `tests/sandbox/test_sim_session.py`, `tests/sandbox/test_td_step_pilot.py`, `tests/sandbox/test_torch_batch_model.py`, `tests/sandbox/test_torch_bptt_meansends.py`, `tests/sandbox/test_torch_effective_step.py`, `tests/sandbox/test_torch_gate_persist_ab.py`, `tests/sandbox/test_torch_parity_probe.py`, `tests/sandbox/test_torch_prod_gate.py`, `tests/sandbox/test_torch_throw_gate_world.py`, `tests/sandbox/test_warmstart_evolution_inworld.py`, `tests/test_bilinear_composition_probe.py`, `tests/test_bilinear_substrate.py` — **exposition torch NON MESURÉE**. ⚠️ Le test censé prouver le NO-OP
+« kuzu » détenu par un-run (pid=4242) ». **Exposition** : mesurée par la CI qui SUIT le push de ce commit (`tools.ci_diff_failed`) — suite-complete lance `tests/` par répertoire, donc chaque test ressuscité y tournera et chaque rouge sera nommé ; au-dessus des 5 rouges connus, ce sont de VRAIS rouges cachés depuis le 16/09. ⚠️ Angle mort : le sous-ensemble torch, que la CI saute — 36 fichiers collectés après `test_lease_guard.py` dépendent de torch (règle STATIQUE, rien lancé : ordre de pytest, noms triés ; source portant `importorskip("torch")`, `skipif(…torch…)`, `requires_torch`, `_TORCH` ou `import torch`), dont 16 avec un indice de monde : `tests/sandbox/test_mute_orchestrators_injection_3.py`, `tests/sandbox/test_orchestrator_injection.py`, `tests/sandbox/test_rng_census.py`, `tests/sandbox/test_s2_bassin_fragility.py`, `tests/sandbox/test_sim_session.py`, `tests/sandbox/test_td_step_pilot.py`, `tests/sandbox/test_torch_batch_model.py`, `tests/sandbox/test_torch_bptt_meansends.py`, `tests/sandbox/test_torch_effective_step.py`, `tests/sandbox/test_torch_gate_persist_ab.py`, `tests/sandbox/test_torch_parity_probe.py`, `tests/sandbox/test_torch_prod_gate.py`, `tests/sandbox/test_torch_throw_gate_world.py`, `tests/sandbox/test_warmstart_evolution_inworld.py`, `tests/test_bilinear_composition_probe.py`, `tests/test_bilinear_substrate.py` — **exposition torch NON MESURÉE**. ⚠️ **RECTIFIÉ le 2026-10-13 (P2.169)** : cette liste était un PLANCHER, et elle
+ne le disait pas. La CI qui a suivi (run 38401933962) a rendu 26 rouges dans 6 fichiers ABSENTS de la liste, qui
+dépendent de torch INDIRECTEMENT — par `src/agents/backend_torch.py` — sans aucun marqueur dans leur source : le motif
+voyait les marqueurs, pas la dépendance. Exposition mesurée par cette CI : 124 sauts de moins (376 → 252). ⚠️ Le test censé prouver le NO-OP
 (`test_the_runtime_net_is_NOT_armed_when_no_lease_is_held`) passait sur l'état FUITÉ : il capturait comme « origine »
 le constructeur déjà remplacé.
 ✅ **FERMÉE le 2026-10-13 (agagi-32)** — (a) le détenteur factice tient un bail PRIVÉ sous `tmp_path` ; les sessions
@@ -1923,11 +1928,14 @@ Témoins (`tests/sandbox/test_lease_skip_guard.py`) : `test_P2_165_le_detenteur_
 celui_de_la_flotte` (contrôle positif dans le dossier privé PUIS absence dans le commun, pendant que le factice
 tient) ; les deux bouts en bout de P2.82, redirigés, qui exigent le saut nommant CE détenteur ;
 `test_P2_165_test_lease_guard_ne_laisse_PAS_le_FILET_arme_apres_lui_en_session_reelle` (le vrai fichier, son vrai
-conftest, sous un dossier de bails VIDE ; à la fin de la session, le constructeur est celui du début). Après correctif, les tests exposés relancés : contrôle apparié sous Windows à 22706020 — test_lease_guard.py puis les deux flatland : 2 rouges « pid=4242 » sur le code vierge, 2 verts sur le code corrigé (9 passés), et les deux flatland seuls : 2 verts ; les autres tests ressuscités tourneront dans la CI qui suit. Windows 32 verts, 0 saut (les deux fichiers de bail, la garde des arbres, l'environnement git), et doctor à 0 bail, 0 orphelin après — l'ancien factice en laissait un ; Linux (WSL) 27 verts dont les deux flatland lancés après test_lease_guard.py, 1 rouge : le bout en bout (a), « HoF vide » (data/ non versionné, absent de la copie), IDENTIQUE sur la copie de d1 sans ces changements ; mutations à la main
+conftest, sous un dossier de bails VIDE ; à la fin de la session, le constructeur est celui du début). Après correctif, les tests exposés relancés : contrôle apparié sous Windows à 22706020 — test_lease_guard.py puis les deux flatland : 2 rouges « pid=4242 » sur le code vierge, 2 verts sur le code corrigé (9 passés), et les deux flatland seuls : 2 verts ; les autres tests ressuscités tourneront dans la CI qui suit. Windows 32 verts, 0 saut (les deux fichiers de bail, la garde des arbres, l'environnement git), et doctor à 0 bail, 0 orphelin après — l'ancien factice en laissait un ; Linux (WSL) 27 verts dont les deux flatland lancés après test_lease_guard.py, 1 rouge : le bout en bout (a), « HoF vide », IDENTIQUE sur la copie de d1 sans ces changements — ⚠️ RECTIFIÉ le 2026-10-13 :
+la cause écrite ici (« data/ non versionné ») et dans le message de `74c665f3` était FAUSSE. Le test charge
+`data/hall_of_fame.pkl`, SUIVI par git ; c'est l'archive WSL qui omettait `data/` — un artefact du BANC, que la
+CI n'a pas. Relancé avec `data/` dans l'archive : 83 verts sous WSL, dont test_lease_skip_guard.py en entier : le bout en bout (a) PASSE quand le fichier est là. ; mutations à la main
 3/3 tuées (filet non restauré ; factice qui tient son bail ailleurs ; processus qui ne lit plus le dossier privé), contrôle intact vert avant chacune ; écartées et dites : les mutations qui feraient tourner un vrai monde ou écrire le vrai dossier de bails. Registre : E4.
 <!-- closes_when:grep_present=tests/sandbox/test_lease_guard.py::def _filet_restaure -->
 
-**P2.157 — rang 3 (fixé par Master 2 le 2026-10-13 : avant P2.144 — il touche chaque commit de chaque session) — OUVERTE (2026-10-13, constat de SCIENCE-HARNAIS relayé
+**P2.157 — rang 3 (fixé par Master 2 le 2026-10-13 : avant P2.144 — il touche chaque commit de chaque session) — ✅ CLOSE le 2026-10-13 (ouverte le même jour : constat de SCIENCE-HARNAIS relayé
 par Master 2, revérifié par agagi-32) — Le crochet appelle « python » sans épingler l'interpréteur : sur la batcave,
 c'est désormais un Python 3.14 sans numpy ni pytest.**
 Preuve : `command -v python` → `/c/Python314/python`, 3.14.8, `python.exe` daté du 2026-09-30 19:16 ; absent du PATH
@@ -1939,6 +1947,47 @@ face. ⚠️ Non mesuré, l'autre face : une porte qui AVALE une ImportError ren
 le PATH du 3.13 en tête, dans la même commande que `git commit`. **Forme** (Master 2) : le crochet épingle son
 interpréteur — une variable `AGAGI_PYTHON`, un repli sur le 3.13, un REFUS explicite si numpy ou pytest manque —, avec
 un témoin sous un interpréteur sans numpy. *Coût : agent 1 h.*
+✅ **FERMÉE le 2026-10-13 (agagi-32)** — bloc `AGAGI:INTERPRETE` en tête de `tools/hooks/pre-commit`, AVANT toute
+porte : `AGAGI_PYTHON` ÉPINGLÉ (s'il ne convient pas : REFUS, jamais remplacé en silence), puis `python`, `python3`,
+`py -3.13` ; « convient » = numpy ET pytest trouvables (`importlib.util.find_spec`, sans le coût d'un import) ;
+aucun candidat -> REFUS qui nomme chaque essai ; le choix est DIT sur une ligne ; commandes internes du shell seules.
+Le lanceur de `AGAGI:PORTE-ABSENTE` consomme le choix (`${AGAGI_PY:-python}`), donc un squelette sans ce bloc garde
+l'ancien comportement. Témoins : `tests/sandbox/test_hook_interprete.py` — les deux blocs VERBATIM dans un crochet
+jouet d'un dépôt jetable, PATH RÉDUIT à des cales (`python`, `python3`, `py`) qui lancent le vrai interpréteur ou
+le même en `-S` (sans site-packages), et une porte fantôme qui dit qui l'a lancée ET si numpy lui était trouvable :
+épingle sans numpy REFUSÉE malgré un bon `python` dans le PATH ; épingle qui convient ; premier candidat qui
+convient (`python` sans numpy, `python3` avec : le cas mesuré) ; `py -3.13` en dernier repli ; aucun candidat ->
+refus qui nomme les trois essais ; le bloc précède toute porte du crochet versionné. Windows 6/6 témoins, et 167 verts en 3 min, 0 saut, avec les fichiers qui lisent le crochet (PORTE-ABSENTE, APPELS-ATTENDUS, déploiement, porte 20, Pilotage, fusion) ; premier essai : 5 rouges de BANC — Git pour Windows cherche le sh du shebang dans le PATH ; le dossier de sh, qui ne porte aucun python (le test le vérifie), est ajouté sous Windows seulement ; Linux (WSL)
+83 verts, 1 saut (le cas CRLF, Windows seul), dont les 6 témoins et test_lease_skip_guard.py en entier ; premier essai : 1 rouge de BANC, CLAUDE.md absent de l'archive ; mutations à la main 4/4 tuées (épingle cassée sans exit ; lanceur qui ignore le choix ; plus de repli py -3.13 ; plus de refus sans candidat), contrôle intact vert avant chacune ; écartée et dite : « ne vérifier que numpy », aucun témoin n'ayant numpy sans pytest. Copie DÉPLOYÉE (`.git/hooks/pre-commit`, commune à la flotte) : à déployer juste APRÈS l'avance rapide de ce commit (if git merge --ff-only …; then cp …; fi), sur décision de Master 2 — le constat de la copie conforme (porte 22) est postérieur à ce commit, donc dans le compte-rendu, pas ici. Hors
+périmètre, dit : `post-commit` appelle encore le `python` du PATH (`check_staged_authorship declare`, sans numpy,
+sous `|| true`). Registre : E35 (classe décidée par Master 2).
+<!-- closes_when:grep_present=tools/hooks/pre-commit::AGAGI:INTERPRETE -->
+
+**P2.169 — rang 2 bis (décidé par Master 2 le 2026-10-13 : la suite de P2.165, avant P2.144 ; fait le soir même sur
+l'ordre DIRECT de robla) — ✅ CLOSE le 2026-10-13 (ouverte et fermée dans la même passe) — 26 tests dépendent de
+torch SANS le dire : la CI, qui n'a pas torch, les rendait ROUGES d'environnement, et la fuite du filet de bail les
+cachait depuis le 2026-09-16.**
+Preuve : la CI suite-complete qui a suivi P2.165 (run 38401933962, à `74c665f3`) contre celle du revert (run
+38393984184) — 29 rouges contre 5, 3948 passés contre 3834, 252 sautés contre 376 (124 sauts de moins : c'est
+l'exposition MESURÉE de la fuite, CI comprise), job de 11 min 22 à 27 min 49. Les 2 flatland de P2.113 (d) ont
+disparu ; 26 rouges sont NOUVEAUX, et TOUS meurent avant leur première assertion de « NotImplementedError: backend
+'torch' : PyTorch non installé », levée par `src/agents/backend_torch.py:104` : `test_s2_credit_ablation.py` (7 sur
+21), `test_s2_credit_ablation_2.py` (6 sur 24), `test_s2_reward_ablation.py` (4 sur 20), `test_torch_inworld.py` (5
+sur 8), `test_torch_throw_gate_factorial.py` (3 sur 6), `test_torch_throw_gate_inworld_ab.py` (1 sur 2). Aucun de
+ces fichiers ne gardait sa dépendance (0 `importorskip`, 0 `skipif` torch) : ils construisent le backend torch PAR
+LE HARNAIS, sans importer torch eux-mêmes — un NotImplementedError n'est pas un ImportError. Vrai rouge ou rouge
+d'environnement ? Tranché AVANT de garder (sinon le saut cacherait de nouveau un vrai rouge, la face E4 qu'on venait
+de fermer) : AVEC torch, sous le 3.13 du projet, les 17 tests S2 sont VERTS — mesures RELAYÉES par Master 2, non
+relancées par agagi-32 : session E34 (agagi-c4) le 2026-10-13 après-midi sur l'état fusionné, 21 / 24 / 20 passés,
+rc 0 ; audit A sur `85e05003`, 21 et 24 ; et les 9 autres VERTS, mesurés par agagi-32 à `b2f39ec8` (torch 2.6.0,
+9 passés en 68 s : 5 + 3 + 1). Les 26 sont donc des rouges d'ENVIRONNEMENT, aucun ne touche un résultat publié.
+✅ **FERMÉE le 2026-10-13 (agagi-32)** — garde PAR TEST, jamais par module (les 55 autres tests de ces 81 tournent
+en CI et doivent continuer) : `_TORCH = importlib.util.find_spec("torch") is not None` et `requires_torch =
+pytest.mark.skipif(not _TORCH, …)`, la convention de `test_s2_bassin_fragility.py`, posés sur les 26 noms relus dans
+le journal CI (jamais recopiés). Windows, avec torch : les 6 fichiers EN ENTIER, 81 passés en 85 s, 0 saut — la garde ne retire rien quand torch est là. Linux (WSL), venv de la CI SANS torch, contrôle
+apparié — qui vaut mutation, puisque retirer la garde EST l'état d'avant : AVANT (copie de d1 b2f39ec8) 26 rouges « PyTorch non installé » et 55 verts, exactement la CI ; APRÈS 55 verts et 26 sautés, chacun nommant P2.169, 0 rouge. Registre : E4 (la liste statique de
+P2.165, ci-dessous).
+<!-- closes_when:grep_present=tests/sandbox/test_torch_inworld.py::requires_torch = pytest.mark.skipif -->
 
 **P2.143 — rang 6, GELÉE jusqu'à la levée du gel de méthode (une porte, qui ne bloque aucun run) (rang fixé par Master 2 le 2026-09-28) — OUVERTE (2026-09-28, extension exécutable d'E8 DÉCIDÉE par Master 2 ; inscrite par la session SCIENCE-HARNAIS) — Un nombre de PROSE qui porte une unité ou un compte, dans un record, DÉCLARE sa source ; une porte la vérifie.**
 Preuve : E8, occurrence du 2026-09-28 — six valeurs recopiées au lieu d'être relues en un jour (0,82 d'un rapport de chemin cité comme un rapport net ; 3 processus pour 6 ; 4e-7 pour 2,1e-5 ; « 24 à 718 », chiffre de conception cité comme mesure ; dose 1,0 pour ≈ 0,66 active ; heures de build estimées), toutes attrapées avant publication par une relecture contre la source — donc par un humain ou une revue, jamais par une porte : la porte 19 ne lit que « nom = valeur » d'un paramètre de régime (revue du record [[EDR-S2-BASSIN-FRAGILITY]], P2.b : elle rend SANS_PARAMETRE sur ce record, qui écrit « phase 2 à 200 ticks »). **Forme** : une balise DÉCLARÉE par l'auteur à côté du nombre — chemin `results/*.json` SUIVI, pointeur JSON, valeur et tolérance — sur le modèle des balises de compte de la porte 8 ; la porte relit le fichier et compare ; une valeur recalculée (médiane, rapport) déclare sa fonction et ses clés d'entrée. Ce qui est porteur est DÉCLARÉ, jamais deviné : la porte ne cherche pas les nombres NON balisés (elle les COMPTE et les rapporte, comme la porte 4 rapporte les entrées sans clause). Contre-exemples gelés : les cinq valeurs de cette occurrence qui ont une source JSON. À la livraison, la forme passe exécutable. *Coût : agent 3-4 h.* Sans clause `closes_when` (déclaré) : le nom de la porte n'est pas fixé.
@@ -2993,6 +3042,44 @@ suivie (les trois MANIFEST et les sha256 des génomes, ou les génomes eux-même
 les MANIFEST portent dans leur champ `image` (dépôt public) — puis faire pointer la REF et le bandeau dessus. Sans
 clause `closes_when` (déclaré) : le chemin de l'évidence n'existe pas encore.
 
+**P2.167 — ✅ CLOSE le 2026-10-13 (ouverte et fermée dans la même passe, session INFRA-NEXUS, décision de Master 2 :
+elle BLOQUAIT les runs scellés sur nexus) — l'envoi des sources, `attendre` et `rapatrier` ne toléraient AUCUN accroc de
+l'API du cluster : un seul suffisait à interrompre un run côté batcave pendant que le pod continuait.**
+Preuve, deux mesures : (1) 2026-09-26 à 20:25:17, un délai de connexion à l'API (« Unable to connect to the server »),
+revenu 40 s après — c'est lui qui a fait naître P2.137 pour la SONDE seule ; (2) 2026-10-13 de 16:25 à 16:30, pilote τ de
+P4.19 (24 cellules sur nexus) : pendant la vague 2, 7 « executer » sur 10 interrompus par l'API — 5 sorties récupérées à
+la main par `rapatrier`, sans recalcul, 2 cellules relancées, et un 8ᵉ cas où seul le marqueur de libération du pod
+n'avait pas pu être posé (sortie en sûreté). Pour 30 s de calcul, rattrapable à la main ; pour un run scellé de plusieurs
+heures, une attente interrompue laisse un pod qui garde sa sortie `--attente-s` seulement (15 min par défaut).
+Corrigé dans `tools/jobs/remote.py` : `Accrocs` rejoue un appel IDEMPOTENT tant que l'API est coupée, au plus
+`ECHECS_API_MAX` = 3 fois DE SUITE — le plafond de la sonde (P2.137) —, chaque accroc imprimé et compté par étape dans
+`runs/deport/<job>/accrocs_api.json` (publié même à l'abandon) ; un refus de FOND (NotFound, admission) n'est jamais
+rejoué. Couverts : lecture du pod pendant la réception, ENVOI des sources (si l'init a déjà fini en 0, le paquet était
+arrivé — `.ready` en dernier — et n'est pas renvoyé), lectures d'`attendre`, lecture, tirage et libération dans
+`rapatrier`. Un abandon dit en clair jusqu'à quand le pod garde la sortie et quelle commande relancer ; à l'état `pret`,
+`attendre` imprime l'heure LIMITE du rapatriement. Contre-exemples gelés : un faux kubectl qui échoue k fois puis répond
+(`test_accrocs_k_fois_puis_reponse_au_dela_du_plafond_refus_et_refus_de_fond_jamais_rejoue`,
+`test_attendre_traverse_deux_accrocs_et_dit_l_heure_limite_de_la_sortie`), qui échoue au-delà du plafond, attendu refusé
+avec la fenêtre RÉELLE du pod (`test_attendre_abandonne_au_dela_du_plafond_en_disant_jusqu_a_quand_la_sortie_est_gardee`,
+`test_rapatrier_abandonne_le_tirage_au_dela_du_plafond_et_compte`), et l'envoi rattrapé sans renvoyer un paquet livré
+(`test_envoi_des_sources_rattrape_un_accroc_sans_renvoyer_un_paquet_deja_livre`). Windows 127 et Linux 127 verts.
+⚠️ **Trouvé en surveillant, à mon débit** : j'ai d'abord alerté « sortie PERDUE dans 6 min » pour la cellule lam09
+seed 22, d'après un seul indice (pod encore en Running après la fin du runner), sans lire le journal de SCIENCE-HARNAIS —
+or l'outil distingue exactement ce cas (« sortie en sûreté, pod non libéré, ce n'est PAS une perte »). Fausse alarme,
+retirée ; c'est la forme d'E8 (un état conclu, pas lu). Le correctif rejoue désormais aussi la libération du pod.
+Hypothèse NON établie : la charge de dix transferts simultanés par l'API contribue aux accrocs (l'accroc du 26/09 est
+survenu sans charge) ; échelonner les soumissions ne coûte rien.
+<!-- closes_when:grep_present=tests/sandbox/test_jobs_remote.py::accrocs_k_fois_puis_reponse -->
+
+**P2.168 — rang 23 — OUVERTE (2026-10-13, vue en préparant le pilote τ, session INFRA-NEXUS) — `python -m
+tools.jobs.remote executer` rend 2 pour un refus LOCAL (fenêtre, garde d'image, quota, nœud éteint, accroc au-delà du
+plafond) ET le code du runner, qui peut lui-même valoir 2 (argparse) : le code de sortie seul ne les distingue pas.**
+Preuve : `main()` (`tools/jobs/remote.py`, branche `except Refus` : « return 2 ») et `code_de_sortie(...)` qui rend le code
+du runner ; un argparse en échec sort en 2. Contournement appliqué par SCIENCE-HARNAIS le 2026-10-13 : classer chaque
+cellule en lisant « [remote] REFUS » dans son journal, jamais le seul code. À faire : un code DÉDIÉ au refus local (hors
+des codes d'un runner usuel et des 86/87 de `remote_entry`), publié dans la REF, avec un témoin qui fait sortir un runner
+en 2 et vérifie qu'il ne se lit pas comme un refus local. Sans clause `closes_when` (déclaré) : le code n'est pas choisi.
+
 **P2.151 — OUVERTE (2026-09-28, vue en passant par la session FRONT pendant le pas 2 de P2.87) — sous WSL,
 `pytest tests/test_backend.py` FINIT ses tests puis reste BLOQUÉ À LA SORTIE du processus ; le job CI qui lance ce
 fichier sous Linux n'avait aucune borne de durée.**
@@ -3916,6 +4003,7 @@ allouer un à l'écriture si le verdict de P4.18 la désigne (le record P4.16 se
 [[EDR-S2-CREDIT-ABLATION-2]] (bandeau E8 d'après-run, écrit seulement avec un verdict LU — un run INDÉTERMINÉ laisse
 l'entrée ouverte). Une clause sur le JSON de résultats, encore inexistant, est refusée par la porte 4 (invérifiable).
 (8) **RUN FAIT le 2026-09-28, verdict scellé INDETERMINE_INSTRUMENT (branche 7)** — [[EDR-S2-BASSIN-FRAGILITY]] : le contrôle positif `pos` (gaussien diffus à 1,0 × ‖W_bassin‖₁ sur toute la matrice) érode de −8,75 en médiane, hors de sa bande, mais sur 10/12 seeds pour un seuil de 11/12 ; la règle ne rend aucune lecture. La revue du record (`docs/reviews/2026-09-28-S2-BASSIN-FRAGILITY_The_Positive_Control_Of_FRAGILE_Misses_B.md`, 15/38 confirmées, passage INDISCRIMINANT, toutes re-mesurées par l'auteur) a établi que la glose de la branche 7 (« l'instrument ne sait pas voir une érosion ») est démentie par le run : le contrôle positif était hors du RÉGIME du sham qu'il protège, et sa puissance jamais calibrée. **L'entrée reste OUVERTE**, comme sa clause le prévoit pour un run indéterminé ; le bandeau E8 d'après-run sur [[EDR-S2-CREDIT-ABLATION-2]] n'est pas posé. Suite éventuelle : une NOUVELLE règle, contrôle positif dans le régime du sham lu et puissance calibrée par injection AVANT le sceau — **décision de robla**. Coût mesuré : 18 112,6 s CPU (25 % du budget), 6470 s de mur, batcave, 3 processus.
+(9) **PROCHAIN PAS (2026-09-29, décision de robla : la question n'a PAS de réponse, elle sera RETESTÉE ; l'entrée reste OUVERTE, sa clause inchangée se satisfera quand un run rendra un verdict LU).** Fait : le run du 2026-09-28, verdict INDETERMINE_INSTRUMENT ([[EDR-S2-BASSIN-FRAGILITY]]). À faire, APRÈS P4.19 : une NOUVELLE règle scellée (jamais un -bis), dont le contrôle positif est placé SUR les poids que le crédit touche (même support, même géométrie que le sham lu) et dont la PUISSANCE sous le critère de la famille est calibrée par injection AVANT le sceau ; confondants nommés par la revue du record traités ou déclarés (létalité de phase 1, brassage E34, écriture du monde dans H — E5, dose ACTIVE hors colonnes d'entrée). Question à y poser d'avance, sans la tenir pour acquise : l'érosion suit-elle les poids touchés et leur amplitude plutôt que le signe (observation hors verdict de P4.18, jamais une preuve). Lieu : nexus possible — la règle compare ses bras entre eux, sans identité au bit avec un run publié — à TROIS conditions (notées par Master 2) : (a) les contrôles de réplication contre le PUBLIÉ (no-op, rejeu et greffe égaux au bit à des valeurs produites sous Windows) deviennent INTERNES (no-op du même run, cellule dupliquée sur nexus à threads fixés — le témoin du 2026-09-26 montre nexus 2 threads = 16 threads au bit) ; (b) la source de ΔW est tranchée (rejouer la phase 1 sur nexus, lien chiffré à P4.18 publié NON VÉRIFIÉ, ou acheminer les 72 génomes persistés, hors git : question pour INFRA-NEXUS) ; (c) environnement et threads publiés, KuzuDB neutralisée dans chaque processus, jamais sur NFS.
 <!-- closes_when:grep_present=docs/EDR/S2-CREDIT-ABLATION-2_Each_Credit_Pathway_Alone_Floors_The_Bassin_And_A_Positive_Constant_Return_Erodes_Halfway.md::corrected_by: \[.*EDR-S2-BASSIN-FRAGILITY -->
 
 **P4.17 — rang 4 quinquies — ✅ CLOSE le 2026-09-24 (verdict `AIDE_A_UN_POINT` ; ouverte le 2026-09-22, décision robla déléguée via agagi-52 ; session loop 766eabae) — Balayage

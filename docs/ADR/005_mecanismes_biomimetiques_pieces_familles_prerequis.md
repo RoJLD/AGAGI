@@ -150,3 +150,46 @@ aux deux pas) et TRACE_NUIT / TRACE_NEUTRE / LEARNER_INERT.
     complet à dose appariée (l'effet est un artefact de réglage, classe E19).
   * **Ni l'un ni l'autre** → la ligne reste « attend » avec ses manques nommés (P4.19), sans réordonner la file.
   Échéance inchangée : sans l'un des deux contrôles de P4.19 payé au 2026-10-28, la file est réordonnée par robla.
+- **Décisions de robla pour P4.19 — datées le 2026-09-28** (données le 2026-09-26 dans la session de Master 2,
+  RECONFIRMÉES le 2026-09-28 dans la session SCIENCE-HARNAIS par une question groupée ; l'exception 3 bis ratifiée le
+  même jour, après une objection de Master 2 qu'il a retirée). Elles PRÉCISENT le critère amendé du 2026-09-24
+  ci-dessus ; chaque point dit ce qu'il change.
+  1. **Sham = « δ DÉCALÉ d'un épisode ».** Opérationnalise « δ PERMUTÉ dans le temps », que le texte ne définissait
+     pas. Dans le SEUL terme porté par la trace (acteur ET critique), δ1 est remplacé par δ̃ = le δ1 du MÊME agent au
+     MÊME rang à l'épisode PRÉCÉDENT ; le terme TD(0) du pas courant et la récurrence e ← γλ·e + g sont inchangés.
+     Déterministe, aucun tirage (la bande RNG du pilote n'est pas touchée) ; au premier épisode le terme porté est
+     OMIS et compté (`sham_omis`), jamais rempli par 0 ni par le δ propre. Livré sous drapeau à défaut bit-identique
+     (`TorchPopulationModel.CREDIT_TRACE_DELTA_SHAM`, commit fc9133aa ; mode `identite` = contrôle positif de
+     l'instrument). Écartés : le dérangement entre agents (il n'est pas « dans le temps »), le joug κ (endogène : il
+     croît avec l'écart de succès entre trace et sham, donc conditionne sur le résultat), le tirage dans une fenêtre
+     de 32 épisodes (marginale de δ conservée en espérance seulement).
+  2. **Adjacence : lr 4,0 PRIMAIRE, 4√2 ≈ 5,657 SECONDAIRE.** Le texte ne définissait ni « adjacent » ni le sens d'un
+     échec. 5,657 a été choisi APRÈS les résultats à 2,0 (0/12) et à 8,0 (`td0_d0` 7/12, chemin illisible) : c'est un
+     chemin bifurquant, dit tel quel. Conséquences : un échec à 5,657 ne produit JAMAIS à lui seul « REFUSÉE » (un
+     point choisi après le résultat ne porte pas de verdict négatif, classe E11) — la ligne reste « attend » ; l'ENTRÉE
+     exige toujours la réussite aux DEUX pas (condition (1) inchangée).
+  3. **Dose.** *Texte remplacé* : « à dose appariée en Σ|ΔW| PUBLIÉE ». *Nouveau* : quand un appariement est exigé
+     entre bras APPRENANTS, il porte sur le déplacement NET par agent, ‖θ_T − θ_0‖₁ (leçon de P4.18, sceau
+     d29d7934 : un chemin se compense, net/chemin = 0,072 sur b_full) ; le chemin Σ‖Δθ‖₁ est publié comme
+     DESCRIPTEUR. Un bras TD(0) apparié par bloc entre dans R3 si son coût MESURÉ ajoute moins d'un tiers au coût de
+     R3 ; sinon, le record écrit pourquoi il n'entre pas.
+     **3 bis — EXCEPTION, périmètre : le sham SEUL.** Le sham est apparié sur le CHEMIN, jamais sur le net, par une
+     garde EXOGÈNE pas à pas : chemin porté appliqué / chemin porté contrefactuel ∈ [0,9 ; 1,1], le contrefactuel
+     (ce qu'aurait appliqué le δ propre) étant calculé au MÊME état de la MÊME trajectoire. *Raison* : le sham fait
+     varier l'ALIGNEMENT de δ avec la trace à AMPLITUDE fixe ; son déficit de net est l'EFFET attendu de la
+     manipulation (un crédit cohérent s'accumule, un crédit désaligné se compense), pas un confondant ; l'apparier
+     sur le net imposerait d'agrandir son pas d'après une variable post-traitement, et détruirait la seule grandeur
+     qu'il doit tenir constante. En P4.18 le net était juste parce que les shams y sont des DÉPLACEMENTS statiques
+     (chemin = net). Tous les bras apprenants comparés entre eux, dont trace contre TD(0) apparié, restent au NET.
+     *Prédictions écrites AVANT le sceau de R3* : (i) rapport de CHEMIN sham/trace ≈ 0,82 sous transport — la dose de
+     chemin est endogène à l'apprentissage : à critique calibré E|δ1| = 4p(1−p), et p_T ≈ 0,25 contre p_S ≈ 0,19
+     donne 1,23 pour trace/sham (contre-examen du joug κ) — et ≈ 1 sous « pas plus gros » ; (ii) rapport de NET :
+     DIRECTION seulement — le rapport de cohérence (net_sham/net_trace)/(chemin_sham/chemin_trace) < 1 sous
+     transport, ≈ 1 sous « pas plus gros ». Aucune valeur numérique n'est prédite pour le net : c'est un descripteur,
+     sans branche de verdict.
+  4. **Barre = référence lr 0 du MÊME dispositif + marge** (norme du dépôt ; jamais « hasard + marge », jamais le bras
+     λ = 0 entraîné).
+  5. **Lieu = nexus**, threads fixés et publiés (règle de lieu du 2026-09-26 : une mesure NEUVE se compare à
+     elle-même). Conséquence acceptée : les rejeux au bit de R0/R2 ne sont démontrés que sur batcave (témoin de P4.18 :
+     poids différents au dernier bit sur nexus, somme dépendante du nombre de threads) — le lien R3 ↔ R0/R2 sera
+     publié NON VÉRIFIÉ, jamais réussi ; les contrastes porteurs, tous internes à R3, n'en dépendent pas.

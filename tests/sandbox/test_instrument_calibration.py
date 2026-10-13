@@ -2107,6 +2107,27 @@ CALIBRATED = {
                                                         "fuite-git-dir:refusee", "git-dir-du-meme-depot:complet",
                                                         "vieux-git:jamais-complet", "suivis:head-jamais-index",
                                                         "config-heritee:log-showroot"],
+    # P4.19 R3 (2026-10-13) : lecture d'UN pas et synthèse vers l'ADR, confrontées à des réponses CONNUES par INJECTION
+    # (fabrique `base_injection`, 0 simulation) -- f connu -> branche nommée, ordre imposé, égalité à la marge = échec,
+    # instrument rompu bloquant, pas secondaire qui ne refuse jamais seul, TD(0) à dose nette égale qui retient l'entrée.
+    # témoin : tests/sandbox/test_td_step_pilot_r3.py
+    "tools/td_step_pilot_r3.py::classify_pas": ["injection-sans-bruit:f-connu->branche-nommee(7-fractions)",
+                                                "INCOMPLET:cellule-manquante-ou-pre-vol-absent",
+                                                "egalite-exacte-a-la-marge:compte-comme-echec",
+                                                "instrument-rompu:bloque-toute-lecture(3-formes)",
+                                                "chemin-lu-avant-effet", "petit-gain-total:F_INDEFINI",
+                                                "comptes-litteraux-ADR-publies"],
+    "tools/td_step_pilot_r3.py::verdict_synthese": ["ENTRE:TRANSPORTE-aux-deux-pas-et-garde-E19-PASSE",
+                                                    "garde-E19-non-appelee:ATTEND",
+                                                    "pas-secondaire-ne-refuse-jamais-seul:primaire-REFUSEE",
+                                                    "td0-a-dose-nette-egale-fait-jeu-egal:ATTEND",
+                                                    "bras-apparie-non-lisible:manque-nomme"],
+    # P4.19 (c) (2026-10-13) : τ = dispersion VRAIE de l'effet entre seeds TENUES À L'ÉCART, avant le sceau de R3.
+    # témoin : tests/sandbox/test_td_step_pilot_r3_tau.py
+    "tools/td_step_pilot_r3_tau.py::measure_tau": ["reponse-connue:d-constant->tau-0;d-alterne-30/50->tau-10,4446",
+                                                   "egalite-exacte-a-la-marge:pas-au-dessus",
+                                                   "incomplet:tau-None-jamais-0-fabrique",
+                                                   "seed-du-verdict:raises"],
 }
 
 _GENOMES = os.path.join("results", "warm007_genomes")
