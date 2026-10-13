@@ -42,5 +42,6 @@ export const queryKeys = {
   notes: ["notes"] as const,
   pm: {
     pilotage: ["pm", "pilotage"] as const,
+    index: ["pm", "index"] as const,
   },
 } as const;

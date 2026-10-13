@@ -12,3 +12,7 @@ test("clé du flux notes", () => {
 test("clé du pilotage, partagée par les trois vues", () => {
   expect(queryKeys.pm.pilotage).toEqual(["pm", "pilotage"]);
 });
+
+test("clé de l'index", () => {
+  expect(queryKeys.pm.index).toEqual(["pm", "index"]);
+});

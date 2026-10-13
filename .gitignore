@@ -59,6 +59,9 @@ data/pm/
 frontend/node_modules/
 frontend/dist/
 frontend/build/
+# `tsc -b` (mode build) écrit ses caches d'incrémental à côté des tsconfig -- mesuré le 2026-09-26, deux fichiers
+# non suivis et non ignorés dans frontend/ ; le typage se vérifie par `npx tsc --noEmit -p tsconfig.json`.
+frontend/*.tsbuildinfo
 
 # Secrets / env (F3.12) — ignorer les vrais .env, garder les .example versionnés
 .env

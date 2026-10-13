@@ -26,3 +26,9 @@ test("une ligne « pilotage: » (exception du service) est une ALERTE", () => {
   expect(screen.getByRole("alert").textContent).toContain("pilotage: ValueError: boum");
   expect(screen.getByRole("status").textContent).toContain("flotte : BOARD.json introuvable");
 });
+
+test("préfixe de mode dégradé paramétré : une ligne « index: » est une ALERTE pour l'index", () => {
+  render(<AveugleBanner lignes={["index: ImportError: yaml"]} prefixeDegrade="index:" titreDegrade="Index dégradé" />);
+  expect(screen.getByRole("alert").textContent).toContain("Index dégradé");
+  expect(screen.getByRole("alert").textContent).toContain("index: ImportError: yaml");
+});

@@ -2,7 +2,7 @@ import { afterEach, expect, test, vi } from "vitest";
 
 vi.mock("./client", () => ({ apiFetch: vi.fn().mockResolvedValue({}) }));
 import { apiFetch } from "./client";
-import { fetchPilotage, FRAIS_TIMEOUT_MS } from "./pm";
+import { fetchIndex, fetchPilotage, FRAIS_TIMEOUT_MS } from "./pm";
 
 const mocked = apiFetch as ReturnType<typeof vi.fn>;
 afterEach(() => mocked.mockClear());
@@ -18,4 +18,9 @@ test("frais=1 passe un timeout AU-DELÀ du majorant mesuré de snapshot() (18,1 
   expect(chemin).toBe("/api/pm/pilotage?frais=1");
   expect(init.timeoutMs).toBeGreaterThan(18_000);
   expect(init.timeoutMs).toBe(FRAIS_TIMEOUT_MS);
+});
+
+test("l'index appelle /api/pm/index", async () => {
+  await fetchIndex();
+  expect(mocked).toHaveBeenCalledWith("/api/pm/index");
 });

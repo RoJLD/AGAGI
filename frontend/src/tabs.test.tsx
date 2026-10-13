@@ -13,12 +13,13 @@ test("buildNavItems aplatit les familles en items ordonnés avec group + icône"
   expect(typeof parcours.icon).toBe("object");
 });
 
-test("famille Pilotage : trois onglets, libellés et icônes — l'assertion générique ci-dessus passerait sans elle", () => {
+test("famille Pilotage : quatre onglets, libellés et icônes — l'assertion générique ci-dessus passerait sans elle", () => {
   const pilotage = buildNavItems(TAB_FAMILIES).filter((i) => i.group === "Pilotage");
   expect(pilotage.map((i) => [i.id, i.label])).toEqual([
     ["flotte", "Flotte"],
     ["roadmap", "Roadmap"],
     ["portes", "Portes"],
+    ["index", "Index"],
   ]);
   for (const i of pilotage) expect(typeof i.icon).toBe("object");
 });

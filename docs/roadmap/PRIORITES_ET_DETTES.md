@@ -2786,7 +2786,7 @@ Cadrage fait le 2026-09-26 avec P2.87, dans UNE spec : `docs/superpowers/specs/2
 (v2 après revue adversariale opus : 3 bloquants, 14 importants, 7 mineurs intégrés ; approche A validée par Master 2 avec
 quatre conditions). Trois vues : Pipeline, Taxonomie, Trouvailles. Les « fermetures par semaine » de (d) sont HORS
 périmètre (la date d'une tête est celle de son statut). La clause suit le CODE, jamais la spec.
-<!-- closes_when:path_present=tools/pm/science.py -->
+<!-- closes_when:path_present=frontend/src/components/science/TrouvaillesView.tsx -->
 
 **P2.85 — ⚠️ OUVERTE (2026-09-24, mesurée en étant bloquée par elle) — la porte 8 juge le DISQUE et non l'INDEX : le
 travail NON COMMITTÉ d'une session rend un compteur « périmé » et bloque le commit de TOUTES les autres, sur des
@@ -2862,9 +2862,18 @@ les trois écritures passent à `-c`, et la règle entre dans `CLAUDE.md` en une
 par une forme, pas par une garde. *Coût : agent 30 min ; calcul 0.* Dépend de : rien.
 <!-- closes_when:grep_absent=tests/sandbox/test_pm_snapshot.py::config", "user\. -->
 
-**P2.87 — ⚠️ OUVERTE (2026-09-24, demande de robla) — le dashboard doit s'INDEXER TOUT SEUL à mesure que le projet
-produit : donner un FORMAT déclaré aux résultats et aux artefacts pour qu'un type neuf soit ingéré sans écrire un
-parseur. BRAINSTORMÉE le 2026-09-26 (spec et plan approuvés par Master 2), EN COURS d'exécution par la session FRONT.**
+**P2.87 — ✅ CLOSE le 2026-10-13 (ouverte le 2026-09-24, demande de robla) — le dashboard doit s'INDEXER TOUT SEUL à
+mesure que le projet produit : donner un FORMAT déclaré aux résultats et aux artefacts pour qu'un type neuf soit ingéré
+sans écrire un parseur. Livrée par la session FRONT en trois pas.**
+Fait (plan `docs/superpowers/plans/2026-09-26-auto-indexation-index.md`, spec §9 à jour) : pas 1 `ade68425` —
+`tools/pm/index_artefacts.py`, lecteur tolérant à vocabulaire fermé et parité par famille, et l'écrivain de
+`DATES_GIT.json` branché sur le tick PM ; pas 2 `b7255e58` — route `GET /api/pm/index` (filet du pilotage, chaque bloc
+échappé puis validé, refus locaux, smoke CI à deux issues confronté à des réponses connues) ; pas 3, le commit qui ferme
+cette entrée — onglet « Index » de la famille Pilotage. Deux revues adversariales opus (pas 1 : 1 bloquant et 6
+importants ; pas 2 : 5 importants), tous corrigés par un témoin RED puis GREEN ; six occurrences au registre des erreurs
+(`3a29c846`). Douze mineurs sont différés au grand livre d'exécution du plan (TTL du mode dégradé, cache servi par
+référence, validation stricte, horloge monotone, noms que git cite…). Le format déclaré n'est imposé par AUCUNE porte
+(condition 3) : sa couverture par clé est publiée, rien de plus. P2.84 (Science) construit sur cet index.
 Quoi : le lot 1 du dashboard (`docs/superpowers/specs/2026-09-22-pilotage-dashboard-design.md`) lit des sources
 EXISTANTES une par une, chacune avec son lecteur écrit à la main. La demande est l'inverse : que produire un artefact
 suffise à l'indexer. État mesuré le 2026-09-24, qui dit à la fois ce qui existe et ce qui manque.
@@ -2983,6 +2992,23 @@ ni results/. MANIFEST et génomes vivent hors suivi dans le worktree science-pre
 suivie (les trois MANIFEST et les sha256 des génomes, ou les génomes eux-mêmes) — en RETIRANT l'adresse du registre que
 les MANIFEST portent dans leur champ `image` (dépôt public) — puis faire pointer la REF et le bandeau dessus. Sans
 clause `closes_when` (déclaré) : le chemin de l'évidence n'existe pas encore.
+
+**P2.151 — OUVERTE (2026-09-28, vue en passant par la session FRONT pendant le pas 2 de P2.87) — sous WSL,
+`pytest tests/test_backend.py` FINIT ses tests puis reste BLOQUÉ À LA SORTIE du processus ; le job CI qui lance ce
+fichier sous Linux n'avait aucune borne de durée.**
+Preuve (deux occurrences, sortie vers un FICHIER, donc sans tube) : le 2026-09-26, 152 passés puis blocage ; le
+2026-09-28, « 183 passed, 4 warnings in 24.68s » puis `terminate called without an active exception`, le processus
+en état D pendant 13 min à ~25 % de CPU, 47 fils en `do_exit` et UN en `pipe_write` (lu dans `/proc/<pid>/task/*/wchan`),
+tué par SIGKILL ; une troisième passe le 2026-09-26 est sortie normalement (intermittent). Le diagnostic « tube vers
+tail à travers wsl.exe » avancé le 2026-09-26 est RÉFUTÉ par la passe du 28. HYPOTHÈSE, non établie : un fil natif non
+joint à la fin de l'interpréteur (kuzu, par l'app importée, ou torch) déclenche `std::terminate`. En CI (Ubuntu,
+Python 3.13), `test-and-build` a réussi en 4,1 à 5,1 min sur 5 runs mesurés, puis en 4,6 min sur le run 36479597114
+(sha 743e7326, qui porte le pas 2 de P2.87 et son smoke de l'index) : le blocage n'y a pas été vu, ce qui ne prouve pas
+qu'il ne peut pas s'y produire. Garde posée dans le commit du pas 3 de P2.87, sur arbitrage de Master 2 :
+`timeout-minutes: 20` sur `test-and-build` (le job tournait sinon jusqu'aux 6 h par défaut), à retirer quand la cause
+est trouvée. À faire : reproduire hors pytest (importer l'app, créer puis relâcher la base, quitter) pour séparer
+l'app de pytest, lire la pile native du fil en `pipe_write`, et joindre ou détacher le fil fautif à l'arrêt. *Coût :
+agent 1-2 h sous WSL ; calcul 0.* Dépend de : rien.
 
 **P2.136 — rang 6 — ✅ CLOSE le 2026-09-28 (ouverte le 2026-09-26 sur arbitrage de Master 2 : la règle du registre
 « pas de troisième fois » l'emporte sur le gel de la méthodo ; garde écrite et vérifiée le 26, committée le
