@@ -1,0 +1,4839 @@
+{
+ "preregistration": "E34-IDENTITY-CELL",
+ "seal_verified": true,
+ "question": "Sur la cellule publiée b_full seed 2026 (P4.4 -> P4.16), RÉINDEXER la population torch après chaque résurrection (les cerveaux suivent leur corps, l'ordre des corps reste celui du harnais publié : drapeau slot_reindex) change-t-il la survie de phase 2 au-delà de la variabilité naturelle du harnais publié lui-même — la cellule éteinte et douze RÉPLIQUES du harnais publié décorrélées au premier tick où la recharge change l'ordre des corps (t1) par un réensemencement du RNG global —, le correctif étant décorrélé à t1 de la même façon, au même seed, au même lieu, au même commit ?",
+ "provenance": {
+  "git_sha": "227060207e9c72d239b09f506ad92a85f53484f9",
+  "dirty": false,
+  "rule": "E34-IDENTITY-CELL",
+  "seal": "a04677d41a3b04f6541b1c6f768b4fa45662c412f2cedc8237c94492bfa6ed03"
+ },
+ "cells_dir": "results\\e34_identity_cell",
+ "cells_present": [
+  "off",
+  "on",
+  "pos",
+  "rep_01",
+  "rep_02",
+  "rep_03",
+  "rep_04",
+  "rep_05",
+  "rep_06",
+  "rep_07",
+  "rep_08",
+  "rep_09",
+  "rep_10",
+  "rep_11",
+  "rep_12"
+ ],
+ "witness": {
+  "seed": 2026,
+  "identical": true,
+  "reason": "bit-identique",
+  "p44_ages": [
+   5,
+   6,
+   6,
+   7,
+   7,
+   7,
+   7,
+   8,
+   8,
+   9,
+   9,
+   11
+  ],
+  "measured_ages": [
+   5,
+   6,
+   6,
+   7,
+   7,
+   7,
+   7,
+   8,
+   8,
+   9,
+   9,
+   11
+  ],
+  "p44_S": 7.0,
+  "measured_S": 7.0,
+  "p44_dW_abs_sum": 18242.03954219818,
+  "measured_dW_abs_sum": 18242.03954219818,
+  "p44_git_sha": "05cf8888a47e2101a8402536f8867a60b3d661b8",
+  "same_dW_abs_sum": true
+ },
+ "verdict": {
+  "thresholds": {
+   "n_band": 13,
+   "floor": 9.0,
+   "n_grille": 2,
+   "ticks_learn": 2000
+  },
+  "fausse_alarme_h0_borne": 0.14285714285714285,
+  "fausse_alarme_h0_borne_condition": "treize trajectoires DISTINCTES dans la bande (sinon BANDE_DEGENEREE)",
+  "famille": {
+   "tests": [
+    "S_on bilatéral contre la bande de 13 (MATERIEL si hors de [min, max])",
+    "S_pos unilatéral au-dessus du max de la bande (qualifie NON_MATERIEL)"
+   ],
+   "materiel_a_tort_h0_borne": 0.14285714285714285,
+   "controle_positif_passe_par_hasard_borne": 0.07142857142857142,
+   "non_materiel_a_tort_double_nul_borne": 0.05714285714285714,
+   "non_materiel_a_tort_double_nul_ex_aequo": 0.0
+  },
+  "band_publiee": {
+   "min": 7.0,
+   "max": 9.5,
+   "values": [
+    7.0,
+    7.5,
+    8.0,
+    7.0,
+    9.5,
+    8.0,
+    8.0,
+    7.5,
+    9.0,
+    8.5,
+    8.0,
+    9.5
+   ],
+   "n": 12,
+   "source": "s2_credit_ablation_2.json",
+   "arm": "b_full"
+  },
+  "refus_cout": null,
+  "coupe": null,
+  "S_off": 7.0,
+  "S_on": 7.0,
+  "S_pos": 9.5,
+  "S_reps": {
+   "rep_01": 9.5,
+   "rep_02": 9.0,
+   "rep_03": 8.0,
+   "rep_04": 8.0,
+   "rep_05": 8.0,
+   "rep_06": 8.0,
+   "rep_07": 9.0,
+   "rep_08": 7.5,
+   "rep_09": 8.5,
+   "rep_10": 7.5,
+   "rep_11": 8.0,
+   "rep_12": 9.0
+  },
+  "S_a": 31.5,
+  "erosion_off": 24.5,
+  "dS": 0.0,
+  "dS_pos": 2.5,
+  "t1": 281,
+  "levier_apres_t1": 0.8595,
+  "sous_plancher_off": true,
+  "plafond_famine_ticks": 7.164478546849247,
+  "dose": {
+   "off": {
+    "slot_switches": 16,
+    "order_changes": 3,
+    "positions_moved": 16,
+    "repairings": 0,
+    "rows_reindexed": 0,
+    "reseed_seed": null,
+    "reseed_tick": null,
+    "td_updates": 1999,
+    "episode_updates": 250,
+    "resurrections": 12,
+    "dW_abs_sum": 18242.03954219818,
+    "phase2_td_updates": 0,
+    "phase2_episode_calls": 1,
+    "phase2_dW_abs_sum": 0.0,
+    "reconstructions_phase1": 1,
+    "corps_apres_phase1": true,
+    "corps_apres_phase2": true,
+    "rng_appels_apres_t1": 164345,
+    "rng_sites_apres_t1": 9,
+    "rng_reensemencements_monde_apres_t1": 0,
+    "consensus_ticks_avec_reecriture": 0,
+    "consensus_phase2_ticks": 0,
+    "reconstructions_phase2": 6
+   },
+   "on": {
+    "slot_switches": 0,
+    "order_changes": 9,
+    "positions_moved": 29,
+    "repairings": 0,
+    "rows_reindexed": 29,
+    "reseed_seed": 202613,
+    "reseed_tick": 281,
+    "td_updates": 1999,
+    "episode_updates": 250,
+    "resurrections": 19,
+    "dW_abs_sum": 16827.32346010208,
+    "phase2_td_updates": 0,
+    "phase2_episode_calls": 1,
+    "phase2_dW_abs_sum": 0.0,
+    "reconstructions_phase1": 1,
+    "corps_apres_phase1": true,
+    "corps_apres_phase2": true,
+    "rng_appels_apres_t1": 135480,
+    "rng_sites_apres_t1": 8,
+    "rng_reensemencements_monde_apres_t1": 0,
+    "consensus_ticks_avec_reecriture": 0,
+    "consensus_phase2_ticks": 0,
+    "reconstructions_phase2": 5
+   },
+   "pos": {
+    "slot_switches": 12,
+    "order_changes": 2,
+    "positions_moved": 12,
+    "repairings": 0,
+    "rows_reindexed": 0,
+    "reseed_seed": 202614,
+    "reseed_tick": 281,
+    "td_updates": 281,
+    "episode_updates": 35,
+    "resurrections": 11,
+    "dW_abs_sum": 2455.7359043359756,
+    "phase2_td_updates": 0,
+    "phase2_episode_calls": 2,
+    "phase2_dW_abs_sum": 0.0,
+    "reconstructions_phase1": 1,
+    "corps_apres_phase1": true,
+    "corps_apres_phase2": true,
+    "rng_appels_apres_t1": 129328,
+    "rng_sites_apres_t1": 8,
+    "rng_reensemencements_monde_apres_t1": 0,
+    "consensus_ticks_avec_reecriture": 0,
+    "consensus_phase2_ticks": 0,
+    "reconstructions_phase2": 8
+   },
+   "rep_01": {
+    "slot_switches": 25,
+    "order_changes": 4,
+    "positions_moved": 25,
+    "repairings": 1,
+    "rows_reindexed": 0,
+    "reseed_seed": 202601,
+    "reseed_tick": 281,
+    "td_updates": 1999,
+    "episode_updates": 250,
+    "resurrections": 6,
+    "dW_abs_sum": 18555.90098965168,
+    "phase2_td_updates": 0,
+    "phase2_episode_calls": 2,
+    "phase2_dW_abs_sum": 0.0,
+    "reconstructions_phase1": 1,
+    "corps_apres_phase1": true,
+    "corps_apres_phase2": true,
+    "rng_appels_apres_t1": 143259,
+    "rng_sites_apres_t1": 8,
+    "rng_reensemencements_monde_apres_t1": 0,
+    "consensus_ticks_avec_reecriture": 0,
+    "consensus_phase2_ticks": 0,
+    "reconstructions_phase2": 9
+   },
+   "rep_02": {
+    "slot_switches": 38,
+    "order_changes": 6,
+    "positions_moved": 38,
+    "repairings": 1,
+    "rows_reindexed": 0,
+    "reseed_seed": 202602,
+    "reseed_tick": 281,
+    "td_updates": 1999,
+    "episode_updates": 250,
+    "resurrections": 11,
+    "dW_abs_sum": 18525.6678968668,
+    "phase2_td_updates": 0,
+    "phase2_episode_calls": 1,
+    "phase2_dW_abs_sum": 0.0,
+    "reconstructions_phase1": 1,
+    "corps_apres_phase1": true,
+    "corps_apres_phase2": true,
+    "rng_appels_apres_t1": 168260,
+    "rng_sites_apres_t1": 8,
+    "rng_reensemencements_monde_apres_t1": 0,
+    "consensus_ticks_avec_reecriture": 0,
+    "consensus_phase2_ticks": 0,
+    "reconstructions_phase2": 7
+   },
+   "rep_03": {
+    "slot_switches": 22,
+    "order_changes": 6,
+    "positions_moved": 22,
+    "repairings": 3,
+    "rows_reindexed": 0,
+    "reseed_seed": 202603,
+    "reseed_tick": 281,
+    "td_updates": 1999,
+    "episode_updates": 250,
+    "resurrections": 8,
+    "dW_abs_sum": 17341.17109453678,
+    "phase2_td_updates": 0,
+    "phase2_episode_calls": 1,
+    "phase2_dW_abs_sum": 0.0,
+    "reconstructions_phase1": 1,
+    "corps_apres_phase1": true,
+    "corps_apres_phase2": true,
+    "rng_appels_apres_t1": 155828,
+    "rng_sites_apres_t1": 9,
+    "rng_reensemencements_monde_apres_t1": 0,
+    "consensus_ticks_avec_reecriture": 0,
+    "consensus_phase2_ticks": 0,
+    "reconstructions_phase2": 7
+   },
+   "rep_04": {
+    "slot_switches": 12,
+    "order_changes": 2,
+    "positions_moved": 12,
+    "repairings": 0,
+    "rows_reindexed": 0,
+    "reseed_seed": 202604,
+    "reseed_tick": 281,
+    "td_updates": 1999,
+    "episode_updates": 250,
+    "resurrections": 4,
+    "dW_abs_sum": 18332.950535416603,
+    "phase2_td_updates": 0,
+    "phase2_episode_calls": 1,
+    "phase2_dW_abs_sum": 0.0,
+    "reconstructions_phase1": 1,
+    "corps_apres_phase1": true,
+    "corps_apres_phase2": true,
+    "rng_appels_apres_t1": 152485,
+    "rng_sites_apres_t1": 8,
+    "rng_reensemencements_monde_apres_t1": 0,
+    "consensus_ticks_avec_reecriture": 0,
+    "consensus_phase2_ticks": 0,
+    "reconstructions_phase2": 7
+   },
+   "rep_05": {
+    "slot_switches": 35,
+    "order_changes": 9,
+    "positions_moved": 35,
+    "repairings": 2,
+    "rows_reindexed": 0,
+    "reseed_seed": 202605,
+    "reseed_tick": 281,
+    "td_updates": 1999,
+    "episode_updates": 250,
+    "resurrections": 12,
+    "dW_abs_sum": 16499.121954977512,
+    "phase2_td_updates": 0,
+    "phase2_episode_calls": 2,
+    "phase2_dW_abs_sum": 0.0,
+    "reconstructions_phase1": 1,
+    "corps_apres_phase1": true,
+    "corps_apres_phase2": true,
+    "rng_appels_apres_t1": 152749,
+    "rng_sites_apres_t1": 8,
+    "rng_reensemencements_monde_apres_t1": 0,
+    "consensus_ticks_avec_reecriture": 0,
+    "consensus_phase2_ticks": 0,
+    "reconstructions_phase2": 6
+   },
+   "rep_06": {
+    "slot_switches": 8,
+    "order_changes": 2,
+    "positions_moved": 8,
+    "repairings": 0,
+    "rows_reindexed": 0,
+    "reseed_seed": 202606,
+    "reseed_tick": 281,
+    "td_updates": 1999,
+    "episode_updates": 250,
+    "resurrections": 3,
+    "dW_abs_sum": 17206.429692983627,
+    "phase2_td_updates": 0,
+    "phase2_episode_calls": 1,
+    "phase2_dW_abs_sum": 0.0,
+    "reconstructions_phase1": 1,
+    "corps_apres_phase1": true,
+    "corps_apres_phase2": true,
+    "rng_appels_apres_t1": 157233,
+    "rng_sites_apres_t1": 8,
+    "rng_reensemencements_monde_apres_t1": 0,
+    "consensus_ticks_avec_reecriture": 0,
+    "consensus_phase2_ticks": 0,
+    "reconstructions_phase2": 6
+   },
+   "rep_07": {
+    "slot_switches": 71,
+    "order_changes": 18,
+    "positions_moved": 71,
+    "repairings": 4,
+    "rows_reindexed": 0,
+    "reseed_seed": 202607,
+    "reseed_tick": 281,
+    "td_updates": 1999,
+    "episode_updates": 250,
+    "resurrections": 45,
+    "dW_abs_sum": 14473.43075144291,
+    "phase2_td_updates": 0,
+    "phase2_episode_calls": 1,
+    "phase2_dW_abs_sum": 0.0,
+    "reconstructions_phase1": 1,
+    "corps_apres_phase1": true,
+    "corps_apres_phase2": true,
+    "rng_appels_apres_t1": 144061,
+    "rng_sites_apres_t1": 8,
+    "rng_reensemencements_monde_apres_t1": 0,
+    "consensus_ticks_avec_reecriture": 0,
+    "consensus_phase2_ticks": 0,
+    "reconstructions_phase2": 5
+   },
+   "rep_08": {
+    "slot_switches": 31,
+    "order_changes": 10,
+    "positions_moved": 31,
+    "repairings": 5,
+    "rows_reindexed": 0,
+    "reseed_seed": 202608,
+    "reseed_tick": 281,
+    "td_updates": 1999,
+    "episode_updates": 250,
+    "resurrections": 22,
+    "dW_abs_sum": 15800.475063681602,
+    "phase2_td_updates": 0,
+    "phase2_episode_calls": 1,
+    "phase2_dW_abs_sum": 0.0,
+    "reconstructions_phase1": 1,
+    "corps_apres_phase1": true,
+    "corps_apres_phase2": true,
+    "rng_appels_apres_t1": 150203,
+    "rng_sites_apres_t1": 8,
+    "rng_reensemencements_monde_apres_t1": 0,
+    "consensus_ticks_avec_reecriture": 0,
+    "consensus_phase2_ticks": 0,
+    "reconstructions_phase2": 5
+   },
+   "rep_09": {
+    "slot_switches": 15,
+    "order_changes": 5,
+    "positions_moved": 15,
+    "repairings": 2,
+    "rows_reindexed": 0,
+    "reseed_seed": 202609,
+    "reseed_tick": 281,
+    "td_updates": 1999,
+    "episode_updates": 250,
+    "resurrections": 17,
+    "dW_abs_sum": 16909.825653254986,
+    "phase2_td_updates": 0,
+    "phase2_episode_calls": 1,
+    "phase2_dW_abs_sum": 0.0,
+    "reconstructions_phase1": 1,
+    "corps_apres_phase1": true,
+    "corps_apres_phase2": true,
+    "rng_appels_apres_t1": 149859,
+    "rng_sites_apres_t1": 8,
+    "rng_reensemencements_monde_apres_t1": 0,
+    "consensus_ticks_avec_reecriture": 0,
+    "consensus_phase2_ticks": 0,
+    "reconstructions_phase2": 7
+   },
+   "rep_10": {
+    "slot_switches": 8,
+    "order_changes": 2,
+    "positions_moved": 8,
+    "repairings": 0,
+    "rows_reindexed": 0,
+    "reseed_seed": 202610,
+    "reseed_tick": 281,
+    "td_updates": 1999,
+    "episode_updates": 250,
+    "resurrections": 4,
+    "dW_abs_sum": 17834.192309617996,
+    "phase2_td_updates": 0,
+    "phase2_episode_calls": 1,
+    "phase2_dW_abs_sum": 0.0,
+    "reconstructions_phase1": 1,
+    "corps_apres_phase1": true,
+    "corps_apres_phase2": true,
+    "rng_appels_apres_t1": 146369,
+    "rng_sites_apres_t1": 8,
+    "rng_reensemencements_monde_apres_t1": 0,
+    "consensus_ticks_avec_reecriture": 0,
+    "consensus_phase2_ticks": 0,
+    "reconstructions_phase2": 4
+   },
+   "rep_11": {
+    "slot_switches": 45,
+    "order_changes": 8,
+    "positions_moved": 45,
+    "repairings": 3,
+    "rows_reindexed": 0,
+    "reseed_seed": 202611,
+    "reseed_tick": 281,
+    "td_updates": 1999,
+    "episode_updates": 250,
+    "resurrections": 11,
+    "dW_abs_sum": 16719.02575671673,
+    "phase2_td_updates": 0,
+    "phase2_episode_calls": 1,
+    "phase2_dW_abs_sum": 0.0,
+    "reconstructions_phase1": 1,
+    "corps_apres_phase1": true,
+    "corps_apres_phase2": true,
+    "rng_appels_apres_t1": 156667,
+    "rng_sites_apres_t1": 8,
+    "rng_reensemencements_monde_apres_t1": 0,
+    "consensus_ticks_avec_reecriture": 0,
+    "consensus_phase2_ticks": 0,
+    "reconstructions_phase2": 5
+   },
+   "rep_12": {
+    "slot_switches": 24,
+    "order_changes": 5,
+    "positions_moved": 24,
+    "repairings": 3,
+    "rows_reindexed": 0,
+    "reseed_seed": 202612,
+    "reseed_tick": 281,
+    "td_updates": 1999,
+    "episode_updates": 250,
+    "resurrections": 11,
+    "dW_abs_sum": 18377.36318743229,
+    "phase2_td_updates": 0,
+    "phase2_episode_calls": 1,
+    "phase2_dW_abs_sum": 0.0,
+    "reconstructions_phase1": 1,
+    "corps_apres_phase1": true,
+    "corps_apres_phase2": true,
+    "rng_appels_apres_t1": 164093,
+    "rng_sites_apres_t1": 8,
+    "rng_reensemencements_monde_apres_t1": 0,
+    "consensus_ticks_avec_reecriture": 0,
+    "consensus_phase2_ticks": 0,
+    "reconstructions_phase2": 7
+   }
+  },
+  "switches_off": 16,
+  "rows_reindexed_on": 29,
+  "fraction_transitions_td_a_cheval": 0.0006670001667500417,
+  "fraction_fenetres_episodiques_a_cheval_max": 0.005333333333333333,
+  "witness_reason": "bit-identique",
+  "lieu": {
+   "platform": "Windows-11-10.0.26200-SP0",
+   "python": "3.13.12",
+   "torch": "2.6.0+cu124",
+   "torch_threads": 16,
+   "AGAGI_CPU_LIMIT": null,
+   "AGAGI_IMAGE": null
+  },
+  "git_sha": "227060207e9c72d239b09f506ad92a85f53484f9",
+  "rng_census_off": {
+   "marque": "t1=281",
+   "appels_avant": 26322,
+   "n_sites_avant": 13,
+   "appels_apres": 164345,
+   "n_sites_apres": 9,
+   "sites_apres": {
+    "src/worlds/world_1_stoneage.py:1187": 20616,
+    "src/worlds/world_1_stoneage.py:1188": 20616,
+    "src/worlds/world_1_stoneage.py:1224": 20,
+    "src/worlds/world_1_stoneage.py:1233": 359,
+    "src/worlds/world_1_stoneage.py:1375": 20616,
+    "src/worlds/world_1_stoneage.py:335": 498,
+    "src/worlds/world_1_stoneage.py:347": 76370,
+    "src/worlds/world_1_stoneage.py:357": 1,
+    "src/worlds/world_1_stoneage.py:668": 25249
+   },
+   "reensemencements_avant": 0,
+   "reensemencements_apres": 0,
+   "torch_rng_change_apres": false,
+   "py_random_change_apres": false,
+   "perimetre": {
+    "tirages": [
+     "beta",
+     "binomial",
+     "bytes",
+     "chisquare",
+     "choice",
+     "dirichlet",
+     "exponential",
+     "f",
+     "gamma",
+     "geometric",
+     "gumbel",
+     "hypergeometric",
+     "laplace",
+     "logistic",
+     "lognormal",
+     "logseries",
+     "multinomial",
+     "multivariate_normal",
+     "negative_binomial",
+     "noncentral_chisquare",
+     "noncentral_f",
+     "normal",
+     "pareto",
+     "permutation",
+     "poisson",
+     "power",
+     "rand",
+     "randint",
+     "randn",
+     "random",
+     "random_integers",
+     "random_sample",
+     "ranf",
+     "rayleigh",
+     "sample",
+     "shuffle",
+     "standard_cauchy",
+     "standard_exponential",
+     "standard_gamma",
+     "standard_normal",
+     "standard_t",
+     "triangular",
+     "uniform",
+     "vonmises",
+     "wald",
+     "weibull",
+     "zipf"
+    ],
+    "reensemencements": [
+     "seed",
+     "set_state",
+     "set_bit_generator"
+    ]
+   }
+  },
+  "part_erosion_levee": 0.0,
+  "reps_dS": {
+   "rep_01": 2.5,
+   "rep_02": 2.0,
+   "rep_03": 1.0,
+   "rep_04": 1.0,
+   "rep_05": 1.0,
+   "rep_06": 1.0,
+   "rep_07": 2.0,
+   "rep_08": 0.5,
+   "rep_09": 1.5,
+   "rep_10": 0.5,
+   "rep_11": 1.0,
+   "rep_12": 2.0
+  },
+  "reps_part_erosion": {
+   "rep_01": 0.10204081632653061,
+   "rep_02": 0.08163265306122448,
+   "rep_03": 0.04081632653061224,
+   "rep_04": 0.04081632653061224,
+   "rep_05": 0.04081632653061224,
+   "rep_06": 0.04081632653061224,
+   "rep_07": 0.08163265306122448,
+   "rep_08": 0.02040816326530612,
+   "rep_09": 0.061224489795918366,
+   "rep_10": 0.02040816326530612,
+   "rep_11": 0.04081632653061224,
+   "rep_12": 0.08163265306122448
+  },
+  "band_min": 7.0,
+  "band_max": 9.5,
+  "band_values": [
+   7.0,
+   9.5,
+   9.0,
+   8.0,
+   8.0,
+   8.0,
+   8.0,
+   9.0,
+   7.5,
+   8.5,
+   7.5,
+   8.0,
+   9.0
+  ],
+  "band_dW_distincts": 13,
+  "switches_band": {
+   "off": 16,
+   "rep_01": 25,
+   "rep_02": 38,
+   "rep_03": 22,
+   "rep_04": 12,
+   "rep_05": 35,
+   "rep_06": 8,
+   "rep_07": 71,
+   "rep_08": 31,
+   "rep_09": 15,
+   "rep_10": 8,
+   "rep_11": 45,
+   "rep_12": 24
+  },
+  "repairings_band": {
+   "off": 0,
+   "rep_01": 1,
+   "rep_02": 1,
+   "rep_03": 3,
+   "rep_04": 0,
+   "rep_05": 2,
+   "rep_06": 0,
+   "rep_07": 4,
+   "rep_08": 5,
+   "rep_09": 2,
+   "rep_10": 0,
+   "rep_11": 3,
+   "rep_12": 3
+  },
+  "fausse_alarme_h0_ex_aequo": 0.07142857142857142,
+  "verdict": "NON_TRANCHE",
+  "why": "S_on 7.0 dans la bande, mais le contrôle positif n'en sort pas par le haut (S_pos 9.5, bande max 9.5) : l'instrument ne voit pas un effet fort à t1 = 281 ; aucune note de robustesse"
+ },
+ "regime": {
+  "cognitive_demand": true,
+  "cog_linear": false,
+  "cog_gain": 12.0,
+  "base_metabolism": 0.75,
+  "forage_payoff": 0.0,
+  "benchmark_mode": true,
+  "night_enabled": false,
+  "energy_start": 80.0,
+  "immortal_phase1": true,
+  "refill_below": 30.0,
+  "refill_to": 80.0,
+  "hp_refill_below": 50.0,
+  "frozen_phase2_lr": 0.0,
+  "seed": 2026,
+  "agents": 12,
+  "ticks_learn": 2000,
+  "ticks_test": 200,
+  "arms": [
+   "off",
+   "on",
+   "pos",
+   "rep_01",
+   "rep_02",
+   "rep_03",
+   "rep_04",
+   "rep_05",
+   "rep_06",
+   "rep_07",
+   "rep_08",
+   "rep_09",
+   "rep_10",
+   "rep_11",
+   "rep_12"
+  ],
+  "identity_audit": true,
+  "lr_override": null,
+  "lr_effective_per_agent": 0.0033333333333333335
+ },
+ "rows": {
+  "off": {
+   "seed": 2026,
+   "arm": "off",
+   "num_agents": 12,
+   "ticks_learn": 2000,
+   "ticks_test": 200,
+   "lr": null,
+   "treatment": {
+    "slot_reindex": false,
+    "cut_credit_at_t1": false,
+    "reseed_at_t1": null
+   },
+   "plafond_famine_ticks": 7.164478546849247,
+   "learning": {
+    "td_calls": 2000,
+    "td_updates": 1999,
+    "episode_calls": 250,
+    "episode_updates": 250,
+    "legacy_calls": 0,
+    "legacy_updates": 0,
+    "compute_spent_total": 0.0,
+    "forward_calls": 2000,
+    "skips": {},
+    "dW_abs_sum": 18242.03954219818,
+    "reward_scale": 1.0,
+    "td_enabled": true,
+    "lr": null,
+    "lr_effective_per_agent": 0.0033333333333333335,
+    "lr_effective_unit": "torch: lr/B (SGD, perte moyennée sur B, W disjoint par agent)",
+    "trace_lambda": null,
+    "trace_bypass_optimizer": false,
+    "trace_updates": 0,
+    "trace_resets": 0,
+    "resurrections": 12,
+    "slot_identity": {
+     "ticks_known": 2000,
+     "ticks_unknown": 0,
+     "slot_ticks_total": 24000,
+     "slot_ticks_misaligned": 11733,
+     "ticks_misaligned": 1719,
+     "first_misaligned_tick": 281,
+     "max_misaligned_slots": 7,
+     "slot_switches": 16,
+     "ticks_with_switch": 3,
+     "first_switch_tick": 281,
+     "switch_events": [
+      [
+       281,
+       5
+      ],
+      [
+       431,
+       7
+      ],
+      [
+       778,
+       4
+      ]
+     ],
+     "order_changes": 3,
+     "first_order_change_tick": 281,
+     "positions_moved": 16,
+     "ticks_reordered": 0,
+     "positions_reordered": 0,
+     "first_reorder_tick": null,
+     "reindex_events": 0,
+     "rows_reindexed": 0,
+     "first_reindex_tick": null,
+     "sham_relabel": 0,
+     "relabel_events": 0,
+     "rows_relabeled": 0,
+     "first_relabel_tick": null,
+     "relabel_draws": 0,
+     "ticks_body_reordered": 0,
+     "credit_cut_tick": null,
+     "reseed_seed": null,
+     "reseed_tick": null,
+     "repairings": 0,
+     "slot_order_fix": false,
+     "slot_reindex": false,
+     "rng_census": {
+      "marque": "t1=281",
+      "appels_avant": 26322,
+      "n_sites_avant": 13,
+      "appels_apres": 164345,
+      "n_sites_apres": 9,
+      "sites_apres": {
+       "src/worlds/world_1_stoneage.py:1187": 20616,
+       "src/worlds/world_1_stoneage.py:1188": 20616,
+       "src/worlds/world_1_stoneage.py:1224": 20,
+       "src/worlds/world_1_stoneage.py:1233": 359,
+       "src/worlds/world_1_stoneage.py:1375": 20616,
+       "src/worlds/world_1_stoneage.py:335": 498,
+       "src/worlds/world_1_stoneage.py:347": 76370,
+       "src/worlds/world_1_stoneage.py:357": 1,
+       "src/worlds/world_1_stoneage.py:668": 25249
+      },
+      "reensemencements_avant": 0,
+      "reensemencements_apres": 0,
+      "torch_rng_change_apres": false,
+      "py_random_change_apres": false,
+      "perimetre": {
+       "tirages": [
+        "beta",
+        "binomial",
+        "bytes",
+        "chisquare",
+        "choice",
+        "dirichlet",
+        "exponential",
+        "f",
+        "gamma",
+        "geometric",
+        "gumbel",
+        "hypergeometric",
+        "laplace",
+        "logistic",
+        "lognormal",
+        "logseries",
+        "multinomial",
+        "multivariate_normal",
+        "negative_binomial",
+        "noncentral_chisquare",
+        "noncentral_f",
+        "normal",
+        "pareto",
+        "permutation",
+        "poisson",
+        "power",
+        "rand",
+        "randint",
+        "randn",
+        "random",
+        "random_integers",
+        "random_sample",
+        "ranf",
+        "rayleigh",
+        "sample",
+        "shuffle",
+        "standard_cauchy",
+        "standard_exponential",
+        "standard_gamma",
+        "standard_normal",
+        "standard_t",
+        "triangular",
+        "uniform",
+        "vonmises",
+        "wald",
+        "weibull",
+        "zipf"
+       ],
+       "reensemencements": [
+        "seed",
+        "set_state",
+        "set_bit_generator"
+       ]
+      }
+     }
+    },
+    "ticks": 2000
+   },
+   "consensus_phase1": {
+    "ticks_avec_reecriture": 0,
+    "lignes_reecrites": 0
+   },
+   "reconstructions_phase1": {
+    "constructions": 1,
+    "B": [
+     12
+    ]
+   },
+   "corps_apres_phase1": {
+    "conforme": true,
+    "n_ecarts": 0,
+    "ecart_rel_max": 2.2151855622179722e-08
+   },
+   "survival": {
+    "survival_median": 7.0,
+    "ages": [
+     5,
+     6,
+     6,
+     7,
+     7,
+     7,
+     7,
+     8,
+     8,
+     9,
+     9,
+     11
+    ],
+    "censored": 0,
+    "ticks": 11,
+    "dose_phase2": {
+     "td_calls": 11,
+     "td_updates": 0,
+     "episode_calls": 1,
+     "episode_updates": 1,
+     "legacy_calls": 0,
+     "legacy_updates": 0,
+     "compute_spent_total": 0.0,
+     "forward_calls": 11,
+     "skips": {
+      "td_disabled": 11
+     },
+     "dW_abs_sum": 0.0,
+     "reward_scale": 1.0,
+     "td_enabled": false,
+     "lr": 0.0,
+     "lr_effective_per_agent": null,
+     "lr_effective_unit": null,
+     "trace_lambda": null,
+     "trace_bypass_optimizer": false,
+     "trace_updates": 0,
+     "trace_resets": 0
+    }
+   },
+   "consensus_phase2": {
+    "ticks_avec_reecriture": 0,
+    "lignes_reecrites": 0
+   },
+   "reconstructions_phase2": {
+    "constructions": 6,
+    "B": [
+     12,
+     11,
+     9,
+     5,
+     3,
+     1
+    ]
+   },
+   "corps_apres_phase2": {
+    "conforme": true,
+    "n_ecarts": 0,
+    "ecart_rel_max": 2.2151855622179722e-08
+   },
+   "elapsed_s": 501.2269115447998,
+   "cpu_s": 502.078125,
+   "lieu": {
+    "platform": "Windows-11-10.0.26200-SP0",
+    "python": "3.13.12",
+    "torch": "2.6.0+cu124",
+    "torch_threads": 16,
+    "AGAGI_CPU_LIMIT": null,
+    "AGAGI_IMAGE": null
+   },
+   "provenance": {
+    "git_sha": "227060207e9c72d239b09f506ad92a85f53484f9",
+    "dirty": false,
+    "rule": "E34-IDENTITY-CELL",
+    "seal": "a04677d41a3b04f6541b1c6f768b4fa45662c412f2cedc8237c94492bfa6ed03"
+   },
+   "charge_debut": {
+    "cpu_percent_1s": 24.0,
+    "python_procs": 9,
+    "t": "2026-10-13T23:03:48"
+   },
+   "charge_fin": {
+    "cpu_percent_1s": 29.8,
+    "python_procs": 9,
+    "t": "2026-10-13T23:12:11"
+   }
+  },
+  "on": {
+   "seed": 2026,
+   "arm": "on",
+   "num_agents": 12,
+   "ticks_learn": 2000,
+   "ticks_test": 200,
+   "lr": null,
+   "treatment": {
+    "slot_reindex": true,
+    "cut_credit_at_t1": false,
+    "reseed_at_t1": 202613
+   },
+   "plafond_famine_ticks": 7.164478546849247,
+   "learning": {
+    "td_calls": 2000,
+    "td_updates": 1999,
+    "episode_calls": 250,
+    "episode_updates": 250,
+    "legacy_calls": 0,
+    "legacy_updates": 0,
+    "compute_spent_total": 0.0,
+    "forward_calls": 2000,
+    "skips": {},
+    "dW_abs_sum": 16827.32346010208,
+    "reward_scale": 1.0,
+    "td_enabled": true,
+    "lr": null,
+    "lr_effective_per_agent": 0.0033333333333333335,
+    "lr_effective_unit": "torch: lr/B (SGD, perte moyennée sur B, W disjoint par agent)",
+    "trace_lambda": null,
+    "trace_bypass_optimizer": false,
+    "trace_updates": 0,
+    "trace_resets": 0,
+    "resurrections": 19,
+    "slot_identity": {
+     "ticks_known": 2000,
+     "ticks_unknown": 0,
+     "slot_ticks_total": 24000,
+     "slot_ticks_misaligned": 0,
+     "ticks_misaligned": 0,
+     "first_misaligned_tick": null,
+     "max_misaligned_slots": 0,
+     "slot_switches": 0,
+     "ticks_with_switch": 0,
+     "first_switch_tick": null,
+     "switch_events": [],
+     "order_changes": 9,
+     "first_order_change_tick": 281,
+     "positions_moved": 29,
+     "ticks_reordered": 0,
+     "positions_reordered": 0,
+     "first_reorder_tick": null,
+     "reindex_events": 9,
+     "rows_reindexed": 29,
+     "first_reindex_tick": 281,
+     "sham_relabel": 0,
+     "relabel_events": 0,
+     "rows_relabeled": 0,
+     "first_relabel_tick": null,
+     "relabel_draws": 0,
+     "ticks_body_reordered": 0,
+     "credit_cut_tick": null,
+     "reseed_seed": 202613,
+     "reseed_tick": 281,
+     "repairings": 0,
+     "slot_order_fix": false,
+     "slot_reindex": true,
+     "rng_census": {
+      "marque": "t1=281",
+      "appels_avant": 26322,
+      "n_sites_avant": 13,
+      "appels_apres": 135480,
+      "n_sites_apres": 8,
+      "sites_apres": {
+       "src/worlds/world_1_stoneage.py:1187": 20616,
+       "src/worlds/world_1_stoneage.py:1188": 20616,
+       "src/worlds/world_1_stoneage.py:1224": 17,
+       "src/worlds/world_1_stoneage.py:1233": 124,
+       "src/worlds/world_1_stoneage.py:1375": 20616,
+       "src/worlds/world_1_stoneage.py:335": 179,
+       "src/worlds/world_1_stoneage.py:347": 47710,
+       "src/worlds/world_1_stoneage.py:668": 25602
+      },
+      "reensemencements_avant": 1,
+      "reensemencements_apres": 0,
+      "torch_rng_change_apres": false,
+      "py_random_change_apres": false,
+      "perimetre": {
+       "tirages": [
+        "beta",
+        "binomial",
+        "bytes",
+        "chisquare",
+        "choice",
+        "dirichlet",
+        "exponential",
+        "f",
+        "gamma",
+        "geometric",
+        "gumbel",
+        "hypergeometric",
+        "laplace",
+        "logistic",
+        "lognormal",
+        "logseries",
+        "multinomial",
+        "multivariate_normal",
+        "negative_binomial",
+        "noncentral_chisquare",
+        "noncentral_f",
+        "normal",
+        "pareto",
+        "permutation",
+        "poisson",
+        "power",
+        "rand",
+        "randint",
+        "randn",
+        "random",
+        "random_integers",
+        "random_sample",
+        "ranf",
+        "rayleigh",
+        "sample",
+        "shuffle",
+        "standard_cauchy",
+        "standard_exponential",
+        "standard_gamma",
+        "standard_normal",
+        "standard_t",
+        "triangular",
+        "uniform",
+        "vonmises",
+        "wald",
+        "weibull",
+        "zipf"
+       ],
+       "reensemencements": [
+        "seed",
+        "set_state",
+        "set_bit_generator"
+       ]
+      }
+     }
+    },
+    "ticks": 2000
+   },
+   "consensus_phase1": {
+    "ticks_avec_reecriture": 0,
+    "lignes_reecrites": 0
+   },
+   "reconstructions_phase1": {
+    "constructions": 1,
+    "B": [
+     12
+    ]
+   },
+   "corps_apres_phase1": {
+    "conforme": true,
+    "n_ecarts": 0,
+    "ecart_rel_max": 2.2151855622179722e-08
+   },
+   "survival": {
+    "survival_median": 7.0,
+    "ages": [
+     6,
+     7,
+     7,
+     7,
+     7,
+     7,
+     7,
+     8,
+     8,
+     9,
+     11,
+     11
+    ],
+    "censored": 0,
+    "ticks": 11,
+    "dose_phase2": {
+     "td_calls": 11,
+     "td_updates": 0,
+     "episode_calls": 1,
+     "episode_updates": 1,
+     "legacy_calls": 0,
+     "legacy_updates": 0,
+     "compute_spent_total": 0.0,
+     "forward_calls": 11,
+     "skips": {
+      "td_disabled": 11
+     },
+     "dW_abs_sum": 0.0,
+     "reward_scale": 1.0,
+     "td_enabled": false,
+     "lr": 0.0,
+     "lr_effective_per_agent": null,
+     "lr_effective_unit": null,
+     "trace_lambda": null,
+     "trace_bypass_optimizer": false,
+     "trace_updates": 0,
+     "trace_resets": 0
+    }
+   },
+   "consensus_phase2": {
+    "ticks_avec_reecriture": 0,
+    "lignes_reecrites": 0
+   },
+   "reconstructions_phase2": {
+    "constructions": 5,
+    "B": [
+     12,
+     11,
+     5,
+     3,
+     2
+    ]
+   },
+   "corps_apres_phase2": {
+    "conforme": true,
+    "n_ecarts": 0,
+    "ecart_rel_max": 2.2151855622179722e-08
+   },
+   "elapsed_s": 577.024472951889,
+   "cpu_s": 559.375,
+   "lieu": {
+    "platform": "Windows-11-10.0.26200-SP0",
+    "python": "3.13.12",
+    "torch": "2.6.0+cu124",
+    "torch_threads": 16,
+    "AGAGI_CPU_LIMIT": null,
+    "AGAGI_IMAGE": null
+   },
+   "provenance": {
+    "git_sha": "227060207e9c72d239b09f506ad92a85f53484f9",
+    "dirty": false,
+    "rule": "E34-IDENTITY-CELL",
+    "seal": "a04677d41a3b04f6541b1c6f768b4fa45662c412f2cedc8237c94492bfa6ed03"
+   },
+   "charge_debut": {
+    "cpu_percent_1s": 36.5,
+    "python_procs": 14,
+    "t": "2026-10-13T23:12:17"
+   },
+   "charge_fin": {
+    "cpu_percent_1s": 54.1,
+    "python_procs": 14,
+    "t": "2026-10-13T23:21:55"
+   }
+  },
+  "pos": {
+   "seed": 2026,
+   "arm": "pos",
+   "num_agents": 12,
+   "ticks_learn": 2000,
+   "ticks_test": 200,
+   "lr": null,
+   "treatment": {
+    "slot_reindex": false,
+    "cut_credit_at_t1": true,
+    "reseed_at_t1": 202614
+   },
+   "plafond_famine_ticks": 7.164478546849247,
+   "learning": {
+    "td_calls": 282,
+    "td_updates": 281,
+    "episode_calls": 35,
+    "episode_updates": 35,
+    "legacy_calls": 0,
+    "legacy_updates": 0,
+    "compute_spent_total": 0.0,
+    "forward_calls": 2000,
+    "skips": {},
+    "dW_abs_sum": 2455.7359043359756,
+    "reward_scale": 1.0,
+    "td_enabled": true,
+    "lr": null,
+    "lr_effective_per_agent": 0.0033333333333333335,
+    "lr_effective_unit": "torch: lr/B (SGD, perte moyennée sur B, W disjoint par agent)",
+    "trace_lambda": null,
+    "trace_bypass_optimizer": false,
+    "trace_updates": 0,
+    "trace_resets": 0,
+    "resurrections": 11,
+    "slot_identity": {
+     "ticks_known": 2000,
+     "ticks_unknown": 0,
+     "slot_ticks_total": 24000,
+     "slot_ticks_misaligned": 11705,
+     "ticks_misaligned": 1719,
+     "first_misaligned_tick": 281,
+     "max_misaligned_slots": 7,
+     "slot_switches": 12,
+     "ticks_with_switch": 2,
+     "first_switch_tick": 281,
+     "switch_events": [
+      [
+       281,
+       5
+      ],
+      [
+       445,
+       7
+      ]
+     ],
+     "order_changes": 2,
+     "first_order_change_tick": 281,
+     "positions_moved": 12,
+     "ticks_reordered": 0,
+     "positions_reordered": 0,
+     "first_reorder_tick": null,
+     "reindex_events": 0,
+     "rows_reindexed": 0,
+     "first_reindex_tick": null,
+     "sham_relabel": 0,
+     "relabel_events": 0,
+     "rows_relabeled": 0,
+     "first_relabel_tick": null,
+     "relabel_draws": 0,
+     "ticks_body_reordered": 0,
+     "credit_cut_tick": 281,
+     "reseed_seed": 202614,
+     "reseed_tick": 281,
+     "repairings": 0,
+     "slot_order_fix": false,
+     "slot_reindex": false,
+     "rng_census": {
+      "marque": "t1=281",
+      "appels_avant": 26322,
+      "n_sites_avant": 13,
+      "appels_apres": 129328,
+      "n_sites_apres": 8,
+      "sites_apres": {
+       "src/worlds/world_1_stoneage.py:1187": 20616,
+       "src/worlds/world_1_stoneage.py:1188": 20616,
+       "src/worlds/world_1_stoneage.py:1224": 17,
+       "src/worlds/world_1_stoneage.py:1233": 113,
+       "src/worlds/world_1_stoneage.py:1375": 20616,
+       "src/worlds/world_1_stoneage.py:335": 154,
+       "src/worlds/world_1_stoneage.py:347": 41685,
+       "src/worlds/world_1_stoneage.py:668": 25511
+      },
+      "reensemencements_avant": 1,
+      "reensemencements_apres": 0,
+      "torch_rng_change_apres": false,
+      "py_random_change_apres": false,
+      "perimetre": {
+       "tirages": [
+        "beta",
+        "binomial",
+        "bytes",
+        "chisquare",
+        "choice",
+        "dirichlet",
+        "exponential",
+        "f",
+        "gamma",
+        "geometric",
+        "gumbel",
+        "hypergeometric",
+        "laplace",
+        "logistic",
+        "lognormal",
+        "logseries",
+        "multinomial",
+        "multivariate_normal",
+        "negative_binomial",
+        "noncentral_chisquare",
+        "noncentral_f",
+        "normal",
+        "pareto",
+        "permutation",
+        "poisson",
+        "power",
+        "rand",
+        "randint",
+        "randn",
+        "random",
+        "random_integers",
+        "random_sample",
+        "ranf",
+        "rayleigh",
+        "sample",
+        "shuffle",
+        "standard_cauchy",
+        "standard_exponential",
+        "standard_gamma",
+        "standard_normal",
+        "standard_t",
+        "triangular",
+        "uniform",
+        "vonmises",
+        "wald",
+        "weibull",
+        "zipf"
+       ],
+       "reensemencements": [
+        "seed",
+        "set_state",
+        "set_bit_generator"
+       ]
+      }
+     }
+    },
+    "ticks": 2000
+   },
+   "consensus_phase1": {
+    "ticks_avec_reecriture": 0,
+    "lignes_reecrites": 0
+   },
+   "reconstructions_phase1": {
+    "constructions": 1,
+    "B": [
+     12
+    ]
+   },
+   "corps_apres_phase1": {
+    "conforme": true,
+    "n_ecarts": 0,
+    "ecart_rel_max": 2.2151855622179722e-08
+   },
+   "survival": {
+    "survival_median": 9.5,
+    "ages": [
+     4,
+     4,
+     5,
+     7,
+     9,
+     9,
+     10,
+     10,
+     12,
+     12,
+     13,
+     16
+    ],
+    "censored": 0,
+    "ticks": 16,
+    "dose_phase2": {
+     "td_calls": 16,
+     "td_updates": 0,
+     "episode_calls": 2,
+     "episode_updates": 2,
+     "legacy_calls": 0,
+     "legacy_updates": 0,
+     "compute_spent_total": 0.0,
+     "forward_calls": 16,
+     "skips": {
+      "td_disabled": 16
+     },
+     "dW_abs_sum": 0.0,
+     "reward_scale": 1.0,
+     "td_enabled": false,
+     "lr": 0.0,
+     "lr_effective_per_agent": null,
+     "lr_effective_unit": null,
+     "trace_lambda": null,
+     "trace_bypass_optimizer": false,
+     "trace_updates": 0,
+     "trace_resets": 0
+    }
+   },
+   "consensus_phase2": {
+    "ticks_avec_reecriture": 0,
+    "lignes_reecrites": 0
+   },
+   "reconstructions_phase2": {
+    "constructions": 8,
+    "B": [
+     12,
+     10,
+     9,
+     8,
+     6,
+     4,
+     2,
+     1
+    ]
+   },
+   "corps_apres_phase2": {
+    "conforme": true,
+    "n_ecarts": 0,
+    "ecart_rel_max": 2.2151855622179722e-08
+   },
+   "elapsed_s": 494.8693881034851,
+   "cpu_s": 467.9375,
+   "lieu": {
+    "platform": "Windows-11-10.0.26200-SP0",
+    "python": "3.13.12",
+    "torch": "2.6.0+cu124",
+    "torch_threads": 16,
+    "AGAGI_CPU_LIMIT": null,
+    "AGAGI_IMAGE": null
+   },
+   "provenance": {
+    "git_sha": "227060207e9c72d239b09f506ad92a85f53484f9",
+    "dirty": false,
+    "rule": "E34-IDENTITY-CELL",
+    "seal": "a04677d41a3b04f6541b1c6f768b4fa45662c412f2cedc8237c94492bfa6ed03"
+   },
+   "charge_debut": {
+    "cpu_percent_1s": 35.2,
+    "python_procs": 14,
+    "t": "2026-10-13T23:12:17"
+   },
+   "charge_fin": {
+    "cpu_percent_1s": 45.8,
+    "python_procs": 14,
+    "t": "2026-10-13T23:20:33"
+   }
+  },
+  "rep_01": {
+   "seed": 2026,
+   "arm": "rep_01",
+   "num_agents": 12,
+   "ticks_learn": 2000,
+   "ticks_test": 200,
+   "lr": null,
+   "treatment": {
+    "slot_reindex": false,
+    "cut_credit_at_t1": false,
+    "reseed_at_t1": 202601
+   },
+   "plafond_famine_ticks": 7.164478546849247,
+   "learning": {
+    "td_calls": 2000,
+    "td_updates": 1999,
+    "episode_calls": 250,
+    "episode_updates": 250,
+    "legacy_calls": 0,
+    "legacy_updates": 0,
+    "compute_spent_total": 0.0,
+    "forward_calls": 2000,
+    "skips": {},
+    "dW_abs_sum": 18555.90098965168,
+    "reward_scale": 1.0,
+    "td_enabled": true,
+    "lr": null,
+    "lr_effective_per_agent": 0.0033333333333333335,
+    "lr_effective_unit": "torch: lr/B (SGD, perte moyennée sur B, W disjoint par agent)",
+    "trace_lambda": null,
+    "trace_bypass_optimizer": false,
+    "trace_updates": 0,
+    "trace_resets": 0,
+    "resurrections": 6,
+    "slot_identity": {
+     "ticks_known": 2000,
+     "ticks_unknown": 0,
+     "slot_ticks_total": 24000,
+     "slot_ticks_misaligned": 16867,
+     "ticks_misaligned": 1719,
+     "first_misaligned_tick": 281,
+     "max_misaligned_slots": 11,
+     "slot_switches": 25,
+     "ticks_with_switch": 4,
+     "first_switch_tick": 281,
+     "switch_events": [
+      [
+       281,
+       5
+      ],
+      [
+       327,
+       5
+      ],
+      [
+       408,
+       11
+      ],
+      [
+       720,
+       4
+      ]
+     ],
+     "order_changes": 4,
+     "first_order_change_tick": 281,
+     "positions_moved": 25,
+     "ticks_reordered": 0,
+     "positions_reordered": 0,
+     "first_reorder_tick": null,
+     "reindex_events": 0,
+     "rows_reindexed": 0,
+     "first_reindex_tick": null,
+     "sham_relabel": 0,
+     "relabel_events": 0,
+     "rows_relabeled": 0,
+     "first_relabel_tick": null,
+     "relabel_draws": 0,
+     "ticks_body_reordered": 0,
+     "credit_cut_tick": null,
+     "reseed_seed": 202601,
+     "reseed_tick": 281,
+     "repairings": 1,
+     "slot_order_fix": false,
+     "slot_reindex": false,
+     "rng_census": {
+      "marque": "t1=281",
+      "appels_avant": 26322,
+      "n_sites_avant": 13,
+      "appels_apres": 143259,
+      "n_sites_apres": 8,
+      "sites_apres": {
+       "src/worlds/world_1_stoneage.py:1187": 20616,
+       "src/worlds/world_1_stoneage.py:1188": 20616,
+       "src/worlds/world_1_stoneage.py:1224": 16,
+       "src/worlds/world_1_stoneage.py:1233": 252,
+       "src/worlds/world_1_stoneage.py:1375": 20616,
+       "src/worlds/world_1_stoneage.py:335": 352,
+       "src/worlds/world_1_stoneage.py:347": 55450,
+       "src/worlds/world_1_stoneage.py:668": 25341
+      },
+      "reensemencements_avant": 1,
+      "reensemencements_apres": 0,
+      "torch_rng_change_apres": false,
+      "py_random_change_apres": false,
+      "perimetre": {
+       "tirages": [
+        "beta",
+        "binomial",
+        "bytes",
+        "chisquare",
+        "choice",
+        "dirichlet",
+        "exponential",
+        "f",
+        "gamma",
+        "geometric",
+        "gumbel",
+        "hypergeometric",
+        "laplace",
+        "logistic",
+        "lognormal",
+        "logseries",
+        "multinomial",
+        "multivariate_normal",
+        "negative_binomial",
+        "noncentral_chisquare",
+        "noncentral_f",
+        "normal",
+        "pareto",
+        "permutation",
+        "poisson",
+        "power",
+        "rand",
+        "randint",
+        "randn",
+        "random",
+        "random_integers",
+        "random_sample",
+        "ranf",
+        "rayleigh",
+        "sample",
+        "shuffle",
+        "standard_cauchy",
+        "standard_exponential",
+        "standard_gamma",
+        "standard_normal",
+        "standard_t",
+        "triangular",
+        "uniform",
+        "vonmises",
+        "wald",
+        "weibull",
+        "zipf"
+       ],
+       "reensemencements": [
+        "seed",
+        "set_state",
+        "set_bit_generator"
+       ]
+      }
+     }
+    },
+    "ticks": 2000
+   },
+   "consensus_phase1": {
+    "ticks_avec_reecriture": 0,
+    "lignes_reecrites": 0
+   },
+   "reconstructions_phase1": {
+    "constructions": 1,
+    "B": [
+     12
+    ]
+   },
+   "corps_apres_phase1": {
+    "conforme": true,
+    "n_ecarts": 0,
+    "ecart_rel_max": 2.2151855622179722e-08
+   },
+   "survival": {
+    "survival_median": 9.5,
+    "ages": [
+     4,
+     7,
+     8,
+     9,
+     9,
+     9,
+     10,
+     10,
+     11,
+     12,
+     16,
+     19
+    ],
+    "censored": 0,
+    "ticks": 19,
+    "dose_phase2": {
+     "td_calls": 19,
+     "td_updates": 0,
+     "episode_calls": 2,
+     "episode_updates": 2,
+     "legacy_calls": 0,
+     "legacy_updates": 0,
+     "compute_spent_total": 0.0,
+     "forward_calls": 19,
+     "skips": {
+      "td_disabled": 19
+     },
+     "dW_abs_sum": 0.0,
+     "reward_scale": 1.0,
+     "td_enabled": false,
+     "lr": 0.0,
+     "lr_effective_per_agent": null,
+     "lr_effective_unit": null,
+     "trace_lambda": null,
+     "trace_bypass_optimizer": false,
+     "trace_updates": 0,
+     "trace_resets": 0
+    }
+   },
+   "consensus_phase2": {
+    "ticks_avec_reecriture": 0,
+    "lignes_reecrites": 0
+   },
+   "reconstructions_phase2": {
+    "constructions": 9,
+    "B": [
+     12,
+     11,
+     10,
+     9,
+     6,
+     4,
+     3,
+     2,
+     1
+    ]
+   },
+   "corps_apres_phase2": {
+    "conforme": true,
+    "n_ecarts": 0,
+    "ecart_rel_max": 2.2151855622179722e-08
+   },
+   "elapsed_s": 526.3783721923828,
+   "cpu_s": 511.984375,
+   "lieu": {
+    "platform": "Windows-11-10.0.26200-SP0",
+    "python": "3.13.12",
+    "torch": "2.6.0+cu124",
+    "torch_threads": 16,
+    "AGAGI_CPU_LIMIT": null,
+    "AGAGI_IMAGE": null
+   },
+   "provenance": {
+    "git_sha": "227060207e9c72d239b09f506ad92a85f53484f9",
+    "dirty": false,
+    "rule": "E34-IDENTITY-CELL",
+    "seal": "a04677d41a3b04f6541b1c6f768b4fa45662c412f2cedc8237c94492bfa6ed03"
+   },
+   "charge_debut": {
+    "cpu_percent_1s": 34.8,
+    "python_procs": 14,
+    "t": "2026-10-13T23:12:17"
+   },
+   "charge_fin": {
+    "cpu_percent_1s": 43.6,
+    "python_procs": 14,
+    "t": "2026-10-13T23:21:05"
+   }
+  },
+  "rep_02": {
+   "seed": 2026,
+   "arm": "rep_02",
+   "num_agents": 12,
+   "ticks_learn": 2000,
+   "ticks_test": 200,
+   "lr": null,
+   "treatment": {
+    "slot_reindex": false,
+    "cut_credit_at_t1": false,
+    "reseed_at_t1": 202602
+   },
+   "plafond_famine_ticks": 7.164478546849247,
+   "learning": {
+    "td_calls": 2000,
+    "td_updates": 1999,
+    "episode_calls": 250,
+    "episode_updates": 250,
+    "legacy_calls": 0,
+    "legacy_updates": 0,
+    "compute_spent_total": 0.0,
+    "forward_calls": 2000,
+    "skips": {},
+    "dW_abs_sum": 18525.6678968668,
+    "reward_scale": 1.0,
+    "td_enabled": true,
+    "lr": null,
+    "lr_effective_per_agent": 0.0033333333333333335,
+    "lr_effective_unit": "torch: lr/B (SGD, perte moyennée sur B, W disjoint par agent)",
+    "trace_lambda": null,
+    "trace_bypass_optimizer": false,
+    "trace_updates": 0,
+    "trace_resets": 0,
+    "resurrections": 11,
+    "slot_identity": {
+     "ticks_known": 2000,
+     "ticks_unknown": 0,
+     "slot_ticks_total": 24000,
+     "slot_ticks_misaligned": 10473,
+     "ticks_misaligned": 1719,
+     "first_misaligned_tick": 281,
+     "max_misaligned_slots": 9,
+     "slot_switches": 38,
+     "ticks_with_switch": 6,
+     "first_switch_tick": 281,
+     "switch_events": [
+      [
+       281,
+       5
+      ],
+      [
+       363,
+       3
+      ],
+      [
+       1520,
+       9
+      ],
+      [
+       1562,
+       3
+      ],
+      [
+       1795,
+       9
+      ],
+      [
+       1995,
+       9
+      ]
+     ],
+     "order_changes": 6,
+     "first_order_change_tick": 281,
+     "positions_moved": 38,
+     "ticks_reordered": 0,
+     "positions_reordered": 0,
+     "first_reorder_tick": null,
+     "reindex_events": 0,
+     "rows_reindexed": 0,
+     "first_reindex_tick": null,
+     "sham_relabel": 0,
+     "relabel_events": 0,
+     "rows_relabeled": 0,
+     "first_relabel_tick": null,
+     "relabel_draws": 0,
+     "ticks_body_reordered": 0,
+     "credit_cut_tick": null,
+     "reseed_seed": 202602,
+     "reseed_tick": 281,
+     "repairings": 1,
+     "slot_order_fix": false,
+     "slot_reindex": false,
+     "rng_census": {
+      "marque": "t1=281",
+      "appels_avant": 26322,
+      "n_sites_avant": 13,
+      "appels_apres": 168260,
+      "n_sites_apres": 8,
+      "sites_apres": {
+       "src/worlds/world_1_stoneage.py:1187": 20616,
+       "src/worlds/world_1_stoneage.py:1188": 20616,
+       "src/worlds/world_1_stoneage.py:1224": 18,
+       "src/worlds/world_1_stoneage.py:1233": 294,
+       "src/worlds/world_1_stoneage.py:1375": 20616,
+       "src/worlds/world_1_stoneage.py:335": 409,
+       "src/worlds/world_1_stoneage.py:347": 80230,
+       "src/worlds/world_1_stoneage.py:668": 25461
+      },
+      "reensemencements_avant": 1,
+      "reensemencements_apres": 0,
+      "torch_rng_change_apres": false,
+      "py_random_change_apres": false,
+      "perimetre": {
+       "tirages": [
+        "beta",
+        "binomial",
+        "bytes",
+        "chisquare",
+        "choice",
+        "dirichlet",
+        "exponential",
+        "f",
+        "gamma",
+        "geometric",
+        "gumbel",
+        "hypergeometric",
+        "laplace",
+        "logistic",
+        "lognormal",
+        "logseries",
+        "multinomial",
+        "multivariate_normal",
+        "negative_binomial",
+        "noncentral_chisquare",
+        "noncentral_f",
+        "normal",
+        "pareto",
+        "permutation",
+        "poisson",
+        "power",
+        "rand",
+        "randint",
+        "randn",
+        "random",
+        "random_integers",
+        "random_sample",
+        "ranf",
+        "rayleigh",
+        "sample",
+        "shuffle",
+        "standard_cauchy",
+        "standard_exponential",
+        "standard_gamma",
+        "standard_normal",
+        "standard_t",
+        "triangular",
+        "uniform",
+        "vonmises",
+        "wald",
+        "weibull",
+        "zipf"
+       ],
+       "reensemencements": [
+        "seed",
+        "set_state",
+        "set_bit_generator"
+       ]
+      }
+     }
+    },
+    "ticks": 2000
+   },
+   "consensus_phase1": {
+    "ticks_avec_reecriture": 0,
+    "lignes_reecrites": 0
+   },
+   "reconstructions_phase1": {
+    "constructions": 1,
+    "B": [
+     12
+    ]
+   },
+   "corps_apres_phase1": {
+    "conforme": true,
+    "n_ecarts": 0,
+    "ecart_rel_max": 2.2151855622179722e-08
+   },
+   "survival": {
+    "survival_median": 9.0,
+    "ages": [
+     5,
+     6,
+     7,
+     8,
+     9,
+     9,
+     9,
+     9,
+     9,
+     9,
+     10,
+     15
+    ],
+    "censored": 0,
+    "ticks": 15,
+    "dose_phase2": {
+     "td_calls": 15,
+     "td_updates": 0,
+     "episode_calls": 1,
+     "episode_updates": 1,
+     "legacy_calls": 0,
+     "legacy_updates": 0,
+     "compute_spent_total": 0.0,
+     "forward_calls": 15,
+     "skips": {
+      "td_disabled": 15
+     },
+     "dW_abs_sum": 0.0,
+     "reward_scale": 1.0,
+     "td_enabled": false,
+     "lr": 0.0,
+     "lr_effective_per_agent": null,
+     "lr_effective_unit": null,
+     "trace_lambda": null,
+     "trace_bypass_optimizer": false,
+     "trace_updates": 0,
+     "trace_resets": 0
+    }
+   },
+   "consensus_phase2": {
+    "ticks_avec_reecriture": 0,
+    "lignes_reecrites": 0
+   },
+   "reconstructions_phase2": {
+    "constructions": 7,
+    "B": [
+     12,
+     11,
+     10,
+     9,
+     8,
+     2,
+     1
+    ]
+   },
+   "corps_apres_phase2": {
+    "conforme": true,
+    "n_ecarts": 0,
+    "ecart_rel_max": 2.2151855622179722e-08
+   },
+   "elapsed_s": 661.6854755878448,
+   "cpu_s": 638.015625,
+   "lieu": {
+    "platform": "Windows-11-10.0.26200-SP0",
+    "python": "3.13.12",
+    "torch": "2.6.0+cu124",
+    "torch_threads": 16,
+    "AGAGI_CPU_LIMIT": null,
+    "AGAGI_IMAGE": null
+   },
+   "provenance": {
+    "git_sha": "227060207e9c72d239b09f506ad92a85f53484f9",
+    "dirty": false,
+    "rule": "E34-IDENTITY-CELL",
+    "seal": "a04677d41a3b04f6541b1c6f768b4fa45662c412f2cedc8237c94492bfa6ed03"
+   },
+   "charge_debut": {
+    "cpu_percent_1s": 34.9,
+    "python_procs": 14,
+    "t": "2026-10-13T23:12:17"
+   },
+   "charge_fin": {
+    "cpu_percent_1s": 45.9,
+    "python_procs": 14,
+    "t": "2026-10-13T23:23:20"
+   }
+  },
+  "rep_03": {
+   "seed": 2026,
+   "arm": "rep_03",
+   "num_agents": 12,
+   "ticks_learn": 2000,
+   "ticks_test": 200,
+   "lr": null,
+   "treatment": {
+    "slot_reindex": false,
+    "cut_credit_at_t1": false,
+    "reseed_at_t1": 202603
+   },
+   "plafond_famine_ticks": 7.164478546849247,
+   "learning": {
+    "td_calls": 2000,
+    "td_updates": 1999,
+    "episode_calls": 250,
+    "episode_updates": 250,
+    "legacy_calls": 0,
+    "legacy_updates": 0,
+    "compute_spent_total": 0.0,
+    "forward_calls": 2000,
+    "skips": {},
+    "dW_abs_sum": 17341.17109453678,
+    "reward_scale": 1.0,
+    "td_enabled": true,
+    "lr": null,
+    "lr_effective_per_agent": 0.0033333333333333335,
+    "lr_effective_unit": "torch: lr/B (SGD, perte moyennée sur B, W disjoint par agent)",
+    "trace_lambda": null,
+    "trace_bypass_optimizer": false,
+    "trace_updates": 0,
+    "trace_resets": 0,
+    "resurrections": 8,
+    "slot_identity": {
+     "ticks_known": 2000,
+     "ticks_unknown": 0,
+     "slot_ticks_total": 24000,
+     "slot_ticks_misaligned": 8419,
+     "ticks_misaligned": 1719,
+     "first_misaligned_tick": 281,
+     "max_misaligned_slots": 5,
+     "slot_switches": 22,
+     "ticks_with_switch": 6,
+     "first_switch_tick": 281,
+     "switch_events": [
+      [
+       281,
+       5
+      ],
+      [
+       353,
+       3
+      ],
+      [
+       453,
+       3
+      ],
+      [
+       514,
+       2
+      ],
+      [
+       729,
+       5
+      ],
+      [
+       783,
+       4
+      ]
+     ],
+     "order_changes": 6,
+     "first_order_change_tick": 281,
+     "positions_moved": 22,
+     "ticks_reordered": 0,
+     "positions_reordered": 0,
+     "first_reorder_tick": null,
+     "reindex_events": 0,
+     "rows_reindexed": 0,
+     "first_reindex_tick": null,
+     "sham_relabel": 0,
+     "relabel_events": 0,
+     "rows_relabeled": 0,
+     "first_relabel_tick": null,
+     "relabel_draws": 0,
+     "ticks_body_reordered": 0,
+     "credit_cut_tick": null,
+     "reseed_seed": 202603,
+     "reseed_tick": 281,
+     "repairings": 3,
+     "slot_order_fix": false,
+     "slot_reindex": false,
+     "rng_census": {
+      "marque": "t1=281",
+      "appels_avant": 26322,
+      "n_sites_avant": 13,
+      "appels_apres": 155828,
+      "n_sites_apres": 9,
+      "sites_apres": {
+       "src/worlds/world_1_stoneage.py:1187": 20616,
+       "src/worlds/world_1_stoneage.py:1188": 20616,
+       "src/worlds/world_1_stoneage.py:1224": 17,
+       "src/worlds/world_1_stoneage.py:1233": 171,
+       "src/worlds/world_1_stoneage.py:1375": 20616,
+       "src/worlds/world_1_stoneage.py:335": 232,
+       "src/worlds/world_1_stoneage.py:347": 67960,
+       "src/worlds/world_1_stoneage.py:357": 1,
+       "src/worlds/world_1_stoneage.py:668": 25599
+      },
+      "reensemencements_avant": 1,
+      "reensemencements_apres": 0,
+      "torch_rng_change_apres": false,
+      "py_random_change_apres": false,
+      "perimetre": {
+       "tirages": [
+        "beta",
+        "binomial",
+        "bytes",
+        "chisquare",
+        "choice",
+        "dirichlet",
+        "exponential",
+        "f",
+        "gamma",
+        "geometric",
+        "gumbel",
+        "hypergeometric",
+        "laplace",
+        "logistic",
+        "lognormal",
+        "logseries",
+        "multinomial",
+        "multivariate_normal",
+        "negative_binomial",
+        "noncentral_chisquare",
+        "noncentral_f",
+        "normal",
+        "pareto",
+        "permutation",
+        "poisson",
+        "power",
+        "rand",
+        "randint",
+        "randn",
+        "random",
+        "random_integers",
+        "random_sample",
+        "ranf",
+        "rayleigh",
+        "sample",
+        "shuffle",
+        "standard_cauchy",
+        "standard_exponential",
+        "standard_gamma",
+        "standard_normal",
+        "standard_t",
+        "triangular",
+        "uniform",
+        "vonmises",
+        "wald",
+        "weibull",
+        "zipf"
+       ],
+       "reensemencements": [
+        "seed",
+        "set_state",
+        "set_bit_generator"
+       ]
+      }
+     }
+    },
+    "ticks": 2000
+   },
+   "consensus_phase1": {
+    "ticks_avec_reecriture": 0,
+    "lignes_reecrites": 0
+   },
+   "reconstructions_phase1": {
+    "constructions": 1,
+    "B": [
+     12
+    ]
+   },
+   "corps_apres_phase1": {
+    "conforme": true,
+    "n_ecarts": 0,
+    "ecart_rel_max": 2.2151855622179722e-08
+   },
+   "survival": {
+    "survival_median": 8.0,
+    "ages": [
+     4,
+     6,
+     6,
+     7,
+     8,
+     8,
+     8,
+     9,
+     9,
+     10,
+     10,
+     11
+    ],
+    "censored": 0,
+    "ticks": 11,
+    "dose_phase2": {
+     "td_calls": 11,
+     "td_updates": 0,
+     "episode_calls": 1,
+     "episode_updates": 1,
+     "legacy_calls": 0,
+     "legacy_updates": 0,
+     "compute_spent_total": 0.0,
+     "forward_calls": 11,
+     "skips": {
+      "td_disabled": 11
+     },
+     "dW_abs_sum": 0.0,
+     "reward_scale": 1.0,
+     "td_enabled": false,
+     "lr": 0.0,
+     "lr_effective_per_agent": null,
+     "lr_effective_unit": null,
+     "trace_lambda": null,
+     "trace_bypass_optimizer": false,
+     "trace_updates": 0,
+     "trace_resets": 0
+    }
+   },
+   "consensus_phase2": {
+    "ticks_avec_reecriture": 0,
+    "lignes_reecrites": 0
+   },
+   "reconstructions_phase2": {
+    "constructions": 7,
+    "B": [
+     12,
+     11,
+     9,
+     8,
+     5,
+     3,
+     1
+    ]
+   },
+   "corps_apres_phase2": {
+    "conforme": true,
+    "n_ecarts": 0,
+    "ecart_rel_max": 2.2151855622179722e-08
+   },
+   "elapsed_s": 649.0430448055267,
+   "cpu_s": 626.96875,
+   "lieu": {
+    "platform": "Windows-11-10.0.26200-SP0",
+    "python": "3.13.12",
+    "torch": "2.6.0+cu124",
+    "torch_threads": 16,
+    "AGAGI_CPU_LIMIT": null,
+    "AGAGI_IMAGE": null
+   },
+   "provenance": {
+    "git_sha": "227060207e9c72d239b09f506ad92a85f53484f9",
+    "dirty": false,
+    "rule": "E34-IDENTITY-CELL",
+    "seal": "a04677d41a3b04f6541b1c6f768b4fa45662c412f2cedc8237c94492bfa6ed03"
+   },
+   "charge_debut": {
+    "cpu_percent_1s": 35.0,
+    "python_procs": 14,
+    "t": "2026-10-13T23:12:17"
+   },
+   "charge_fin": {
+    "cpu_percent_1s": 53.4,
+    "python_procs": 14,
+    "t": "2026-10-13T23:23:08"
+   }
+  },
+  "rep_04": {
+   "seed": 2026,
+   "arm": "rep_04",
+   "num_agents": 12,
+   "ticks_learn": 2000,
+   "ticks_test": 200,
+   "lr": null,
+   "treatment": {
+    "slot_reindex": false,
+    "cut_credit_at_t1": false,
+    "reseed_at_t1": 202604
+   },
+   "plafond_famine_ticks": 7.164478546849247,
+   "learning": {
+    "td_calls": 2000,
+    "td_updates": 1999,
+    "episode_calls": 250,
+    "episode_updates": 250,
+    "legacy_calls": 0,
+    "legacy_updates": 0,
+    "compute_spent_total": 0.0,
+    "forward_calls": 2000,
+    "skips": {},
+    "dW_abs_sum": 18332.950535416603,
+    "reward_scale": 1.0,
+    "td_enabled": true,
+    "lr": null,
+    "lr_effective_per_agent": 0.0033333333333333335,
+    "lr_effective_unit": "torch: lr/B (SGD, perte moyennée sur B, W disjoint par agent)",
+    "trace_lambda": null,
+    "trace_bypass_optimizer": false,
+    "trace_updates": 0,
+    "trace_resets": 0,
+    "resurrections": 4,
+    "slot_identity": {
+     "ticks_known": 2000,
+     "ticks_unknown": 0,
+     "slot_ticks_total": 24000,
+     "slot_ticks_misaligned": 8693,
+     "ticks_misaligned": 1719,
+     "first_misaligned_tick": 281,
+     "max_misaligned_slots": 7,
+     "slot_switches": 12,
+     "ticks_with_switch": 2,
+     "first_switch_tick": 281,
+     "switch_events": [
+      [
+       281,
+       5
+      ],
+      [
+       1951,
+       7
+      ]
+     ],
+     "order_changes": 2,
+     "first_order_change_tick": 281,
+     "positions_moved": 12,
+     "ticks_reordered": 0,
+     "positions_reordered": 0,
+     "first_reorder_tick": null,
+     "reindex_events": 0,
+     "rows_reindexed": 0,
+     "first_reindex_tick": null,
+     "sham_relabel": 0,
+     "relabel_events": 0,
+     "rows_relabeled": 0,
+     "first_relabel_tick": null,
+     "relabel_draws": 0,
+     "ticks_body_reordered": 0,
+     "credit_cut_tick": null,
+     "reseed_seed": 202604,
+     "reseed_tick": 281,
+     "repairings": 0,
+     "slot_order_fix": false,
+     "slot_reindex": false,
+     "rng_census": {
+      "marque": "t1=281",
+      "appels_avant": 26322,
+      "n_sites_avant": 13,
+      "appels_apres": 152485,
+      "n_sites_apres": 8,
+      "sites_apres": {
+       "src/worlds/world_1_stoneage.py:1187": 20616,
+       "src/worlds/world_1_stoneage.py:1188": 20616,
+       "src/worlds/world_1_stoneage.py:1224": 17,
+       "src/worlds/world_1_stoneage.py:1233": 130,
+       "src/worlds/world_1_stoneage.py:1375": 20616,
+       "src/worlds/world_1_stoneage.py:335": 173,
+       "src/worlds/world_1_stoneage.py:347": 64790,
+       "src/worlds/world_1_stoneage.py:668": 25527
+      },
+      "reensemencements_avant": 1,
+      "reensemencements_apres": 0,
+      "torch_rng_change_apres": false,
+      "py_random_change_apres": false,
+      "perimetre": {
+       "tirages": [
+        "beta",
+        "binomial",
+        "bytes",
+        "chisquare",
+        "choice",
+        "dirichlet",
+        "exponential",
+        "f",
+        "gamma",
+        "geometric",
+        "gumbel",
+        "hypergeometric",
+        "laplace",
+        "logistic",
+        "lognormal",
+        "logseries",
+        "multinomial",
+        "multivariate_normal",
+        "negative_binomial",
+        "noncentral_chisquare",
+        "noncentral_f",
+        "normal",
+        "pareto",
+        "permutation",
+        "poisson",
+        "power",
+        "rand",
+        "randint",
+        "randn",
+        "random",
+        "random_integers",
+        "random_sample",
+        "ranf",
+        "rayleigh",
+        "sample",
+        "shuffle",
+        "standard_cauchy",
+        "standard_exponential",
+        "standard_gamma",
+        "standard_normal",
+        "standard_t",
+        "triangular",
+        "uniform",
+        "vonmises",
+        "wald",
+        "weibull",
+        "zipf"
+       ],
+       "reensemencements": [
+        "seed",
+        "set_state",
+        "set_bit_generator"
+       ]
+      }
+     }
+    },
+    "ticks": 2000
+   },
+   "consensus_phase1": {
+    "ticks_avec_reecriture": 0,
+    "lignes_reecrites": 0
+   },
+   "reconstructions_phase1": {
+    "constructions": 1,
+    "B": [
+     12
+    ]
+   },
+   "corps_apres_phase1": {
+    "conforme": true,
+    "n_ecarts": 0,
+    "ecart_rel_max": 2.2151855622179722e-08
+   },
+   "survival": {
+    "survival_median": 8.0,
+    "ages": [
+     6,
+     6,
+     7,
+     7,
+     8,
+     8,
+     8,
+     9,
+     9,
+     10,
+     11,
+     14
+    ],
+    "censored": 0,
+    "ticks": 14,
+    "dose_phase2": {
+     "td_calls": 14,
+     "td_updates": 0,
+     "episode_calls": 1,
+     "episode_updates": 1,
+     "legacy_calls": 0,
+     "legacy_updates": 0,
+     "compute_spent_total": 0.0,
+     "forward_calls": 14,
+     "skips": {
+      "td_disabled": 14
+     },
+     "dW_abs_sum": 0.0,
+     "reward_scale": 1.0,
+     "td_enabled": false,
+     "lr": 0.0,
+     "lr_effective_per_agent": null,
+     "lr_effective_unit": null,
+     "trace_lambda": null,
+     "trace_bypass_optimizer": false,
+     "trace_updates": 0,
+     "trace_resets": 0
+    }
+   },
+   "consensus_phase2": {
+    "ticks_avec_reecriture": 0,
+    "lignes_reecrites": 0
+   },
+   "reconstructions_phase2": {
+    "constructions": 7,
+    "B": [
+     12,
+     10,
+     8,
+     5,
+     3,
+     2,
+     1
+    ]
+   },
+   "corps_apres_phase2": {
+    "conforme": true,
+    "n_ecarts": 0,
+    "ecart_rel_max": 2.2151855622179722e-08
+   },
+   "elapsed_s": 634.1259865760803,
+   "cpu_s": 610.59375,
+   "lieu": {
+    "platform": "Windows-11-10.0.26200-SP0",
+    "python": "3.13.12",
+    "torch": "2.6.0+cu124",
+    "torch_threads": 16,
+    "AGAGI_CPU_LIMIT": null,
+    "AGAGI_IMAGE": null
+   },
+   "provenance": {
+    "git_sha": "227060207e9c72d239b09f506ad92a85f53484f9",
+    "dirty": false,
+    "rule": "E34-IDENTITY-CELL",
+    "seal": "a04677d41a3b04f6541b1c6f768b4fa45662c412f2cedc8237c94492bfa6ed03"
+   },
+   "charge_debut": {
+    "cpu_percent_1s": 34.9,
+    "python_procs": 14,
+    "t": "2026-10-13T23:12:17"
+   },
+   "charge_fin": {
+    "cpu_percent_1s": 45.3,
+    "python_procs": 14,
+    "t": "2026-10-13T23:22:53"
+   }
+  },
+  "rep_05": {
+   "seed": 2026,
+   "arm": "rep_05",
+   "num_agents": 12,
+   "ticks_learn": 2000,
+   "ticks_test": 200,
+   "lr": null,
+   "treatment": {
+    "slot_reindex": false,
+    "cut_credit_at_t1": false,
+    "reseed_at_t1": 202605
+   },
+   "plafond_famine_ticks": 7.164478546849247,
+   "learning": {
+    "td_calls": 2000,
+    "td_updates": 1999,
+    "episode_calls": 250,
+    "episode_updates": 250,
+    "legacy_calls": 0,
+    "legacy_updates": 0,
+    "compute_spent_total": 0.0,
+    "forward_calls": 2000,
+    "skips": {},
+    "dW_abs_sum": 16499.121954977512,
+    "reward_scale": 1.0,
+    "td_enabled": true,
+    "lr": null,
+    "lr_effective_per_agent": 0.0033333333333333335,
+    "lr_effective_unit": "torch: lr/B (SGD, perte moyennée sur B, W disjoint par agent)",
+    "trace_lambda": null,
+    "trace_bypass_optimizer": false,
+    "trace_updates": 0,
+    "trace_resets": 0,
+    "resurrections": 12,
+    "slot_identity": {
+     "ticks_known": 2000,
+     "ticks_unknown": 0,
+     "slot_ticks_total": 24000,
+     "slot_ticks_misaligned": 16917,
+     "ticks_misaligned": 1719,
+     "first_misaligned_tick": 281,
+     "max_misaligned_slots": 10,
+     "slot_switches": 35,
+     "ticks_with_switch": 9,
+     "first_switch_tick": 281,
+     "switch_events": [
+      [
+       281,
+       5
+      ],
+      [
+       326,
+       10
+      ],
+      [
+       549,
+       2
+      ],
+      [
+       891,
+       2
+      ],
+      [
+       1209,
+       3
+      ],
+      [
+       1251,
+       3
+      ],
+      [
+       1331,
+       3
+      ],
+      [
+       1431,
+       3
+      ],
+      [
+       1437,
+       4
+      ]
+     ],
+     "order_changes": 9,
+     "first_order_change_tick": 281,
+     "positions_moved": 35,
+     "ticks_reordered": 0,
+     "positions_reordered": 0,
+     "first_reorder_tick": null,
+     "reindex_events": 0,
+     "rows_reindexed": 0,
+     "first_reindex_tick": null,
+     "sham_relabel": 0,
+     "relabel_events": 0,
+     "rows_relabeled": 0,
+     "first_relabel_tick": null,
+     "relabel_draws": 0,
+     "ticks_body_reordered": 0,
+     "credit_cut_tick": null,
+     "reseed_seed": 202605,
+     "reseed_tick": 281,
+     "repairings": 2,
+     "slot_order_fix": false,
+     "slot_reindex": false,
+     "rng_census": {
+      "marque": "t1=281",
+      "appels_avant": 26322,
+      "n_sites_avant": 13,
+      "appels_apres": 152749,
+      "n_sites_apres": 8,
+      "sites_apres": {
+       "src/worlds/world_1_stoneage.py:1187": 20616,
+       "src/worlds/world_1_stoneage.py:1188": 20616,
+       "src/worlds/world_1_stoneage.py:1224": 17,
+       "src/worlds/world_1_stoneage.py:1233": 406,
+       "src/worlds/world_1_stoneage.py:1375": 20616,
+       "src/worlds/world_1_stoneage.py:335": 570,
+       "src/worlds/world_1_stoneage.py:347": 64820,
+       "src/worlds/world_1_stoneage.py:668": 25088
+      },
+      "reensemencements_avant": 1,
+      "reensemencements_apres": 0,
+      "torch_rng_change_apres": false,
+      "py_random_change_apres": false,
+      "perimetre": {
+       "tirages": [
+        "beta",
+        "binomial",
+        "bytes",
+        "chisquare",
+        "choice",
+        "dirichlet",
+        "exponential",
+        "f",
+        "gamma",
+        "geometric",
+        "gumbel",
+        "hypergeometric",
+        "laplace",
+        "logistic",
+        "lognormal",
+        "logseries",
+        "multinomial",
+        "multivariate_normal",
+        "negative_binomial",
+        "noncentral_chisquare",
+        "noncentral_f",
+        "normal",
+        "pareto",
+        "permutation",
+        "poisson",
+        "power",
+        "rand",
+        "randint",
+        "randn",
+        "random",
+        "random_integers",
+        "random_sample",
+        "ranf",
+        "rayleigh",
+        "sample",
+        "shuffle",
+        "standard_cauchy",
+        "standard_exponential",
+        "standard_gamma",
+        "standard_normal",
+        "standard_t",
+        "triangular",
+        "uniform",
+        "vonmises",
+        "wald",
+        "weibull",
+        "zipf"
+       ],
+       "reensemencements": [
+        "seed",
+        "set_state",
+        "set_bit_generator"
+       ]
+      }
+     }
+    },
+    "ticks": 2000
+   },
+   "consensus_phase1": {
+    "ticks_avec_reecriture": 0,
+    "lignes_reecrites": 0
+   },
+   "reconstructions_phase1": {
+    "constructions": 1,
+    "B": [
+     12
+    ]
+   },
+   "corps_apres_phase1": {
+    "conforme": true,
+    "n_ecarts": 0,
+    "ecart_rel_max": 2.2151855622179722e-08
+   },
+   "survival": {
+    "survival_median": 8.0,
+    "ages": [
+     6,
+     7,
+     7,
+     8,
+     8,
+     8,
+     8,
+     10,
+     10,
+     12,
+     12,
+     17
+    ],
+    "censored": 0,
+    "ticks": 17,
+    "dose_phase2": {
+     "td_calls": 17,
+     "td_updates": 0,
+     "episode_calls": 2,
+     "episode_updates": 2,
+     "legacy_calls": 0,
+     "legacy_updates": 0,
+     "compute_spent_total": 0.0,
+     "forward_calls": 17,
+     "skips": {
+      "td_disabled": 17
+     },
+     "dW_abs_sum": 0.0,
+     "reward_scale": 1.0,
+     "td_enabled": false,
+     "lr": 0.0,
+     "lr_effective_per_agent": null,
+     "lr_effective_unit": null,
+     "trace_lambda": null,
+     "trace_bypass_optimizer": false,
+     "trace_updates": 0,
+     "trace_resets": 0
+    }
+   },
+   "consensus_phase2": {
+    "ticks_avec_reecriture": 0,
+    "lignes_reecrites": 0
+   },
+   "reconstructions_phase2": {
+    "constructions": 6,
+    "B": [
+     12,
+     11,
+     9,
+     5,
+     3,
+     1
+    ]
+   },
+   "corps_apres_phase2": {
+    "conforme": true,
+    "n_ecarts": 0,
+    "ecart_rel_max": 2.2151855622179722e-08
+   },
+   "elapsed_s": 810.3138957023621,
+   "cpu_s": 603.375,
+   "lieu": {
+    "platform": "Windows-11-10.0.26200-SP0",
+    "python": "3.13.12",
+    "torch": "2.6.0+cu124",
+    "torch_threads": 16,
+    "AGAGI_CPU_LIMIT": null,
+    "AGAGI_IMAGE": null
+   },
+   "provenance": {
+    "git_sha": "227060207e9c72d239b09f506ad92a85f53484f9",
+    "dirty": false,
+    "rule": "E34-IDENTITY-CELL",
+    "seal": "a04677d41a3b04f6541b1c6f768b4fa45662c412f2cedc8237c94492bfa6ed03"
+   },
+   "charge_debut": {
+    "cpu_percent_1s": 43.8,
+    "python_procs": 14,
+    "t": "2026-10-13T23:20:34"
+   },
+   "charge_fin": {
+    "cpu_percent_1s": 81.5,
+    "python_procs": 15,
+    "t": "2026-10-13T23:34:06"
+   }
+  },
+  "rep_06": {
+   "seed": 2026,
+   "arm": "rep_06",
+   "num_agents": 12,
+   "ticks_learn": 2000,
+   "ticks_test": 200,
+   "lr": null,
+   "treatment": {
+    "slot_reindex": false,
+    "cut_credit_at_t1": false,
+    "reseed_at_t1": 202606
+   },
+   "plafond_famine_ticks": 7.164478546849247,
+   "learning": {
+    "td_calls": 2000,
+    "td_updates": 1999,
+    "episode_calls": 250,
+    "episode_updates": 250,
+    "legacy_calls": 0,
+    "legacy_updates": 0,
+    "compute_spent_total": 0.0,
+    "forward_calls": 2000,
+    "skips": {},
+    "dW_abs_sum": 17206.429692983627,
+    "reward_scale": 1.0,
+    "td_enabled": true,
+    "lr": null,
+    "lr_effective_per_agent": 0.0033333333333333335,
+    "lr_effective_unit": "torch: lr/B (SGD, perte moyennée sur B, W disjoint par agent)",
+    "trace_lambda": null,
+    "trace_bypass_optimizer": false,
+    "trace_updates": 0,
+    "trace_resets": 0,
+    "resurrections": 3,
+    "slot_identity": {
+     "ticks_known": 2000,
+     "ticks_unknown": 0,
+     "slot_ticks_total": 24000,
+     "slot_ticks_misaligned": 8595,
+     "ticks_misaligned": 1719,
+     "first_misaligned_tick": 281,
+     "max_misaligned_slots": 5,
+     "slot_switches": 8,
+     "ticks_with_switch": 2,
+     "first_switch_tick": 281,
+     "switch_events": [
+      [
+       281,
+       5
+      ],
+      [
+       1670,
+       3
+      ]
+     ],
+     "order_changes": 2,
+     "first_order_change_tick": 281,
+     "positions_moved": 8,
+     "ticks_reordered": 0,
+     "positions_reordered": 0,
+     "first_reorder_tick": null,
+     "reindex_events": 0,
+     "rows_reindexed": 0,
+     "first_reindex_tick": null,
+     "sham_relabel": 0,
+     "relabel_events": 0,
+     "rows_relabeled": 0,
+     "first_relabel_tick": null,
+     "relabel_draws": 0,
+     "ticks_body_reordered": 0,
+     "credit_cut_tick": null,
+     "reseed_seed": 202606,
+     "reseed_tick": 281,
+     "repairings": 0,
+     "slot_order_fix": false,
+     "slot_reindex": false,
+     "rng_census": {
+      "marque": "t1=281",
+      "appels_avant": 26322,
+      "n_sites_avant": 13,
+      "appels_apres": 157233,
+      "n_sites_apres": 8,
+      "sites_apres": {
+       "src/worlds/world_1_stoneage.py:1187": 20616,
+       "src/worlds/world_1_stoneage.py:1188": 20616,
+       "src/worlds/world_1_stoneage.py:1224": 18,
+       "src/worlds/world_1_stoneage.py:1233": 243,
+       "src/worlds/world_1_stoneage.py:1375": 20616,
+       "src/worlds/world_1_stoneage.py:335": 340,
+       "src/worlds/world_1_stoneage.py:347": 69345,
+       "src/worlds/world_1_stoneage.py:668": 25439
+      },
+      "reensemencements_avant": 1,
+      "reensemencements_apres": 0,
+      "torch_rng_change_apres": false,
+      "py_random_change_apres": false,
+      "perimetre": {
+       "tirages": [
+        "beta",
+        "binomial",
+        "bytes",
+        "chisquare",
+        "choice",
+        "dirichlet",
+        "exponential",
+        "f",
+        "gamma",
+        "geometric",
+        "gumbel",
+        "hypergeometric",
+        "laplace",
+        "logistic",
+        "lognormal",
+        "logseries",
+        "multinomial",
+        "multivariate_normal",
+        "negative_binomial",
+        "noncentral_chisquare",
+        "noncentral_f",
+        "normal",
+        "pareto",
+        "permutation",
+        "poisson",
+        "power",
+        "rand",
+        "randint",
+        "randn",
+        "random",
+        "random_integers",
+        "random_sample",
+        "ranf",
+        "rayleigh",
+        "sample",
+        "shuffle",
+        "standard_cauchy",
+        "standard_exponential",
+        "standard_gamma",
+        "standard_normal",
+        "standard_t",
+        "triangular",
+        "uniform",
+        "vonmises",
+        "wald",
+        "weibull",
+        "zipf"
+       ],
+       "reensemencements": [
+        "seed",
+        "set_state",
+        "set_bit_generator"
+       ]
+      }
+     }
+    },
+    "ticks": 2000
+   },
+   "consensus_phase1": {
+    "ticks_avec_reecriture": 0,
+    "lignes_reecrites": 0
+   },
+   "reconstructions_phase1": {
+    "constructions": 1,
+    "B": [
+     12
+    ]
+   },
+   "corps_apres_phase1": {
+    "conforme": true,
+    "n_ecarts": 0,
+    "ecart_rel_max": 2.2151855622179722e-08
+   },
+   "survival": {
+    "survival_median": 8.0,
+    "ages": [
+     7,
+     7,
+     8,
+     8,
+     8,
+     8,
+     8,
+     9,
+     9,
+     10,
+     11,
+     13
+    ],
+    "censored": 0,
+    "ticks": 13,
+    "dose_phase2": {
+     "td_calls": 13,
+     "td_updates": 0,
+     "episode_calls": 1,
+     "episode_updates": 1,
+     "legacy_calls": 0,
+     "legacy_updates": 0,
+     "compute_spent_total": 0.0,
+     "forward_calls": 13,
+     "skips": {
+      "td_disabled": 13
+     },
+     "dW_abs_sum": 0.0,
+     "reward_scale": 1.0,
+     "td_enabled": false,
+     "lr": 0.0,
+     "lr_effective_per_agent": null,
+     "lr_effective_unit": null,
+     "trace_lambda": null,
+     "trace_bypass_optimizer": false,
+     "trace_updates": 0,
+     "trace_resets": 0
+    }
+   },
+   "consensus_phase2": {
+    "ticks_avec_reecriture": 0,
+    "lignes_reecrites": 0
+   },
+   "reconstructions_phase2": {
+    "constructions": 6,
+    "B": [
+     12,
+     10,
+     5,
+     3,
+     2,
+     1
+    ]
+   },
+   "corps_apres_phase2": {
+    "conforme": true,
+    "n_ecarts": 0,
+    "ecart_rel_max": 2.2151855622179722e-08
+   },
+   "elapsed_s": 820.3911099433899,
+   "cpu_s": 606.03125,
+   "lieu": {
+    "platform": "Windows-11-10.0.26200-SP0",
+    "python": "3.13.12",
+    "torch": "2.6.0+cu124",
+    "torch_threads": 16,
+    "AGAGI_CPU_LIMIT": null,
+    "AGAGI_IMAGE": null
+   },
+   "provenance": {
+    "git_sha": "227060207e9c72d239b09f506ad92a85f53484f9",
+    "dirty": false,
+    "rule": "E34-IDENTITY-CELL",
+    "seal": "a04677d41a3b04f6541b1c6f768b4fa45662c412f2cedc8237c94492bfa6ed03"
+   },
+   "charge_debut": {
+    "cpu_percent_1s": 47.4,
+    "python_procs": 14,
+    "t": "2026-10-13T23:21:06"
+   },
+   "charge_fin": {
+    "cpu_percent_1s": 58.4,
+    "python_procs": 16,
+    "t": "2026-10-13T23:34:47"
+   }
+  },
+  "rep_07": {
+   "seed": 2026,
+   "arm": "rep_07",
+   "num_agents": 12,
+   "ticks_learn": 2000,
+   "ticks_test": 200,
+   "lr": null,
+   "treatment": {
+    "slot_reindex": false,
+    "cut_credit_at_t1": false,
+    "reseed_at_t1": 202607
+   },
+   "plafond_famine_ticks": 7.164478546849247,
+   "learning": {
+    "td_calls": 2000,
+    "td_updates": 1999,
+    "episode_calls": 250,
+    "episode_updates": 250,
+    "legacy_calls": 0,
+    "legacy_updates": 0,
+    "compute_spent_total": 0.0,
+    "forward_calls": 2000,
+    "skips": {},
+    "dW_abs_sum": 14473.43075144291,
+    "reward_scale": 1.0,
+    "td_enabled": true,
+    "lr": null,
+    "lr_effective_per_agent": 0.0033333333333333335,
+    "lr_effective_unit": "torch: lr/B (SGD, perte moyennée sur B, W disjoint par agent)",
+    "trace_lambda": null,
+    "trace_bypass_optimizer": false,
+    "trace_updates": 0,
+    "trace_resets": 0,
+    "resurrections": 45,
+    "slot_identity": {
+     "ticks_known": 2000,
+     "ticks_unknown": 0,
+     "slot_ticks_total": 24000,
+     "slot_ticks_misaligned": 15970,
+     "ticks_misaligned": 1719,
+     "first_misaligned_tick": 281,
+     "max_misaligned_slots": 10,
+     "slot_switches": 71,
+     "ticks_with_switch": 18,
+     "first_switch_tick": 281,
+     "switch_events": [
+      [
+       281,
+       5
+      ],
+      [
+       318,
+       5
+      ],
+      [
+       495,
+       4
+      ],
+      [
+       500,
+       10
+      ],
+      [
+       508,
+       3
+      ],
+      [
+       582,
+       2
+      ],
+      [
+       609,
+       2
+      ],
+      [
+       625,
+       2
+      ],
+      [
+       748,
+       4
+      ],
+      [
+       1592,
+       7
+      ],
+      [
+       1663,
+       2
+      ],
+      [
+       1694,
+       8
+      ],
+      [
+       1722,
+       2
+      ],
+      [
+       1726,
+       2
+      ],
+      [
+       1938,
+       7
+      ],
+      [
+       1940,
+       2
+      ],
+      [
+       1974,
+       2
+      ],
+      [
+       1987,
+       2
+      ]
+     ],
+     "order_changes": 18,
+     "first_order_change_tick": 281,
+     "positions_moved": 71,
+     "ticks_reordered": 0,
+     "positions_reordered": 0,
+     "first_reorder_tick": null,
+     "reindex_events": 0,
+     "rows_reindexed": 0,
+     "first_reindex_tick": null,
+     "sham_relabel": 0,
+     "relabel_events": 0,
+     "rows_relabeled": 0,
+     "first_relabel_tick": null,
+     "relabel_draws": 0,
+     "ticks_body_reordered": 0,
+     "credit_cut_tick": null,
+     "reseed_seed": 202607,
+     "reseed_tick": 281,
+     "repairings": 4,
+     "slot_order_fix": false,
+     "slot_reindex": false,
+     "rng_census": {
+      "marque": "t1=281",
+      "appels_avant": 26322,
+      "n_sites_avant": 13,
+      "appels_apres": 144061,
+      "n_sites_apres": 8,
+      "sites_apres": {
+       "src/worlds/world_1_stoneage.py:1187": 20616,
+       "src/worlds/world_1_stoneage.py:1188": 20616,
+       "src/worlds/world_1_stoneage.py:1224": 17,
+       "src/worlds/world_1_stoneage.py:1233": 220,
+       "src/worlds/world_1_stoneage.py:1375": 20616,
+       "src/worlds/world_1_stoneage.py:335": 328,
+       "src/worlds/world_1_stoneage.py:347": 56155,
+       "src/worlds/world_1_stoneage.py:668": 25493
+      },
+      "reensemencements_avant": 1,
+      "reensemencements_apres": 0,
+      "torch_rng_change_apres": false,
+      "py_random_change_apres": false,
+      "perimetre": {
+       "tirages": [
+        "beta",
+        "binomial",
+        "bytes",
+        "chisquare",
+        "choice",
+        "dirichlet",
+        "exponential",
+        "f",
+        "gamma",
+        "geometric",
+        "gumbel",
+        "hypergeometric",
+        "laplace",
+        "logistic",
+        "lognormal",
+        "logseries",
+        "multinomial",
+        "multivariate_normal",
+        "negative_binomial",
+        "noncentral_chisquare",
+        "noncentral_f",
+        "normal",
+        "pareto",
+        "permutation",
+        "poisson",
+        "power",
+        "rand",
+        "randint",
+        "randn",
+        "random",
+        "random_integers",
+        "random_sample",
+        "ranf",
+        "rayleigh",
+        "sample",
+        "shuffle",
+        "standard_cauchy",
+        "standard_exponential",
+        "standard_gamma",
+        "standard_normal",
+        "standard_t",
+        "triangular",
+        "uniform",
+        "vonmises",
+        "wald",
+        "weibull",
+        "zipf"
+       ],
+       "reensemencements": [
+        "seed",
+        "set_state",
+        "set_bit_generator"
+       ]
+      }
+     }
+    },
+    "ticks": 2000
+   },
+   "consensus_phase1": {
+    "ticks_avec_reecriture": 0,
+    "lignes_reecrites": 0
+   },
+   "reconstructions_phase1": {
+    "constructions": 1,
+    "B": [
+     12
+    ]
+   },
+   "corps_apres_phase1": {
+    "conforme": true,
+    "n_ecarts": 0,
+    "ecart_rel_max": 2.2151855622179722e-08
+   },
+   "survival": {
+    "survival_median": 9.0,
+    "ages": [
+     6,
+     7,
+     7,
+     9,
+     9,
+     9,
+     9,
+     9,
+     10,
+     10,
+     10,
+     12
+    ],
+    "censored": 0,
+    "ticks": 12,
+    "dose_phase2": {
+     "td_calls": 12,
+     "td_updates": 0,
+     "episode_calls": 1,
+     "episode_updates": 1,
+     "legacy_calls": 0,
+     "legacy_updates": 0,
+     "compute_spent_total": 0.0,
+     "forward_calls": 12,
+     "skips": {
+      "td_disabled": 12
+     },
+     "dW_abs_sum": 0.0,
+     "reward_scale": 1.0,
+     "td_enabled": false,
+     "lr": 0.0,
+     "lr_effective_per_agent": null,
+     "lr_effective_unit": null,
+     "trace_lambda": null,
+     "trace_bypass_optimizer": false,
+     "trace_updates": 0,
+     "trace_resets": 0
+    }
+   },
+   "consensus_phase2": {
+    "ticks_avec_reecriture": 0,
+    "lignes_reecrites": 0
+   },
+   "reconstructions_phase2": {
+    "constructions": 5,
+    "B": [
+     12,
+     11,
+     9,
+     4,
+     1
+    ]
+   },
+   "corps_apres_phase2": {
+    "conforme": true,
+    "n_ecarts": 0,
+    "ecart_rel_max": 2.2151855622179722e-08
+   },
+   "elapsed_s": 815.6342442035675,
+   "cpu_s": 593.640625,
+   "lieu": {
+    "platform": "Windows-11-10.0.26200-SP0",
+    "python": "3.13.12",
+    "torch": "2.6.0+cu124",
+    "torch_threads": 16,
+    "AGAGI_CPU_LIMIT": null,
+    "AGAGI_IMAGE": null
+   },
+   "provenance": {
+    "git_sha": "227060207e9c72d239b09f506ad92a85f53484f9",
+    "dirty": false,
+    "rule": "E34-IDENTITY-CELL",
+    "seal": "a04677d41a3b04f6541b1c6f768b4fa45662c412f2cedc8237c94492bfa6ed03"
+   },
+   "charge_debut": {
+    "cpu_percent_1s": 53.7,
+    "python_procs": 14,
+    "t": "2026-10-13T23:21:56"
+   },
+   "charge_fin": {
+    "cpu_percent_1s": 73.4,
+    "python_procs": 15,
+    "t": "2026-10-13T23:35:33"
+   }
+  },
+  "rep_08": {
+   "seed": 2026,
+   "arm": "rep_08",
+   "num_agents": 12,
+   "ticks_learn": 2000,
+   "ticks_test": 200,
+   "lr": null,
+   "treatment": {
+    "slot_reindex": false,
+    "cut_credit_at_t1": false,
+    "reseed_at_t1": 202608
+   },
+   "plafond_famine_ticks": 7.164478546849247,
+   "learning": {
+    "td_calls": 2000,
+    "td_updates": 1999,
+    "episode_calls": 250,
+    "episode_updates": 250,
+    "legacy_calls": 0,
+    "legacy_updates": 0,
+    "compute_spent_total": 0.0,
+    "forward_calls": 2000,
+    "skips": {},
+    "dW_abs_sum": 15800.475063681602,
+    "reward_scale": 1.0,
+    "td_enabled": true,
+    "lr": null,
+    "lr_effective_per_agent": 0.0033333333333333335,
+    "lr_effective_unit": "torch: lr/B (SGD, perte moyennée sur B, W disjoint par agent)",
+    "trace_lambda": null,
+    "trace_bypass_optimizer": false,
+    "trace_updates": 0,
+    "trace_resets": 0,
+    "resurrections": 22,
+    "slot_identity": {
+     "ticks_known": 2000,
+     "ticks_unknown": 0,
+     "slot_ticks_total": 24000,
+     "slot_ticks_misaligned": 14803,
+     "ticks_misaligned": 1719,
+     "first_misaligned_tick": 281,
+     "max_misaligned_slots": 10,
+     "slot_switches": 31,
+     "ticks_with_switch": 10,
+     "first_switch_tick": 281,
+     "switch_events": [
+      [
+       281,
+       5
+      ],
+      [
+       394,
+       2
+      ],
+      [
+       604,
+       2
+      ],
+      [
+       688,
+       2
+      ],
+      [
+       698,
+       10
+      ],
+      [
+       736,
+       2
+      ],
+      [
+       785,
+       2
+      ],
+      [
+       1495,
+       2
+      ],
+      [
+       1509,
+       2
+      ],
+      [
+       1981,
+       2
+      ]
+     ],
+     "order_changes": 10,
+     "first_order_change_tick": 281,
+     "positions_moved": 31,
+     "ticks_reordered": 0,
+     "positions_reordered": 0,
+     "first_reorder_tick": null,
+     "reindex_events": 0,
+     "rows_reindexed": 0,
+     "first_reindex_tick": null,
+     "sham_relabel": 0,
+     "relabel_events": 0,
+     "rows_relabeled": 0,
+     "first_relabel_tick": null,
+     "relabel_draws": 0,
+     "ticks_body_reordered": 0,
+     "credit_cut_tick": null,
+     "reseed_seed": 202608,
+     "reseed_tick": 281,
+     "repairings": 5,
+     "slot_order_fix": false,
+     "slot_reindex": false,
+     "rng_census": {
+      "marque": "t1=281",
+      "appels_avant": 26322,
+      "n_sites_avant": 13,
+      "appels_apres": 150203,
+      "n_sites_apres": 8,
+      "sites_apres": {
+       "src/worlds/world_1_stoneage.py:1187": 20616,
+       "src/worlds/world_1_stoneage.py:1188": 20616,
+       "src/worlds/world_1_stoneage.py:1224": 17,
+       "src/worlds/world_1_stoneage.py:1233": 176,
+       "src/worlds/world_1_stoneage.py:1375": 20616,
+       "src/worlds/world_1_stoneage.py:335": 259,
+       "src/worlds/world_1_stoneage.py:347": 62755,
+       "src/worlds/world_1_stoneage.py:668": 25148
+      },
+      "reensemencements_avant": 1,
+      "reensemencements_apres": 0,
+      "torch_rng_change_apres": false,
+      "py_random_change_apres": false,
+      "perimetre": {
+       "tirages": [
+        "beta",
+        "binomial",
+        "bytes",
+        "chisquare",
+        "choice",
+        "dirichlet",
+        "exponential",
+        "f",
+        "gamma",
+        "geometric",
+        "gumbel",
+        "hypergeometric",
+        "laplace",
+        "logistic",
+        "lognormal",
+        "logseries",
+        "multinomial",
+        "multivariate_normal",
+        "negative_binomial",
+        "noncentral_chisquare",
+        "noncentral_f",
+        "normal",
+        "pareto",
+        "permutation",
+        "poisson",
+        "power",
+        "rand",
+        "randint",
+        "randn",
+        "random",
+        "random_integers",
+        "random_sample",
+        "ranf",
+        "rayleigh",
+        "sample",
+        "shuffle",
+        "standard_cauchy",
+        "standard_exponential",
+        "standard_gamma",
+        "standard_normal",
+        "standard_t",
+        "triangular",
+        "uniform",
+        "vonmises",
+        "wald",
+        "weibull",
+        "zipf"
+       ],
+       "reensemencements": [
+        "seed",
+        "set_state",
+        "set_bit_generator"
+       ]
+      }
+     }
+    },
+    "ticks": 2000
+   },
+   "consensus_phase1": {
+    "ticks_avec_reecriture": 0,
+    "lignes_reecrites": 0
+   },
+   "reconstructions_phase1": {
+    "constructions": 1,
+    "B": [
+     12
+    ]
+   },
+   "corps_apres_phase1": {
+    "conforme": true,
+    "n_ecarts": 0,
+    "ecart_rel_max": 2.2151855622179722e-08
+   },
+   "survival": {
+    "survival_median": 7.5,
+    "ages": [
+     7,
+     7,
+     7,
+     7,
+     7,
+     7,
+     8,
+     9,
+     10,
+     11,
+     11,
+     11
+    ],
+    "censored": 0,
+    "ticks": 11,
+    "dose_phase2": {
+     "td_calls": 11,
+     "td_updates": 0,
+     "episode_calls": 1,
+     "episode_updates": 1,
+     "legacy_calls": 0,
+     "legacy_updates": 0,
+     "compute_spent_total": 0.0,
+     "forward_calls": 11,
+     "skips": {
+      "td_disabled": 11
+     },
+     "dW_abs_sum": 0.0,
+     "reward_scale": 1.0,
+     "td_enabled": false,
+     "lr": 0.0,
+     "lr_effective_per_agent": null,
+     "lr_effective_unit": null,
+     "trace_lambda": null,
+     "trace_bypass_optimizer": false,
+     "trace_updates": 0,
+     "trace_resets": 0
+    }
+   },
+   "consensus_phase2": {
+    "ticks_avec_reecriture": 0,
+    "lignes_reecrites": 0
+   },
+   "reconstructions_phase2": {
+    "constructions": 5,
+    "B": [
+     12,
+     6,
+     5,
+     4,
+     3
+    ]
+   },
+   "corps_apres_phase2": {
+    "conforme": true,
+    "n_ecarts": 0,
+    "ecart_rel_max": 2.2151855622179722e-08
+   },
+   "elapsed_s": 852.7092461585999,
+   "cpu_s": 630.65625,
+   "lieu": {
+    "platform": "Windows-11-10.0.26200-SP0",
+    "python": "3.13.12",
+    "torch": "2.6.0+cu124",
+    "torch_threads": 16,
+    "AGAGI_CPU_LIMIT": null,
+    "AGAGI_IMAGE": null
+   },
+   "provenance": {
+    "git_sha": "227060207e9c72d239b09f506ad92a85f53484f9",
+    "dirty": false,
+    "rule": "E34-IDENTITY-CELL",
+    "seal": "a04677d41a3b04f6541b1c6f768b4fa45662c412f2cedc8237c94492bfa6ed03"
+   },
+   "charge_debut": {
+    "cpu_percent_1s": 47.2,
+    "python_procs": 14,
+    "t": "2026-10-13T23:22:54"
+   },
+   "charge_fin": {
+    "cpu_percent_1s": 54.6,
+    "python_procs": 14,
+    "t": "2026-10-13T23:37:08"
+   }
+  },
+  "rep_09": {
+   "seed": 2026,
+   "arm": "rep_09",
+   "num_agents": 12,
+   "ticks_learn": 2000,
+   "ticks_test": 200,
+   "lr": null,
+   "treatment": {
+    "slot_reindex": false,
+    "cut_credit_at_t1": false,
+    "reseed_at_t1": 202609
+   },
+   "plafond_famine_ticks": 7.164478546849247,
+   "learning": {
+    "td_calls": 2000,
+    "td_updates": 1999,
+    "episode_calls": 250,
+    "episode_updates": 250,
+    "legacy_calls": 0,
+    "legacy_updates": 0,
+    "compute_spent_total": 0.0,
+    "forward_calls": 2000,
+    "skips": {},
+    "dW_abs_sum": 16909.825653254986,
+    "reward_scale": 1.0,
+    "td_enabled": true,
+    "lr": null,
+    "lr_effective_per_agent": 0.0033333333333333335,
+    "lr_effective_unit": "torch: lr/B (SGD, perte moyennée sur B, W disjoint par agent)",
+    "trace_lambda": null,
+    "trace_bypass_optimizer": false,
+    "trace_updates": 0,
+    "trace_resets": 0,
+    "resurrections": 17,
+    "slot_identity": {
+     "ticks_known": 2000,
+     "ticks_unknown": 0,
+     "slot_ticks_total": 24000,
+     "slot_ticks_misaligned": 8061,
+     "ticks_misaligned": 1719,
+     "first_misaligned_tick": 281,
+     "max_misaligned_slots": 5,
+     "slot_switches": 15,
+     "ticks_with_switch": 5,
+     "first_switch_tick": 281,
+     "switch_events": [
+      [
+       281,
+       5
+      ],
+      [
+       689,
+       3
+      ],
+      [
+       928,
+       2
+      ],
+      [
+       995,
+       3
+      ],
+      [
+       1462,
+       2
+      ]
+     ],
+     "order_changes": 5,
+     "first_order_change_tick": 281,
+     "positions_moved": 15,
+     "ticks_reordered": 0,
+     "positions_reordered": 0,
+     "first_reorder_tick": null,
+     "reindex_events": 0,
+     "rows_reindexed": 0,
+     "first_reindex_tick": null,
+     "sham_relabel": 0,
+     "relabel_events": 0,
+     "rows_relabeled": 0,
+     "first_relabel_tick": null,
+     "relabel_draws": 0,
+     "ticks_body_reordered": 0,
+     "credit_cut_tick": null,
+     "reseed_seed": 202609,
+     "reseed_tick": 281,
+     "repairings": 2,
+     "slot_order_fix": false,
+     "slot_reindex": false,
+     "rng_census": {
+      "marque": "t1=281",
+      "appels_avant": 26322,
+      "n_sites_avant": 13,
+      "appels_apres": 149859,
+      "n_sites_apres": 8,
+      "sites_apres": {
+       "src/worlds/world_1_stoneage.py:1187": 20616,
+       "src/worlds/world_1_stoneage.py:1188": 20616,
+       "src/worlds/world_1_stoneage.py:1224": 19,
+       "src/worlds/world_1_stoneage.py:1233": 102,
+       "src/worlds/world_1_stoneage.py:1375": 20616,
+       "src/worlds/world_1_stoneage.py:335": 137,
+       "src/worlds/world_1_stoneage.py:347": 62125,
+       "src/worlds/world_1_stoneage.py:668": 25628
+      },
+      "reensemencements_avant": 1,
+      "reensemencements_apres": 0,
+      "torch_rng_change_apres": false,
+      "py_random_change_apres": false,
+      "perimetre": {
+       "tirages": [
+        "beta",
+        "binomial",
+        "bytes",
+        "chisquare",
+        "choice",
+        "dirichlet",
+        "exponential",
+        "f",
+        "gamma",
+        "geometric",
+        "gumbel",
+        "hypergeometric",
+        "laplace",
+        "logistic",
+        "lognormal",
+        "logseries",
+        "multinomial",
+        "multivariate_normal",
+        "negative_binomial",
+        "noncentral_chisquare",
+        "noncentral_f",
+        "normal",
+        "pareto",
+        "permutation",
+        "poisson",
+        "power",
+        "rand",
+        "randint",
+        "randn",
+        "random",
+        "random_integers",
+        "random_sample",
+        "ranf",
+        "rayleigh",
+        "sample",
+        "shuffle",
+        "standard_cauchy",
+        "standard_exponential",
+        "standard_gamma",
+        "standard_normal",
+        "standard_t",
+        "triangular",
+        "uniform",
+        "vonmises",
+        "wald",
+        "weibull",
+        "zipf"
+       ],
+       "reensemencements": [
+        "seed",
+        "set_state",
+        "set_bit_generator"
+       ]
+      }
+     }
+    },
+    "ticks": 2000
+   },
+   "consensus_phase1": {
+    "ticks_avec_reecriture": 0,
+    "lignes_reecrites": 0
+   },
+   "reconstructions_phase1": {
+    "constructions": 1,
+    "B": [
+     12
+    ]
+   },
+   "corps_apres_phase1": {
+    "conforme": true,
+    "n_ecarts": 0,
+    "ecart_rel_max": 2.2151855622179722e-08
+   },
+   "survival": {
+    "survival_median": 8.5,
+    "ages": [
+     5,
+     6,
+     7,
+     7,
+     8,
+     8,
+     9,
+     9,
+     10,
+     10,
+     11,
+     11
+    ],
+    "censored": 0,
+    "ticks": 11,
+    "dose_phase2": {
+     "td_calls": 11,
+     "td_updates": 0,
+     "episode_calls": 1,
+     "episode_updates": 1,
+     "legacy_calls": 0,
+     "legacy_updates": 0,
+     "compute_spent_total": 0.0,
+     "forward_calls": 11,
+     "skips": {
+      "td_disabled": 11
+     },
+     "dW_abs_sum": 0.0,
+     "reward_scale": 1.0,
+     "td_enabled": false,
+     "lr": 0.0,
+     "lr_effective_per_agent": null,
+     "lr_effective_unit": null,
+     "trace_lambda": null,
+     "trace_bypass_optimizer": false,
+     "trace_updates": 0,
+     "trace_resets": 0
+    }
+   },
+   "consensus_phase2": {
+    "ticks_avec_reecriture": 0,
+    "lignes_reecrites": 0
+   },
+   "reconstructions_phase2": {
+    "constructions": 7,
+    "B": [
+     12,
+     11,
+     10,
+     8,
+     6,
+     4,
+     2
+    ]
+   },
+   "corps_apres_phase2": {
+    "conforme": true,
+    "n_ecarts": 0,
+    "ecart_rel_max": 2.2151855622179722e-08
+   },
+   "elapsed_s": 854.4085719585419,
+   "cpu_s": 627.0,
+   "lieu": {
+    "platform": "Windows-11-10.0.26200-SP0",
+    "python": "3.13.12",
+    "torch": "2.6.0+cu124",
+    "torch_threads": 16,
+    "AGAGI_CPU_LIMIT": null,
+    "AGAGI_IMAGE": null
+   },
+   "provenance": {
+    "git_sha": "227060207e9c72d239b09f506ad92a85f53484f9",
+    "dirty": false,
+    "rule": "E34-IDENTITY-CELL",
+    "seal": "a04677d41a3b04f6541b1c6f768b4fa45662c412f2cedc8237c94492bfa6ed03"
+   },
+   "charge_debut": {
+    "cpu_percent_1s": 52.6,
+    "python_procs": 14,
+    "t": "2026-10-13T23:23:09"
+   },
+   "charge_fin": {
+    "cpu_percent_1s": 43.3,
+    "python_procs": 14,
+    "t": "2026-10-13T23:37:24"
+   }
+  },
+  "rep_10": {
+   "seed": 2026,
+   "arm": "rep_10",
+   "num_agents": 12,
+   "ticks_learn": 2000,
+   "ticks_test": 200,
+   "lr": null,
+   "treatment": {
+    "slot_reindex": false,
+    "cut_credit_at_t1": false,
+    "reseed_at_t1": 202610
+   },
+   "plafond_famine_ticks": 7.164478546849247,
+   "learning": {
+    "td_calls": 2000,
+    "td_updates": 1999,
+    "episode_calls": 250,
+    "episode_updates": 250,
+    "legacy_calls": 0,
+    "legacy_updates": 0,
+    "compute_spent_total": 0.0,
+    "forward_calls": 2000,
+    "skips": {},
+    "dW_abs_sum": 17834.192309617996,
+    "reward_scale": 1.0,
+    "td_enabled": true,
+    "lr": null,
+    "lr_effective_per_agent": 0.0033333333333333335,
+    "lr_effective_unit": "torch: lr/B (SGD, perte moyennée sur B, W disjoint par agent)",
+    "trace_lambda": null,
+    "trace_bypass_optimizer": false,
+    "trace_updates": 0,
+    "trace_resets": 0,
+    "resurrections": 4,
+    "slot_identity": {
+     "ticks_known": 2000,
+     "ticks_unknown": 0,
+     "slot_ticks_total": 24000,
+     "slot_ticks_misaligned": 8595,
+     "ticks_misaligned": 1719,
+     "first_misaligned_tick": 281,
+     "max_misaligned_slots": 5,
+     "slot_switches": 8,
+     "ticks_with_switch": 2,
+     "first_switch_tick": 281,
+     "switch_events": [
+      [
+       281,
+       5
+      ],
+      [
+       419,
+       3
+      ]
+     ],
+     "order_changes": 2,
+     "first_order_change_tick": 281,
+     "positions_moved": 8,
+     "ticks_reordered": 0,
+     "positions_reordered": 0,
+     "first_reorder_tick": null,
+     "reindex_events": 0,
+     "rows_reindexed": 0,
+     "first_reindex_tick": null,
+     "sham_relabel": 0,
+     "relabel_events": 0,
+     "rows_relabeled": 0,
+     "first_relabel_tick": null,
+     "relabel_draws": 0,
+     "ticks_body_reordered": 0,
+     "credit_cut_tick": null,
+     "reseed_seed": 202610,
+     "reseed_tick": 281,
+     "repairings": 0,
+     "slot_order_fix": false,
+     "slot_reindex": false,
+     "rng_census": {
+      "marque": "t1=281",
+      "appels_avant": 26322,
+      "n_sites_avant": 13,
+      "appels_apres": 146369,
+      "n_sites_apres": 8,
+      "sites_apres": {
+       "src/worlds/world_1_stoneage.py:1187": 20616,
+       "src/worlds/world_1_stoneage.py:1188": 20616,
+       "src/worlds/world_1_stoneage.py:1224": 18,
+       "src/worlds/world_1_stoneage.py:1233": 214,
+       "src/worlds/world_1_stoneage.py:1375": 20616,
+       "src/worlds/world_1_stoneage.py:335": 306,
+       "src/worlds/world_1_stoneage.py:347": 58660,
+       "src/worlds/world_1_stoneage.py:668": 25323
+      },
+      "reensemencements_avant": 1,
+      "reensemencements_apres": 0,
+      "torch_rng_change_apres": false,
+      "py_random_change_apres": false,
+      "perimetre": {
+       "tirages": [
+        "beta",
+        "binomial",
+        "bytes",
+        "chisquare",
+        "choice",
+        "dirichlet",
+        "exponential",
+        "f",
+        "gamma",
+        "geometric",
+        "gumbel",
+        "hypergeometric",
+        "laplace",
+        "logistic",
+        "lognormal",
+        "logseries",
+        "multinomial",
+        "multivariate_normal",
+        "negative_binomial",
+        "noncentral_chisquare",
+        "noncentral_f",
+        "normal",
+        "pareto",
+        "permutation",
+        "poisson",
+        "power",
+        "rand",
+        "randint",
+        "randn",
+        "random",
+        "random_integers",
+        "random_sample",
+        "ranf",
+        "rayleigh",
+        "sample",
+        "shuffle",
+        "standard_cauchy",
+        "standard_exponential",
+        "standard_gamma",
+        "standard_normal",
+        "standard_t",
+        "triangular",
+        "uniform",
+        "vonmises",
+        "wald",
+        "weibull",
+        "zipf"
+       ],
+       "reensemencements": [
+        "seed",
+        "set_state",
+        "set_bit_generator"
+       ]
+      }
+     }
+    },
+    "ticks": 2000
+   },
+   "consensus_phase1": {
+    "ticks_avec_reecriture": 0,
+    "lignes_reecrites": 0
+   },
+   "reconstructions_phase1": {
+    "constructions": 1,
+    "B": [
+     12
+    ]
+   },
+   "corps_apres_phase1": {
+    "conforme": true,
+    "n_ecarts": 0,
+    "ecart_rel_max": 2.2151855622179722e-08
+   },
+   "survival": {
+    "survival_median": 7.5,
+    "ages": [
+     7,
+     7,
+     7,
+     7,
+     7,
+     7,
+     8,
+     8,
+     9,
+     11,
+     11,
+     11
+    ],
+    "censored": 0,
+    "ticks": 11,
+    "dose_phase2": {
+     "td_calls": 11,
+     "td_updates": 0,
+     "episode_calls": 1,
+     "episode_updates": 1,
+     "legacy_calls": 0,
+     "legacy_updates": 0,
+     "compute_spent_total": 0.0,
+     "forward_calls": 11,
+     "skips": {
+      "td_disabled": 11
+     },
+     "dW_abs_sum": 0.0,
+     "reward_scale": 1.0,
+     "td_enabled": false,
+     "lr": 0.0,
+     "lr_effective_per_agent": null,
+     "lr_effective_unit": null,
+     "trace_lambda": null,
+     "trace_bypass_optimizer": false,
+     "trace_updates": 0,
+     "trace_resets": 0
+    }
+   },
+   "consensus_phase2": {
+    "ticks_avec_reecriture": 0,
+    "lignes_reecrites": 0
+   },
+   "reconstructions_phase2": {
+    "constructions": 4,
+    "B": [
+     12,
+     6,
+     4,
+     3
+    ]
+   },
+   "corps_apres_phase2": {
+    "conforme": true,
+    "n_ecarts": 0,
+    "ecart_rel_max": 2.2151855622179722e-08
+   },
+   "elapsed_s": 791.2020020484924,
+   "cpu_s": 575.109375,
+   "lieu": {
+    "platform": "Windows-11-10.0.26200-SP0",
+    "python": "3.13.12",
+    "torch": "2.6.0+cu124",
+    "torch_threads": 16,
+    "AGAGI_CPU_LIMIT": null,
+    "AGAGI_IMAGE": null
+   },
+   "provenance": {
+    "git_sha": "227060207e9c72d239b09f506ad92a85f53484f9",
+    "dirty": false,
+    "rule": "E34-IDENTITY-CELL",
+    "seal": "a04677d41a3b04f6541b1c6f768b4fa45662c412f2cedc8237c94492bfa6ed03"
+   },
+   "charge_debut": {
+    "cpu_percent_1s": 46.1,
+    "python_procs": 14,
+    "t": "2026-10-13T23:23:21"
+   },
+   "charge_fin": {
+    "cpu_percent_1s": 44.6,
+    "python_procs": 14,
+    "t": "2026-10-13T23:36:34"
+   }
+  },
+  "rep_11": {
+   "seed": 2026,
+   "arm": "rep_11",
+   "num_agents": 12,
+   "ticks_learn": 2000,
+   "ticks_test": 200,
+   "lr": null,
+   "treatment": {
+    "slot_reindex": false,
+    "cut_credit_at_t1": false,
+    "reseed_at_t1": 202611
+   },
+   "plafond_famine_ticks": 7.164478546849247,
+   "learning": {
+    "td_calls": 2000,
+    "td_updates": 1999,
+    "episode_calls": 250,
+    "episode_updates": 250,
+    "legacy_calls": 0,
+    "legacy_updates": 0,
+    "compute_spent_total": 0.0,
+    "forward_calls": 2000,
+    "skips": {},
+    "dW_abs_sum": 16719.02575671673,
+    "reward_scale": 1.0,
+    "td_enabled": true,
+    "lr": null,
+    "lr_effective_per_agent": 0.0033333333333333335,
+    "lr_effective_unit": "torch: lr/B (SGD, perte moyennée sur B, W disjoint par agent)",
+    "trace_lambda": null,
+    "trace_bypass_optimizer": false,
+    "trace_updates": 0,
+    "trace_resets": 0,
+    "resurrections": 11,
+    "slot_identity": {
+     "ticks_known": 2000,
+     "ticks_unknown": 0,
+     "slot_ticks_total": 24000,
+     "slot_ticks_misaligned": 11864,
+     "ticks_misaligned": 1719,
+     "first_misaligned_tick": 281,
+     "max_misaligned_slots": 10,
+     "slot_switches": 45,
+     "ticks_with_switch": 8,
+     "first_switch_tick": 281,
+     "switch_events": [
+      [
+       281,
+       5
+      ],
+      [
+       352,
+       3
+      ],
+      [
+       493,
+       7
+      ],
+      [
+       1041,
+       6
+      ],
+      [
+       1273,
+       4
+      ],
+      [
+       1507,
+       10
+      ],
+      [
+       1513,
+       6
+      ],
+      [
+       1851,
+       4
+      ]
+     ],
+     "order_changes": 8,
+     "first_order_change_tick": 281,
+     "positions_moved": 45,
+     "ticks_reordered": 0,
+     "positions_reordered": 0,
+     "first_reorder_tick": null,
+     "reindex_events": 0,
+     "rows_reindexed": 0,
+     "first_reindex_tick": null,
+     "sham_relabel": 0,
+     "relabel_events": 0,
+     "rows_relabeled": 0,
+     "first_relabel_tick": null,
+     "relabel_draws": 0,
+     "ticks_body_reordered": 0,
+     "credit_cut_tick": null,
+     "reseed_seed": 202611,
+     "reseed_tick": 281,
+     "repairings": 3,
+     "slot_order_fix": false,
+     "slot_reindex": false,
+     "rng_census": {
+      "marque": "t1=281",
+      "appels_avant": 26322,
+      "n_sites_avant": 13,
+      "appels_apres": 156667,
+      "n_sites_apres": 8,
+      "sites_apres": {
+       "src/worlds/world_1_stoneage.py:1187": 20616,
+       "src/worlds/world_1_stoneage.py:1188": 20616,
+       "src/worlds/world_1_stoneage.py:1224": 17,
+       "src/worlds/world_1_stoneage.py:1233": 180,
+       "src/worlds/world_1_stoneage.py:1375": 20616,
+       "src/worlds/world_1_stoneage.py:335": 267,
+       "src/worlds/world_1_stoneage.py:347": 68950,
+       "src/worlds/world_1_stoneage.py:668": 25405
+      },
+      "reensemencements_avant": 1,
+      "reensemencements_apres": 0,
+      "torch_rng_change_apres": false,
+      "py_random_change_apres": false,
+      "perimetre": {
+       "tirages": [
+        "beta",
+        "binomial",
+        "bytes",
+        "chisquare",
+        "choice",
+        "dirichlet",
+        "exponential",
+        "f",
+        "gamma",
+        "geometric",
+        "gumbel",
+        "hypergeometric",
+        "laplace",
+        "logistic",
+        "lognormal",
+        "logseries",
+        "multinomial",
+        "multivariate_normal",
+        "negative_binomial",
+        "noncentral_chisquare",
+        "noncentral_f",
+        "normal",
+        "pareto",
+        "permutation",
+        "poisson",
+        "power",
+        "rand",
+        "randint",
+        "randn",
+        "random",
+        "random_integers",
+        "random_sample",
+        "ranf",
+        "rayleigh",
+        "sample",
+        "shuffle",
+        "standard_cauchy",
+        "standard_exponential",
+        "standard_gamma",
+        "standard_normal",
+        "standard_t",
+        "triangular",
+        "uniform",
+        "vonmises",
+        "wald",
+        "weibull",
+        "zipf"
+       ],
+       "reensemencements": [
+        "seed",
+        "set_state",
+        "set_bit_generator"
+       ]
+      }
+     }
+    },
+    "ticks": 2000
+   },
+   "consensus_phase1": {
+    "ticks_avec_reecriture": 0,
+    "lignes_reecrites": 0
+   },
+   "reconstructions_phase1": {
+    "constructions": 1,
+    "B": [
+     12
+    ]
+   },
+   "corps_apres_phase1": {
+    "conforme": true,
+    "n_ecarts": 0,
+    "ecart_rel_max": 2.2151855622179722e-08
+   },
+   "survival": {
+    "survival_median": 8.0,
+    "ages": [
+     6,
+     7,
+     7,
+     7,
+     8,
+     8,
+     8,
+     8,
+     9,
+     9,
+     9,
+     11
+    ],
+    "censored": 0,
+    "ticks": 11,
+    "dose_phase2": {
+     "td_calls": 11,
+     "td_updates": 0,
+     "episode_calls": 1,
+     "episode_updates": 1,
+     "legacy_calls": 0,
+     "legacy_updates": 0,
+     "compute_spent_total": 0.0,
+     "forward_calls": 11,
+     "skips": {
+      "td_disabled": 11
+     },
+     "dW_abs_sum": 0.0,
+     "reward_scale": 1.0,
+     "td_enabled": false,
+     "lr": 0.0,
+     "lr_effective_per_agent": null,
+     "lr_effective_unit": null,
+     "trace_lambda": null,
+     "trace_bypass_optimizer": false,
+     "trace_updates": 0,
+     "trace_resets": 0
+    }
+   },
+   "consensus_phase2": {
+    "ticks_avec_reecriture": 0,
+    "lignes_reecrites": 0
+   },
+   "reconstructions_phase2": {
+    "constructions": 5,
+    "B": [
+     12,
+     11,
+     8,
+     4,
+     1
+    ]
+   },
+   "corps_apres_phase2": {
+    "conforme": true,
+    "n_ecarts": 0,
+    "ecart_rel_max": 2.2151855622179722e-08
+   },
+   "elapsed_s": 712.6678833961487,
+   "cpu_s": 607.546875,
+   "lieu": {
+    "platform": "Windows-11-10.0.26200-SP0",
+    "python": "3.13.12",
+    "torch": "2.6.0+cu124",
+    "torch_threads": 16,
+    "AGAGI_CPU_LIMIT": null,
+    "AGAGI_IMAGE": null
+   },
+   "provenance": {
+    "git_sha": "227060207e9c72d239b09f506ad92a85f53484f9",
+    "dirty": false,
+    "rule": "E34-IDENTITY-CELL",
+    "seal": "a04677d41a3b04f6541b1c6f768b4fa45662c412f2cedc8237c94492bfa6ed03"
+   },
+   "charge_debut": {
+    "cpu_percent_1s": 85.1,
+    "python_procs": 18,
+    "t": "2026-10-13T23:34:07"
+   },
+   "charge_fin": {
+    "cpu_percent_1s": 59.9,
+    "python_procs": 15,
+    "t": "2026-10-13T23:46:01"
+   }
+  },
+  "rep_12": {
+   "seed": 2026,
+   "arm": "rep_12",
+   "num_agents": 12,
+   "ticks_learn": 2000,
+   "ticks_test": 200,
+   "lr": null,
+   "treatment": {
+    "slot_reindex": false,
+    "cut_credit_at_t1": false,
+    "reseed_at_t1": 202612
+   },
+   "plafond_famine_ticks": 7.164478546849247,
+   "learning": {
+    "td_calls": 2000,
+    "td_updates": 1999,
+    "episode_calls": 250,
+    "episode_updates": 250,
+    "legacy_calls": 0,
+    "legacy_updates": 0,
+    "compute_spent_total": 0.0,
+    "forward_calls": 2000,
+    "skips": {},
+    "dW_abs_sum": 18377.36318743229,
+    "reward_scale": 1.0,
+    "td_enabled": true,
+    "lr": null,
+    "lr_effective_per_agent": 0.0033333333333333335,
+    "lr_effective_unit": "torch: lr/B (SGD, perte moyennée sur B, W disjoint par agent)",
+    "trace_lambda": null,
+    "trace_bypass_optimizer": false,
+    "trace_updates": 0,
+    "trace_resets": 0,
+    "resurrections": 11,
+    "slot_identity": {
+     "ticks_known": 2000,
+     "ticks_unknown": 0,
+     "slot_ticks_total": 24000,
+     "slot_ticks_misaligned": 10308,
+     "ticks_misaligned": 1719,
+     "first_misaligned_tick": 281,
+     "max_misaligned_slots": 7,
+     "slot_switches": 24,
+     "ticks_with_switch": 5,
+     "first_switch_tick": 281,
+     "switch_events": [
+      [
+       281,
+       5
+      ],
+      [
+       410,
+       2
+      ],
+      [
+       421,
+       7
+      ],
+      [
+       1203,
+       4
+      ],
+      [
+       1283,
+       6
+      ]
+     ],
+     "order_changes": 5,
+     "first_order_change_tick": 281,
+     "positions_moved": 24,
+     "ticks_reordered": 0,
+     "positions_reordered": 0,
+     "first_reorder_tick": null,
+     "reindex_events": 0,
+     "rows_reindexed": 0,
+     "first_reindex_tick": null,
+     "sham_relabel": 0,
+     "relabel_events": 0,
+     "rows_relabeled": 0,
+     "first_relabel_tick": null,
+     "relabel_draws": 0,
+     "ticks_body_reordered": 0,
+     "credit_cut_tick": null,
+     "reseed_seed": 202612,
+     "reseed_tick": 281,
+     "repairings": 3,
+     "slot_order_fix": false,
+     "slot_reindex": false,
+     "rng_census": {
+      "marque": "t1=281",
+      "appels_avant": 26322,
+      "n_sites_avant": 13,
+      "appels_apres": 164093,
+      "n_sites_apres": 8,
+      "sites_apres": {
+       "src/worlds/world_1_stoneage.py:1187": 20616,
+       "src/worlds/world_1_stoneage.py:1188": 20616,
+       "src/worlds/world_1_stoneage.py:1224": 17,
+       "src/worlds/world_1_stoneage.py:1233": 155,
+       "src/worlds/world_1_stoneage.py:1375": 20616,
+       "src/worlds/world_1_stoneage.py:335": 227,
+       "src/worlds/world_1_stoneage.py:347": 76410,
+       "src/worlds/world_1_stoneage.py:668": 25436
+      },
+      "reensemencements_avant": 1,
+      "reensemencements_apres": 0,
+      "torch_rng_change_apres": false,
+      "py_random_change_apres": false,
+      "perimetre": {
+       "tirages": [
+        "beta",
+        "binomial",
+        "bytes",
+        "chisquare",
+        "choice",
+        "dirichlet",
+        "exponential",
+        "f",
+        "gamma",
+        "geometric",
+        "gumbel",
+        "hypergeometric",
+        "laplace",
+        "logistic",
+        "lognormal",
+        "logseries",
+        "multinomial",
+        "multivariate_normal",
+        "negative_binomial",
+        "noncentral_chisquare",
+        "noncentral_f",
+        "normal",
+        "pareto",
+        "permutation",
+        "poisson",
+        "power",
+        "rand",
+        "randint",
+        "randn",
+        "random",
+        "random_integers",
+        "random_sample",
+        "ranf",
+        "rayleigh",
+        "sample",
+        "shuffle",
+        "standard_cauchy",
+        "standard_exponential",
+        "standard_gamma",
+        "standard_normal",
+        "standard_t",
+        "triangular",
+        "uniform",
+        "vonmises",
+        "wald",
+        "weibull",
+        "zipf"
+       ],
+       "reensemencements": [
+        "seed",
+        "set_state",
+        "set_bit_generator"
+       ]
+      }
+     }
+    },
+    "ticks": 2000
+   },
+   "consensus_phase1": {
+    "ticks_avec_reecriture": 0,
+    "lignes_reecrites": 0
+   },
+   "reconstructions_phase1": {
+    "constructions": 1,
+    "B": [
+     12
+    ]
+   },
+   "corps_apres_phase1": {
+    "conforme": true,
+    "n_ecarts": 0,
+    "ecart_rel_max": 2.2151855622179722e-08
+   },
+   "survival": {
+    "survival_median": 9.0,
+    "ages": [
+     4,
+     7,
+     8,
+     8,
+     9,
+     9,
+     9,
+     9,
+     9,
+     10,
+     12,
+     14
+    ],
+    "censored": 0,
+    "ticks": 14,
+    "dose_phase2": {
+     "td_calls": 14,
+     "td_updates": 0,
+     "episode_calls": 1,
+     "episode_updates": 1,
+     "legacy_calls": 0,
+     "legacy_updates": 0,
+     "compute_spent_total": 0.0,
+     "forward_calls": 14,
+     "skips": {
+      "td_disabled": 14
+     },
+     "dW_abs_sum": 0.0,
+     "reward_scale": 1.0,
+     "td_enabled": false,
+     "lr": 0.0,
+     "lr_effective_per_agent": null,
+     "lr_effective_unit": null,
+     "trace_lambda": null,
+     "trace_bypass_optimizer": false,
+     "trace_updates": 0,
+     "trace_resets": 0
+    }
+   },
+   "consensus_phase2": {
+    "ticks_avec_reecriture": 0,
+    "lignes_reecrites": 0
+   },
+   "reconstructions_phase2": {
+    "constructions": 7,
+    "B": [
+     12,
+     11,
+     10,
+     8,
+     3,
+     2,
+     1
+    ]
+   },
+   "corps_apres_phase2": {
+    "conforme": true,
+    "n_ecarts": 0,
+    "ecart_rel_max": 2.2151855622179722e-08
+   },
+   "elapsed_s": 767.9196975231171,
+   "cpu_s": 663.21875,
+   "lieu": {
+    "platform": "Windows-11-10.0.26200-SP0",
+    "python": "3.13.12",
+    "torch": "2.6.0+cu124",
+    "torch_threads": 16,
+    "AGAGI_CPU_LIMIT": null,
+    "AGAGI_IMAGE": null
+   },
+   "provenance": {
+    "git_sha": "227060207e9c72d239b09f506ad92a85f53484f9",
+    "dirty": false,
+    "rule": "E34-IDENTITY-CELL",
+    "seal": "a04677d41a3b04f6541b1c6f768b4fa45662c412f2cedc8237c94492bfa6ed03"
+   },
+   "charge_debut": {
+    "cpu_percent_1s": 72.2,
+    "python_procs": 16,
+    "t": "2026-10-13T23:34:49"
+   },
+   "charge_fin": {
+    "cpu_percent_1s": 72.5,
+    "python_procs": 15,
+    "t": "2026-10-13T23:47:38"
+   }
+  }
+ }
+}
