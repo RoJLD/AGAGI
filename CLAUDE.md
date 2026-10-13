@@ -442,6 +442,13 @@ explicite, jamais le processus courant ni ses ancêtres, jamais un bail dont le 
 
 ## Environnement
 - Arbre de travail **partagé entre sessions parallèles** → commits path-scoped obligatoires.
+- ⚠️ **Un autre agent travaille sur ce dépôt : Antigravity (IDE Gemini). Il est CONFINÉ à la branche
+  `feat/langage-ultime`** (décision de robla du 2026-10-13), lit ses règles dans `GEMINI.md` et dialogue avec la
+  flotte par `docs/roadmap/PASSERELLE_ANTIGRAVITY.md`. Rien de lui n'entre dans `feat/d1-prod-pairing` sans y passer
+  et sans l'intégration de Master 2. Mesuré du 9 au 11/10 : 31 commits poussés directement sur d1 sous l'identité
+  git commune (l'auteur ne distingue RIEN), crochet contourné, deux mondes rompus par défaut, KuzuDB écrite —
+  retirés par revert (4d08b025), conservés sur sa branche. Son ancien `GEMINI.md` lui ORDONNAIT d'écrire en KuzuDB :
+  deux règles divergentes sur un même dépôt produisent deux disciplines.
 - ⚠️ **Une CITATION et son ARTEFACT partent dans le MÊME commit — stager ne suffit pas.** Mesuré le
   2026-09-22, sur trois sessions bloquées coup sur coup : un `git commit -- <chemins>` (et la méthode
   d'index temporaire `git read-tree HEAD` + `git add`) construit un index qui contient **HEAD plus les
