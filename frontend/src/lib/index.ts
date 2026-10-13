@@ -17,6 +17,16 @@ export function detailRaisons(c: Record<string, number> | null | undefined): str
     .join(" · ");
 }
 
+export type BlocIndex = "dates" | "familles" | "hors_familles" | "artefacts";
+
+/** Pourquoi un bloc est null : ses lignes (« bloc : … ») et celles du mode dégradé (« index: … ») ; sans aucune
+ *  ligne, le message l'AVOUE — jamais un silence ni une cause inventée (règle du lot 1, spec §3.5 ; revue finale, M2). */
+export function messageIndex(aveugle: readonly string[], bloc: BlocIndex, libelle: string): string {
+  const lignes = aveugle.filter((l) => l.startsWith(`${bloc} :`) || l.startsWith("index:"));
+  if (lignes.length) return `${libelle} indisponibles — ${lignes.join(" · ")}`;
+  return `${libelle} indisponibles — le backend n'a publié aucune ligne qui nomme ce bloc (à signaler)`;
+}
+
 export interface FiltreIndex {
   famille: string;
   texte: string;

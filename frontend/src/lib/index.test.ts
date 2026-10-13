@@ -1,5 +1,5 @@
 import { describe, expect, test } from "vitest";
-import { detailRaisons, filtrerArtefacts, LIMITE_AFFICHAGE, totalIntrouvables } from "./index";
+import { detailRaisons, filtrerArtefacts, LIMITE_AFFICHAGE, messageIndex, totalIntrouvables } from "./index";
 import type { IndexArtefact } from "../api/pm";
 
 const A = (o: Partial<IndexArtefact>): IndexArtefact => ({
@@ -47,5 +47,15 @@ describe("filtrerArtefacts", () => {
   });
   test("la limite d'affichage est un nombre déclaré", () => {
     expect(LIMITE_AFFICHAGE).toBe(300);
+  });
+});
+
+describe("messageIndex", () => {
+  test("un bloc null porte SES lignes et celles du mode dégradé, jamais un silence (revue finale, M2)", () => {
+    const av = ["familles : bloc refusé (x)", "artefacts : autre", "index: RuntimeError: y", "dates : z"];
+    expect(messageIndex(av, "familles", "Familles")).toBe(
+      "Familles indisponibles — familles : bloc refusé (x) · index: RuntimeError: y",
+    );
+    expect(messageIndex([], "artefacts", "Artefacts")).toMatch(/^Artefacts indisponibles — .*aucune ligne/);
   });
 });

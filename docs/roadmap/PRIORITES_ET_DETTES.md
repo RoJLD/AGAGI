@@ -3097,6 +3097,24 @@ est trouvée. À faire : reproduire hors pytest (importer l'app, créer puis rel
 l'app de pytest, lire la pile native du fil en `pipe_write`, et joindre ou détacher le fil fautif à l'arrêt. *Coût :
 agent 1-2 h sous WSL ; calcul 0.* Dépend de : rien.
 
+**P2.170 — OUVERTE (2026-10-14, revue finale du plan 1 de P2.87, session FRONT) — onglet Index : cinq défauts mineurs
+différés, dont un manque de la spec (filtre « illisible ») et une écriture non atomique de `DATES_GIT.json`.**
+Preuve : relecteur opus en lecture seule, le 2026-10-13. Ses trois défauts importants (libellés qui affirmaient une
+propriété du fichier, âge négatif ramené à 0, famille non lue présentée comme vide) et quatre mineurs regradés sont
+CORRIGÉS dans le commit qui inscrit cette entrée ; restent :
+(a) la spec §3.5 demande un filtre « illisible » sur la liste des artefacts, le plan l'a omis : avec PyYAML absent,
+~300 chemins illisibles s'empilent dans UNE cellule de la table des familles (`frontend/src/components/pilotage/IndexView.tsx`) ;
+(b) `tools/pm/index_artefacts.py` écrit `DATES_GIT.json` en place : un lecteur concurrent peut lire un JSON tronqué —
+il refuse honnêtement, mais affiche « dates indisponibles » jusqu'à 60 s (cache) ; correctif : fichier temporaire puis
+`os.replace`, comme `tools/pm/bulletin.py` ;
+(c) ni l'horodatage de l'index ni le `head` de l'instantané ne sont affichés : on ne voit pas qu'un instantané vient
+d'une autre branche (Review Focus 2 du plan), et « relu à chaque sondage » est inexact avec le cache de 60 s ;
+(d) `vscodeHref` (`frontend/src/lib/pilotage.ts`) concatène au `repo_root` un chemin ABSOLU — résultats hébergés hors
+du dépôt, le cas NAS de la porte 12 — et le lien est cassé ;
+(e) `frontend/src/lib/index.ts` porte un nom de fichier-baril qu'un futur import du répertoire capterait ; un nom non
+ambigu (indexArtefacts) l'éviterait.
+*Coût : agent 1-2 h ; calcul 0.* Dépend de : rien.
+
 **P2.136 — rang 6 — ✅ CLOSE le 2026-09-28 (ouverte le 2026-09-26 sur arbitrage de Master 2 : la règle du registre
 « pas de troisième fois » l'emporte sur le gel de la méthodo ; garde écrite et vérifiée le 26, committée le
 2026-09-28 — le commit a attendu l'autorisation de robla, puis la fin du gel de la flotte pour la reprise de P4.18) —
