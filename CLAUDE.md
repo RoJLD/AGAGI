@@ -502,6 +502,13 @@ explicite, jamais le processus courant ni ses ancêtres, jamais un bail dont le 
   LIGNE réel — le motif ne correspondait plus, l'assertion a levé (heureusement AVANT l'écriture). Même mécanisme que la
   règle des backticks : le canal shell transforme la chaîne. Écrire le script avec l'outil Write dans le scratchpad et
   l'exécuter par son chemin ; réserver le heredoc aux patches sans aucune séquence d'échappement.
+- ⚠️ **Aucune variable shell dans une commande passée à `wsl.exe`** (décision de robla, 2026-10-13 ; E21 occ. 4,
+  2026-09-28). Sans `-e`/`--exec`, `wsl.exe` relaie la ligne au shell par défaut de la distribution, qui développe
+  `$f` AVANT `bash -lc` : un `pytest "$f"` a reçu une chaîne VIDE et a collecté TOUTE la suite pendant ~12 min, sous
+  charge, et la garde de bail a alors SAUTÉ 33 tests lisibles comme un vert (face E4). Forme : écrire le script avec
+  l'outil Write et le lancer par son chemin (`wsl -d Ubuntu -- bash /mnt/c/…/script.sh`), ou passer par `--exec`.
+  Même mécanisme que les deux règles précédentes, troisième canal : le texte d'une commande traverse un shell de plus
+  qu'on ne le croit.
 - ⚠️ **Ne JAMAIS imbriquer une lecture dans l'appel qui ouvre le même fichier en ÉCRITURE.**
   `open(p, "w").write(open(p).read().replace(a, b))` évalue ses arguments de **gauche à droite** : le
   mode `"w"` TRONQUE le fichier **avant** que le `read()` interne ne le lise. Le read rend `""`, le
