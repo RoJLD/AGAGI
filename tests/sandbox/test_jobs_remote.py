@@ -1286,3 +1286,148 @@ def test_build_reussi_reporte_l_empreinte_du_journal_dans_IMAGE_json(depot_image
     fini = _job_build("Complete", startTime="2026-09-28T12:46:41Z", completionTime="2026-09-28T12:48:52Z")
     info = _construire(repo, sha, K([_job_build(), fini], _pod_build(kaniko={"exitCode": 0, "message": "sha256:" + "e" * 64})))
     assert info["empreinte_contenu"]["empreinte"] == e and info["empreinte_contenu"]["source"].startswith("journal du build")
+
+
+# ------------------------------------------------------------------------------------------ accrocs de l'API
+ACCROC = "kubectl get job : Unable to connect to the server: dial tcp 203.0.113.10:6443: i/o timeout"
+
+
+def test_accrocs_k_fois_puis_reponse_au_dela_du_plafond_refus_et_refus_de_fond_jamais_rejoue(tmp_path):
+    """Mesuré le 2026-10-13 : 7 « executer » sur 10 interrompus par l'API en une vague. Un appel idempotent est rejoué
+    jusqu'à ECHECS_API_MAX échecs DE SUITE, chacun imprimé et compté ; au-delà, un refus qui dit quoi faire ; un refus
+    de FOND (NotFound) remonte tout de suite, jamais rejoué."""
+    dits, etat = [], {"n": 0}
+
+    def k_fois(k):
+        def f():
+            etat["n"] += 1
+            if etat["n"] <= k:
+                raise R.Refus(ACCROC)
+            return "réponse"
+        return f
+
+    acc = R.Accrocs("job-x", dits.append, dormir=lambda _: None)
+    assert acc.appeler("lecture", k_fois(R.ECHECS_API_MAX - 1)) == "réponse"
+    assert acc.compte == {"lecture": R.ECHECS_API_MAX - 1} and len(dits) == R.ECHECS_API_MAX - 1
+    etat["n"] = 0
+    with pytest.raises(R.Refus, match="injoignable 3 fois de suite.*rapatrier"):
+        acc.appeler("tirage", k_fois(99), "relancer rapatrier avant l'échéance")
+    assert acc.compte["tirage"] == R.ECHECS_API_MAX
+
+    def de_fond():
+        raise R.Refus("kubectl get job : Error from server (NotFound): jobs.batch \"x\" not found")
+    with pytest.raises(R.Refus, match="NotFound"):
+        acc.appeler("fond", de_fond)
+    assert "fond" not in acc.compte
+    assert acc.publier(tmp_path) == {"lecture": 2, "tirage": 3}
+    autre = R.Accrocs("job-x", dits.append, dormir=lambda _: None)
+    autre.compte = {"lecture": 1}
+    assert autre.publier(tmp_path) == {"lecture": 3, "tirage": 3}            # le journal CUMULE les étapes
+    assert R.est_accroc_api(R.Refus("kubectl exec : pas de réponse en 60 s")) and not R.est_accroc_api(ValueError(ACCROC))
+
+
+def _job_run(attente_s=900, conds=()):
+    return {"metadata": {"name": "job-x", "annotations": {}},
+            "spec": {"template": {"spec": {"containers": [{"name": "run", "args": [
+                "/xfer/remote_entry.py", "--attendre-rapatriement", str(attente_s), "--", "-m", "x"]}]}}},
+            "status": {"conditions": [{"type": c, "status": "True"} for c in conds]}}
+
+
+class KubeAccrocs:
+    """Un faux kubectl dont chaque lecture suit un SCÉNARIO : 'accroc' lève comme une coupure de l'API, sinon répond."""
+    def __init__(self, lectures_job, pret_rc=0, tar=None):
+        self.lectures_job, self.pret_rc, self.tar, self.execs = list(lectures_job), pret_rc, tar, []
+
+    def json(self, args, ns=True):
+        if args[:2] == ["get", "job"]:
+            x = self.lectures_job.pop(0) if len(self.lectures_job) > 1 else self.lectures_job[0]
+            if x == "accroc":
+                raise R.Refus(ACCROC)
+            return x
+        if args[:2] == ["get", "node"]:
+            return _noeud()
+        raise AssertionError(f"appel inattendu {args}")
+
+    def pod_du_job(self, job):
+        return {"metadata": {"name": "pod-x"}, "spec": {"nodeName": "nexus"}, "status": {"phase": "Running"}}
+
+    def executer_dans(self, pod, conteneur, cmd, entree=None, timeout=600, verifier=True):
+        import types
+        self.execs.append(cmd[0])
+        if cmd[0] == "test":
+            return types.SimpleNamespace(returncode=self.pret_rc, stdout=b"", stderr=b"")
+        if cmd[0] == "tar" and self.tar == "accroc":
+            raise R.Refus("kubectl exec : Unable to connect to the server: dial tcp 203.0.113.10:6443")
+        return types.SimpleNamespace(returncode=0, stdout=b"", stderr=b"")
+
+
+def test_attendre_traverse_deux_accrocs_et_dit_l_heure_limite_de_la_sortie(tmp_path):
+    dits = []
+    k = KubeAccrocs(["accroc", "accroc", _job_run(900)])
+    fin = R.attendre("job-x", kube=k, sortie=dits.append, cfg=R.charger_config(), racine=tmp_path, dormir=lambda _: None)
+    assert fin["etat"] == "pret" and fin["rapatrier_avant_utc"]
+    assert sum("accroc de l'API" in m for m in dits) == 2 and any("le pod la garde jusqu'à" in m for m in dits)
+    journal = tmp_path / R.JOURNAL_LOCAL / "job-x" / "accrocs_api.json"
+    assert json.loads(journal.read_text(encoding="utf-8")) == {"attente de la fin": 2}
+
+
+def test_attendre_abandonne_au_dela_du_plafond_en_disant_jusqu_a_quand_la_sortie_est_gardee(tmp_path):
+    """Première lecture réussie (le Job déclare 900 s d'attente), runner pas encore fini, puis l'API tombe : l'abandon
+    dit la fenêtre RÉELLE du pod et la commande à relancer — la sortie n'est pas perdue tant qu'on rapatrie avant."""
+    k = KubeAccrocs([_job_run(900), "accroc", "accroc", "accroc", "accroc"], pret_rc=1)
+    with pytest.raises(R.Refus, match="injoignable 3 fois de suite.*900 s.*rapatrier job-x.*PERDUE"):
+        R.attendre("job-x", kube=k, sortie=lambda *_: None, cfg=R.charger_config(), racine=tmp_path,
+                   dormir=lambda _: None)
+    journal = tmp_path / R.JOURNAL_LOCAL / "job-x" / "accrocs_api.json"
+    assert json.loads(journal.read_text(encoding="utf-8")) == {"attente de la fin": 3}    # publié MÊME à l'abandon
+
+
+def test_rapatrier_abandonne_le_tirage_au_dela_du_plafond_et_compte(tmp_path):
+    k = KubeAccrocs([_job_run(900)], tar="accroc")
+    with pytest.raises(R.Refus, match="pendant « rapatriement : tirage de la sortie ».*900 s"):
+        R.rapatrier("job-x", kube=k, racine=tmp_path, sortie=lambda *_: None, dormir=lambda _: None)
+    assert k.execs == ["tar"] * R.ECHECS_API_MAX
+    journal = tmp_path / R.JOURNAL_LOCAL / "job-x" / "accrocs_api.json"
+    assert json.loads(journal.read_text(encoding="utf-8")) == {"rapatriement : tirage de la sortie": 3}
+
+
+class KubeEnvoi(KubeCluster):
+    """Soumission complète jusqu'à l'envoi : le pod existe, l'init `recevoir` tourne ; le PREMIER envoi des sources
+    lève comme une coupure de l'API. `livre_avant_coupure` : l'init a fini en 0 entre-temps (le paquet était arrivé)."""
+    def __init__(self, livre_avant_coupure):
+        super().__init__([MLH], QUOTA)
+        self.livre, self.envois = livre_avant_coupure, 0
+
+    def creer(self, objet):
+        self.appels.append(("creer", objet["metadata"]["name"]))
+
+    def pod_du_job(self, job):
+        init = ({"terminated": {"exitCode": 0}} if (self.livre and self.envois) else {"running": {}})
+        return {"metadata": {"name": "pod-x"}, "status": {"initContainerStatuses": [{"name": "recevoir", "state": init}]}}
+
+    def evenements(self, nom):
+        return []
+
+    def executer_dans(self, pod, conteneur, cmd, entree=None, timeout=600, verifier=True):
+        self.envois += 1
+        if self.envois == 1:
+            raise R.Refus("kubectl exec : Unable to connect to the server: dial tcp 203.0.113.10:6443")
+
+    def supprimer_job(self, job):
+        raise AssertionError("un envoi rattrapé ne doit pas retirer le Job")
+
+
+@pytest.mark.parametrize("livre,envois_attendus", [(True, 1), (False, 2)])
+def test_envoi_des_sources_rattrape_un_accroc_sans_renvoyer_un_paquet_deja_livre(depot, livre, envois_attendus):
+    """Une coupure pendant l'envoi : si l'init a fini en 0, le paquet était arrivé (`.ready` en dernier) — on ne le
+    renvoie pas ; sinon on renvoie le même paquet (idempotent). L'accroc est compté dans le journal du Job."""
+    repo, sha = depot
+    _image_coherente(repo, sha)
+    k, dits = KubeEnvoi(livre), []
+    nom = R.soumettre(["-m", "pkg.runner"], sha=sha, kube=k, racine=repo, sortie=dits.append, maintenant=_paris(10, 0),
+                      dormir=lambda _: None)
+    assert k.envois == envois_attendus
+    assert any(("déjà reçues" if livre else "sources envoyées") in m for m in dits)
+    journal = repo / R.JOURNAL_LOCAL / nom
+    assert json.loads((journal / "accrocs_api.json").read_text(encoding="utf-8")) == {"envoi des sources": 1}
+    assert (journal / "soumission.json").is_file()

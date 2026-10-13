@@ -3012,6 +3012,44 @@ suivie (les trois MANIFEST et les sha256 des génomes, ou les génomes eux-même
 les MANIFEST portent dans leur champ `image` (dépôt public) — puis faire pointer la REF et le bandeau dessus. Sans
 clause `closes_when` (déclaré) : le chemin de l'évidence n'existe pas encore.
 
+**P2.167 — ✅ CLOSE le 2026-10-13 (ouverte et fermée dans la même passe, session INFRA-NEXUS, décision de Master 2 :
+elle BLOQUAIT les runs scellés sur nexus) — l'envoi des sources, `attendre` et `rapatrier` ne toléraient AUCUN accroc de
+l'API du cluster : un seul suffisait à interrompre un run côté batcave pendant que le pod continuait.**
+Preuve, deux mesures : (1) 2026-09-26 à 20:25:17, un délai de connexion à l'API (« Unable to connect to the server »),
+revenu 40 s après — c'est lui qui a fait naître P2.137 pour la SONDE seule ; (2) 2026-10-13 de 16:25 à 16:30, pilote τ de
+P4.19 (24 cellules sur nexus) : pendant la vague 2, 7 « executer » sur 10 interrompus par l'API — 5 sorties récupérées à
+la main par `rapatrier`, sans recalcul, 2 cellules relancées, et un 8ᵉ cas où seul le marqueur de libération du pod
+n'avait pas pu être posé (sortie en sûreté). Pour 30 s de calcul, rattrapable à la main ; pour un run scellé de plusieurs
+heures, une attente interrompue laisse un pod qui garde sa sortie `--attente-s` seulement (15 min par défaut).
+Corrigé dans `tools/jobs/remote.py` : `Accrocs` rejoue un appel IDEMPOTENT tant que l'API est coupée, au plus
+`ECHECS_API_MAX` = 3 fois DE SUITE — le plafond de la sonde (P2.137) —, chaque accroc imprimé et compté par étape dans
+`runs/deport/<job>/accrocs_api.json` (publié même à l'abandon) ; un refus de FOND (NotFound, admission) n'est jamais
+rejoué. Couverts : lecture du pod pendant la réception, ENVOI des sources (si l'init a déjà fini en 0, le paquet était
+arrivé — `.ready` en dernier — et n'est pas renvoyé), lectures d'`attendre`, lecture, tirage et libération dans
+`rapatrier`. Un abandon dit en clair jusqu'à quand le pod garde la sortie et quelle commande relancer ; à l'état `pret`,
+`attendre` imprime l'heure LIMITE du rapatriement. Contre-exemples gelés : un faux kubectl qui échoue k fois puis répond
+(`test_accrocs_k_fois_puis_reponse_au_dela_du_plafond_refus_et_refus_de_fond_jamais_rejoue`,
+`test_attendre_traverse_deux_accrocs_et_dit_l_heure_limite_de_la_sortie`), qui échoue au-delà du plafond, attendu refusé
+avec la fenêtre RÉELLE du pod (`test_attendre_abandonne_au_dela_du_plafond_en_disant_jusqu_a_quand_la_sortie_est_gardee`,
+`test_rapatrier_abandonne_le_tirage_au_dela_du_plafond_et_compte`), et l'envoi rattrapé sans renvoyer un paquet livré
+(`test_envoi_des_sources_rattrape_un_accroc_sans_renvoyer_un_paquet_deja_livre`). Windows 127 et Linux 127 verts.
+⚠️ **Trouvé en surveillant, à mon débit** : j'ai d'abord alerté « sortie PERDUE dans 6 min » pour la cellule lam09
+seed 22, d'après un seul indice (pod encore en Running après la fin du runner), sans lire le journal de SCIENCE-HARNAIS —
+or l'outil distingue exactement ce cas (« sortie en sûreté, pod non libéré, ce n'est PAS une perte »). Fausse alarme,
+retirée ; c'est la forme d'E8 (un état conclu, pas lu). Le correctif rejoue désormais aussi la libération du pod.
+Hypothèse NON établie : la charge de dix transferts simultanés par l'API contribue aux accrocs (l'accroc du 26/09 est
+survenu sans charge) ; échelonner les soumissions ne coûte rien.
+<!-- closes_when:grep_present=tests/sandbox/test_jobs_remote.py::accrocs_k_fois_puis_reponse -->
+
+**P2.168 — rang 23 — OUVERTE (2026-10-13, vue en préparant le pilote τ, session INFRA-NEXUS) — `python -m
+tools.jobs.remote executer` rend 2 pour un refus LOCAL (fenêtre, garde d'image, quota, nœud éteint, accroc au-delà du
+plafond) ET le code du runner, qui peut lui-même valoir 2 (argparse) : le code de sortie seul ne les distingue pas.**
+Preuve : `main()` (`tools/jobs/remote.py`, branche `except Refus` : « return 2 ») et `code_de_sortie(...)` qui rend le code
+du runner ; un argparse en échec sort en 2. Contournement appliqué par SCIENCE-HARNAIS le 2026-10-13 : classer chaque
+cellule en lisant « [remote] REFUS » dans son journal, jamais le seul code. À faire : un code DÉDIÉ au refus local (hors
+des codes d'un runner usuel et des 86/87 de `remote_entry`), publié dans la REF, avec un témoin qui fait sortir un runner
+en 2 et vérifie qu'il ne se lit pas comme un refus local. Sans clause `closes_when` (déclaré) : le code n'est pas choisi.
+
 **P2.151 — OUVERTE (2026-09-28, vue en passant par la session FRONT pendant le pas 2 de P2.87) — sous WSL,
 `pytest tests/test_backend.py` FINIT ses tests puis reste BLOQUÉ À LA SORTIE du processus ; le job CI qui lance ce
 fichier sous Linux n'avait aucune borne de durée.**

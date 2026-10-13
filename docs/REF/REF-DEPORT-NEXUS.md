@@ -202,6 +202,16 @@ mort silencieux (E32). Contrôle positif réel, involontaire : le 2026-09-26 la 
 OOMKilled de P2.134 avant qu'on déclare leur motif. Écrire le motif avec `=` (`--ignorer=-p2134-`) : un motif qui
 commence par un tiret serait lu comme une option.
 
+**Accrocs de l'API pendant un run (P2.167, 2026-10-13).** L'envoi des sources, `attendre` et `rapatrier` rejouent un appel
+idempotent tant que l'API du cluster est coupée, au plus 3 fois DE SUITE (le plafond de la sonde), chaque accroc imprimé et
+compté dans `runs/deport/<job>/accrocs_api.json`. Au-delà, ils abandonnent en disant jusqu'à quand le pod garde la sortie
+(`--attente-s` après la fin du runner) et quelle commande relancer : `python -m tools.jobs.remote rapatrier <job>`. À
+l'état `pret`, `attendre` imprime l'heure LIMITE du rapatriement. Un pod resté en Running après la fin du runner n'est
+PAS une sortie perdue : si le rapatriement a eu lieu mais que le marqueur de libération n'a pas pu être posé, la sortie est
+en sûreté et le pod sortira en 87 à l'échéance. Codes de sortie d'`executer` : le code du RUNNER ; 86 et 87 sont ceux de
+`remote_entry` dans le pod (rien n'a tourné ; sortie non rapatriée) ; un refus LOCAL rend 2 — ambigu avec un runner qui
+sort en 2 (P2.168) : lire « [remote] REFUS » dans le journal, jamais le seul code.
+
 ## Ressources d'un Job
 
 * Mémoire : la limite est TOUJOURS un palier déclaré — 4, 8, 16, 20, 24, 28 ou 32 Gi (`--mem`, défaut 4 Gi) — et la
