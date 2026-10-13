@@ -11,6 +11,12 @@ sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..",
 
 import tools.td_step_pilot_r3_tau as tau  # noqa: E402
 
+# P2.169 (2026-10-13) — GARDE TORCH, par test (jamais un importorskip de MODULE : il ferait sauter les cas PURS).
+import importlib.util  # noqa: E402
+_TORCH = importlib.util.find_spec("torch") is not None
+requires_torch = pytest.mark.skipif(not _TORCH, reason="torch absent : le test construit le backend torch ou lit "
+                                                       "l'environnement torch")
+
 
 def _jamais(*a, **k):
     raise AssertionError("entraînement appelé alors que la cellule devait être refusée EN TÊTE")
@@ -40,6 +46,7 @@ def _faux_entraine(succes_par_bras):
     return entraine
 
 
+@requires_torch
 def test_a_cell_writes_its_own_file_with_the_R3_setup(racine):
     rec = tau.cellule("lam09", 13, entraine=_faux_entraine({0.9: lambda sd: 150, 0.0: lambda sd: 110}))
     p = racine / "td_step_pilot_r3_tau" / "lam09_seed13.json"

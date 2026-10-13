@@ -281,7 +281,12 @@ def test_main_REFUSES_a_wrong_place_before_any_cell_and_before_importing_torch(m
 # ---------------------------------------------------------------------------------------------------- sous torch
 
 
-torch = pytest.importorskip("torch")
+# P2.169 (2026-10-13) — GARDE TORCH, par test (jamais un importorskip de MODULE : il ferait sauter les cas PURS).
+import importlib.util  # noqa: E402
+_TORCH = importlib.util.find_spec("torch") is not None
+requires_torch = pytest.mark.skipif(not _TORCH, reason="torch absent : le test construit le backend torch ou lit "
+                                                       "l'environnement torch")
+torch = importlib.import_module("torch") if _TORCH else None
 from tools.td_step_pilot import _eval_exhaustive, _train_eval_td_step  # noqa: E402
 from src.agents.backend_torch import TorchPopulationModel as T  # noqa: E402
 
@@ -304,6 +309,7 @@ def _run(**kw):
                                base.pop("K"), base.pop("lr"), **base)
 
 
+@requires_torch
 def test_new_kwargs_default_to_the_R0_R2_path_and_the_instrument_is_a_no_op(flags):
     acc0, dose0 = _run()
     acc1, dose1 = _run(mesure_dose=True, eval_exhaustive=True)
@@ -313,6 +319,7 @@ def test_new_kwargs_default_to_the_R0_R2_path_and_the_instrument_is_a_no_op(flag
     assert dose2["eval_exhaustive"] == dose1["eval_exhaustive"]        # même état final avec ou sans instrument
 
 
+@requires_torch
 def test_the_dose_instrument_is_exactly_zero_at_lr0_and_catches_the_terminal_flush(flags):
     _, d0 = _run(lr=0.0, mesure_dose=True, bloc_dose=2)
     di = d0["dose_instrument"]
@@ -324,6 +331,7 @@ def test_the_dose_instrument_is_exactly_zero_at_lr0_and_catches_the_terminal_flu
     assert len(di["net_blocs"]) == 2 and len(di["chemin_par_agent"]) == 4
 
 
+@requires_torch
 def test_per_block_steps_are_applied_published_and_require_the_instrument(flags):
     _, d1 = _run(lam=0.0, mesure_dose=True, bloc_dose=2)
     _, d2 = _run(lam=0.0, mesure_dose=True, bloc_dose=2, lr_blocs=[1.0, 3.0])
@@ -341,6 +349,7 @@ def test_per_block_steps_are_applied_published_and_require_the_instrument(flags)
         k: v for k, v in avant.items() if k != "CREDIT_TRACE_LAMBDA"}
 
 
+@requires_torch
 def test_the_sham_arm_publishes_its_counters_and_its_key_control(flags):
     _, d = _run(sham="decale", mesure_dose=True, controle_delta=True, bloc_dose=2)
     assert d["sham"]["sham_omis"] == 4 and d["dose_instrument"]["porte_rang0_non_nul"] == 0
@@ -350,6 +359,7 @@ def test_the_sham_arm_publishes_its_counters_and_its_key_control(flags):
     assert r > 0.0
 
 
+@requires_torch
 def test_exhaustive_eval_draws_nothing_and_counts_on_the_K2_grid(flags):
     T.BILINEAR, T.BILINEAR_RANK = True, 16
     T.CREDIT_TRACE_LAMBDA, T.CREDIT_TRACE_DELTA_SHAM = 0.0, None
@@ -367,6 +377,7 @@ def test_exhaustive_eval_draws_nothing_and_counts_on_the_K2_grid(flags):
     assert torch.equal(torch.get_rng_state(), etat_t)
 
 
+@requires_torch
 def test_the_lr0_reference_without_training_equals_the_lr0_reference_trained(flags):
     acc, entraine = _run(lam=0.0, lr=0.0, episodes=5, eval_exhaustive=True)
     rien, nu = _run(lam=0.0, lr=0.0, episodes=0, eval_batches=0, eval_exhaustive=True)
@@ -398,6 +409,7 @@ def _factices(monkeypatch, durees):
 
 
 @pytest.mark.parametrize("unite_app,retenu", [(70.0, True), (100.0, False), (84.0, False)])
+@requires_torch
 def test_preflight_retains_the_paired_arm_on_its_MEASURED_cost_only(monkeypatch, tmp_path, unite_app, retenu):
     regle = _regle_run()
     _main(monkeypatch, tmp_path, regle)
@@ -409,6 +421,7 @@ def test_preflight_retains_the_paired_arm_on_its_MEASURED_cost_only(monkeypatch,
     assert set(pv["unites_par_bras_s"]) == {"lam0", "lam09", "sham09", "td0_d0", "td0_app"}
 
 
+@requires_torch
 def test_a_step_REFUSES_without_a_preflight_and_step_2_before_step_1(monkeypatch, tmp_path):
     regle = _regle_run()
     _main(monkeypatch, tmp_path, regle)
