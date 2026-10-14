@@ -12,7 +12,8 @@ Deux pas : 4,0 PRIMAIRE, 4√2 ≈ 5,657 SECONDAIRE (choisi après avoir vu 2,0 
 jamais « refusée » ; l'ENTRÉE exige les deux). Barre = référence lr 0 + marge. Lieu = nexus, threads fixés et
 publiés ; le lien au bit avec R0/R2 est publié, jamais exigé (décision 5).
 
-Lecture sur la grille EXHAUSTIVE (B·K² = 576, marge 29 pas) : d = lam09 − lam0 et e = sham09 − lam0 par seed,
+Lecture sur la grille EXHAUSTIVE (B·K² = 576 ; marges PAR USAGE -- effet, chemin, barre de l'ADR -- lues dans la
+règle, `_marges`) : d = lam09 − lam0 et e = sham09 − lam0 par seed,
 f̂ = Σe/Σd (fraction du gain que le sham CONSERVE) avec IC90 par bootstrap apparié sur les seeds, à graine déclarée.
 Exécution CELLULE PAR CELLULE (déport nexus, une commande par Job) puis agrégat sur la batcave -- voir `main_r3`.
 Résultats : results/td_step_pilot_r3/<cellule>.json (par cellule, hors git), results/td_step_pilot_r3.json,
@@ -167,12 +168,26 @@ def _entier(db, k, n):
     return x
 
 
+def _marges(s):
+    """Marges PAR USAGE, en pas (décision de robla du 2026-10-14, direction B : 20 pour l'effet, 29 pour le chemin et
+    la barre, à confirmer sur la mesure de μ et τ aux deux pas) : `marge_effet_pas` (lam09 contre lam0, seuil de f̂,
+    descripteurs du sham et du bras apparié), `marge_chemin_pas` (td0_d0 contre sa référence), `marge_barre_pas` (comptes
+    littéraux de l'ADR contre lr0_reference). Une règle qui n'a que `marge_pas` (v1, v2) l'applique aux trois. Une marge
+    absente LÈVE, jamais un défaut."""
+    out = {u: s.get(f"marge_{u}_pas", s.get("marge_pas")) for u in ("effet", "chemin", "barre")}
+    manque = [u for u, v in out.items() if v is None]
+    if manque:
+        raise ValueError(f"marge(s) {manque} absente(s) de la règle")
+    return out
+
+
 def classify_pas(db, regle, pas):
     """Lecture d'UN pas, ORDRE IMPOSÉ (`BRANCHES_PAS`). Ne lit que des cellules présentes ; publie les comptes
     littéraux de l'ADR, la dose et le bras apparié HORS branche."""
     c, s = regle["cellule"], regle["seuils"]
     seeds, n = c["seeds"], _n_grille(c)
-    marge = s["marge_pas"] / n
+    mg = _marges(s)
+    me, mc, mb = mg["effet"] / n, mg["chemin"] / n, mg["barre"] / n
     bras, pourquoi = _bras_lus(db, c)
     if pourquoi is not None:
         return {"branche": "INCOMPLET", "raison": pourquoi}
@@ -181,7 +196,7 @@ def classify_pas(db, regle, pas):
     if manquantes:
         return {"branche": "INCOMPLET", "manquantes": len(manquantes), "exemple": manquantes[:3]}
     dose = db.get("_dose", {})
-    out = {"marge_pas": marge_en_pas(marge, n), "n_grille": n}
+    out = {"marges_pas": {u: marge_en_pas(m / n, n) for u, m in mg.items()}, "n_grille": n}
 
     # 1. l'instrument : sham_omis, terme porté au rang 0, garde de dose EXOGÈNE (appliqué / contrefactuel)
     rompus = []
@@ -194,8 +209,6 @@ def classify_pas(db, regle, pas):
             continue
         if sh["sham_omis"] != c["n_agents"]:
             rompus.append(f"{k} : sham_omis {sh['sham_omis']} ≠ {c['n_agents']}")
-        if di["porte_rang0_non_nul"] != 0:
-            rompus.append(f"{k} : terme porté non nul au rang 0 ({di['porte_rang0_non_nul']})")
         cf = sh["chemin_porte_contrefactuel"]
         r = (sh["chemin_porte_applique"] / cf) if cf > 0 else None
         lo, hi = s["garde_dose_sham"]
@@ -218,20 +231,24 @@ def classify_pas(db, regle, pas):
     out["medianes"] = {b: float(np.median(col[b])) for b in bras}
     out["medianes"].update({r: float(np.median(rf[r])) for r in REFERENCES})
     out["comptes"] = {
-        "td0_d0_sup_ref_d0": n_sup(col["td0_d0"], rf["lr0_reference_d0"], marge),
-        "lam09_sup_lam0": n_sup(col["lam09"], col["lam0"], marge),
-        # comptes LITTÉRAUX de l'ADR (barre = référence lr 0 + marge, décision 4)
-        "lam09_sup_barre": n_sup(col["lam09"], rf["lr0_reference"], marge),
-        "sham09_sup_barre": n_sup(col["sham09"], rf["lr0_reference"], marge),
-        "lam0_sup_barre": n_sup(col["lam0"], rf["lr0_reference"], marge),
-        "sham09_sup_lam0": n_sup(col["sham09"], col["lam0"], marge),
+        "td0_d0_sup_ref_d0": n_sup(col["td0_d0"], rf["lr0_reference_d0"], mc),
+        "lam09_sup_lam0": n_sup(col["lam09"], col["lam0"], me),
+        # comptes LITTÉRAUX de l'ADR (barre = référence lr 0 + marge de barre, décision 4)
+        "lam09_sup_barre": n_sup(col["lam09"], rf["lr0_reference"], mb),
+        "sham09_sup_barre": n_sup(col["sham09"], rf["lr0_reference"], mb),
+        "lam0_sup_barre": n_sup(col["lam0"], rf["lr0_reference"], mb),
+        "sham09_sup_lam0": n_sup(col["sham09"], col["lam0"], me),
         "lam09_sup_sham09_marge0": n_sup(col["lam09"], col["sham09"], 0.0)}
     ns = len(seeds)
     out["adr"] = {"lam09_franchit_la_barre": out["comptes"]["lam09_sup_barre"] >= s["seeds_effet"],
                   "sham_reste_sous_la_barre": out["comptes"]["sham09_sup_barre"] < s["seeds_effet"]}
     out["dose"] = _descripteurs_dose(dose, pas, seeds)
+    # P7.a (revue v2) : la dose de CHAQUE bras, contrôle du chemin compris -- td0_d0 n'a qu'un pas par épisode, donc la
+    # moitié des mises à jour des bras D=1 ; un CONTROLE_CHEMIN_ECHOUE se lit à côté de sa dose.
+    out["dose"]["updates_par_bras"] = {b: sorted({(dose.get(_cle(b, pas, sd)) or {}).get("updates")
+                                                  for sd in seeds} - {None}) for b in bras}
     if BRAS_APPARIE in bras:
-        out["apparie"] = _lecture_apparie(db, dose, pas, seeds, col, rf, marge, n, s)
+        out["apparie"] = _lecture_apparie(db, dose, pas, seeds, col, rf, me, n, s)    # DESCRIPTIF (décision 5)
 
     # 2. le chemin, 3. l'effet
     if out["comptes"]["td0_d0_sup_ref_d0"] < s["seeds_chemin"]:
@@ -241,7 +258,7 @@ def classify_pas(db, regle, pas):
     # 4. f̂ (en PAS entiers) et son IC
     d = [_entier(db, _cle("lam09", pas, sd), n) - _entier(db, _cle("lam0", pas, sd), n) for sd in seeds]
     e = [_entier(db, _cle("sham09", pas, sd), n) - _entier(db, _cle("lam0", pas, sd), n) for sd in seeds]
-    fh = f_hat(d, e, s["marge_pas"] * ns, s["bootstrap_B"], s["bootstrap_graine"])
+    fh = f_hat(d, e, mg["effet"] * ns, s["bootstrap_B"], s["bootstrap_graine"])
     out["f_hat"] = fh
     out["d_pas"], out["e_pas"] = d, e
     if fh["f"] is None or fh["ic90"] is None:
@@ -309,7 +326,7 @@ def garde_e19(db, regle, par_pas):
     MÊME pas ; `reference_floor` SCALAIRE = max sur les pas de (médiane lam0) + marge. Rend PASSE,
     VERDICT_DEPEND_DU_PAS (PreflightError) ou INCONCLUSIF (ReferenceCollapsedError)."""
     c, s = regle["cellule"], regle["seuils"]
-    marge = s["marge_pas"] / _n_grille(c)
+    marge = _marges(s)["effet"] / _n_grille(c)
     pas_lr = {float(c["pas"][p]): p for p in (c["pas_primaire"], c["pas_secondaire"])}
 
     def measure(lr):
@@ -331,8 +348,11 @@ def verdict_synthese(par_pas, regle, e19=None):
       * REFUSÉE ssi PAS_PLUS_GROS au pas PRIMAIRE (l'effet y tient : branche au-delà de PAS_D_EFFET) -- le pas
         secondaire ne produit JAMAIS à lui seul un verdict négatif (décision 2, E11) ;
       * ENTRE ssi, aux DEUX pas : TRANSPORTE ET comptes littéraux de l'ADR (lam09 franchit la barre, le sham reste
-        dessous) ET, si le bras apparié est au design, la trace bat TD(0) à dose nette égale -- puis la garde E19 PASSE ;
-      * ATTEND sinon, avec les manques NOMMÉS."""
+        dessous) ;
+      * ATTEND sinon, avec les manques NOMMÉS.
+    Décisions de robla du 2026-10-14 : (5) le bras apparié est DESCRIPTIF -- son TD(0) tourne jusqu'à un pas de 7,5
+    (et ≈ 10,6 à 4√2), régime où TD(0) se dégrade, donc « bat TD(0) à dose égale » serait confondu ; (6) la garde E19 est
+    appelée et PUBLIÉE, sans branche -- à deux pas séparés de √2, elle refusait pour une mauvaise raison."""
     c = regle["cellule"]
     p1, p2 = c["pas_primaire"], c["pas_secondaire"]
     L1, L2 = par_pas.get(p1), par_pas.get(p2)
@@ -355,22 +375,15 @@ def verdict_synthese(par_pas, regle, e19=None):
         if not L["adr"]["sham_reste_sous_la_barre"]:
             manques.append(f"pas {p} : le sham franchit la barre ({L['comptes']['sham09_sup_barre']}/"
                            f"{len(c['seeds'])})")
-        if "apparie" in L:                     # le bras apparié a été RETENU au pré-vol : sa condition s'applique
-            a = L["apparie"]
-            if not a.get("lisible"):
-                manques.append(f"pas {p} : bras apparié non lisible (net atteint hors bornes)")
-            elif not a.get("trace_bat_td0_a_dose_nette_egale"):
-                manques.append(f"pas {p} : TD(0) à dose nette égale fait jeu égal -- l'aide peut être la DOSE")
+    publie = {"garde_e19": e19, "apparie": {p: (L or {}).get("apparie") for p, L in ((p1, L1), (p2, L2))}}
     if manques:
-        return {"issue": "ATTEND", "manques": manques}
-    if e19 is None or e19.get("issue") != "PASSE":
-        return {"issue": "ATTEND", "manques": [f"garde E19 : {None if e19 is None else e19.get('issue')}"],
-                "garde_e19": e19}
-    return {"issue": "ENTRE", "garde_e19": e19}
+        return dict(publie, issue="ATTEND", manques=manques)
+    return dict(publie, issue="ENTRE")
 
 
 def lecture_r3(db, regle):
-    """Les deux pas, puis la synthèse ; la garde E19 n'est appelée que si TRANSPORTE aux deux pas."""
+    """Les deux pas, puis la synthèse ; la garde E19 est appelée si TRANSPORTE aux deux pas et PUBLIÉE (sans branche,
+    décision 6)."""
     c = regle["cellule"]
     par_pas = {p: classify_pas(db, regle, p) for p in (c["pas_primaire"], c["pas_secondaire"])}
     deux = all(par_pas[p]["branche"] == "TRANSPORTE" for p in par_pas)
@@ -434,7 +447,7 @@ def calibrer_lecture(regle, profil_d, sigmas, fs, n_rep, graine):
 # ---------------------------------------------------------------------------------------------------- calibration v2
 
 
-def base_injection_v2(regle, mu, tau, sigma_e, f, rng, base=110):
+def base_injection_v2(regle, mu, tau, sigma_e, f, rng, base=110, chemin_rate=False):
     """Modèle de bruit DÉCLARÉ v2 (règle v2, après la mesure de τ sur les seeds tenues à l'écart) : AUCUN bruit d'éval
     (éval exhaustive, entraînement déterministe par seed) ; d_s ~ N(μ, τ) ; lam0 = base ; lam09 = base + d_s ;
     sham09 = base + f·d_s + σ_e·z ; bras apparié = lam0 (sans avantage). Le reste (références, chemin, instrument) comme
@@ -453,6 +466,8 @@ def base_injection_v2(regle, mu, tau, sigma_e, f, rng, base=110):
         put(_cle("sham09", p, sd), base + f * d + sigma_e * rng.standard_normal())
         if c.get("bras_apparie", False):
             put(_cle(BRAS_APPARIE, p, sd), base)
+        if chemin_rate:                                 # décision 9 : le contrôle du chemin RATÉ (aucun gain sans délai)
+            db[_cle("td0_d0", p, sd)] = db[_cle_ref("lr0_reference_d0", sd)]
     return db
 
 
@@ -472,6 +487,13 @@ def calibrer_lecture_v2(regle, mu, tau, sigmas_e, fs, n_rep, graine):
                 comptes[classify_pas(base_injection_v2(regle, mu, tau, se, f, rng), regle, p)["branche"]] += 1
             par_f[str(f)] = {b: comptes[b] / n_rep for b in BRANCHES_PAS if comptes[b]}
         out["par_sigma_e"][str(se)] = par_f
+    # Décision 9 (2026-10-14) : la branche CONTROLE_CHEMIN_ECHOUE est VISITÉE -- un chemin raté doit l'emporter sur
+    # toute lecture d'effet, quel que soit f (ordre imposé).
+    comptes = {b: 0 for b in BRANCHES_PAS}
+    for _ in range(int(n_rep)):
+        comptes[classify_pas(base_injection_v2(regle, mu, tau, sigmas_e[0], 0.0, rng, chemin_rate=True), regle,
+                             p)["branche"]] += 1
+    out["chemin_rate"] = {b: comptes[b] / n_rep for b in BRANCHES_PAS if comptes[b]}
     return out
 
 
@@ -609,11 +631,14 @@ def _index_manifestes(deport):
     return out
 
 
-def prevol_r3(regle):
+def prevol_r3(regle, deport=os.path.join("runs", "deport")):
     """Pré-vol FIGÉ (batcave, aucune simulation), depuis les cellules du seed 1 au pas primaire : unité CPU PAR BRAS,
     décision d'inclure le bras apparié sur son COÛT seul (fraction STRICTEMENT sous le seuil), projection par étape
     (refus `CostTooHighToStart` au-delà du budget). Écrit results/td_step_pilot_r3_prevol.json UNE fois : une décision
-    prise ne se réécrit pas (refus si le fichier existe avec un autre contenu)."""
+    prise ne se réécrit pas (refus si le fichier existe avec un autre contenu).
+    P1.b (revue v2) : sur le pilote τ, le temps CPU d'un même bras à dose identique a varié ×5,2 avec la contention
+    entre pods (28 à 146 s) -- les cellules du pré-vol doivent donc avoir tourné SEULES : chacune reliée à son MANIFEST,
+    et REFUS si deux fenêtres d'exécution se chevauchent."""
     c, s = regle["cellule"], regle["seuils"]
     sd, p = c["seeds"][0], c["pas_primaire"]
     bras = list(BRAS_ENTRAINES) + ([BRAS_APPARIE] if c.get("bras_apparie", False) else [])
@@ -623,6 +648,19 @@ def prevol_r3(regle):
         if not os.path.exists(q):
             raise ValueError(f"pré-vol : cellule {os.path.basename(q)} absente -- l'unité est MESURÉE, jamais supposée")
         u[b] = float(json.load(open(q, encoding="utf-8"))["cpu_s"])
+    index = _index_manifestes(deport)
+    fenetres = {}
+    for b in bras:
+        q = _chemin_cellule(_nom_cellule(b, p, sd))
+        m = index.get((f"{DOSSIER}/{os.path.basename(q)}", _sha256(q)))
+        if m is None:
+            raise ValueError(f"pré-vol : {os.path.basename(q)} sans MANIFEST -- l'unité doit venir d'un Job tracé")
+        fenetres[b] = [m["debut_utc"], m["fin_utc"]]
+    simultanees = [(a, b) for i, a in enumerate(bras) for b in bras[i + 1:]
+                   if fenetres[a][0] < fenetres[b][1] and fenetres[b][0] < fenetres[a][1]]
+    if simultanees:
+        raise ValueError(f"pré-vol : cellules SIMULTANÉES {simultanees} -- le temps CPU varie avec la contention entre "
+                         "pods (×5,2 sur le pilote τ) : soumettre les cellules du pré-vol UNE À UNE")
     autres = sum(u[b] for b in BRAS_ENTRAINES)
     frac = (u[BRAS_APPARIE] / autres) if (BRAS_APPARIE in u and autres > 0) else None
     retenu = bool(frac is not None and frac < s["fraction_cout_apparie_max"])
@@ -632,7 +670,7 @@ def prevol_r3(regle):
     unites = dict(u)
     unites.update({r: s["unite_reference_s"] for r in REFERENCES})
     pv = {"unites_cpu_par_bras_s": u, "fraction_cout_apparie": frac, "seuil_fraction": s["fraction_cout_apparie_max"],
-          "apparie_retenu": retenu,
+          "apparie_retenu": retenu, "fenetres_utc": fenetres,
           "projection_etape_s": project_cost_per_arm(unites, n_par_bras, s["budget_etape_s"], safety=s["safety"],
                                                      label="TD-STEP-PILOT-R3 étape"),
           "par_bras": cost_per_arm(unites, n_par_bras, safety=s["safety"])["par_bras"]}
@@ -667,6 +705,10 @@ def agreger_r3(regle, deport=os.path.join("runs", "deport")):
             raison = f"code {m['returncode']}"
         elif (rec.get("provenance") or {}).get("dirty") is not False:
             raison = "arbre sale ou provenance absente"
+        elif (m.get("limite_cpu") != float(c.get("threads", 1))
+              or (m.get("threads_poses") or {}).get("OMP_NUM_THREADS") != str(c.get("threads", 1))):
+            raison = (f"fils : limite {m.get('limite_cpu')}, OMP {(m.get('threads_poses') or {}).get('OMP_NUM_THREADS')}"
+                      f" ≠ {c.get('threads', 1)} (règle : un fil par cellule)")
         if raison:
             exclues.append({"cellule": nom, "raison": raison})
             continue
@@ -694,7 +736,8 @@ def agreger_r3(regle, deport=os.path.join("runs", "deport")):
     pv_path = str(results_file("td_step_pilot_r3_prevol.json"))
     debuts = {k: m["debut_utc"] for k, m in manifestes.items()}
     p1, p2 = c["pas_primaire"], c["pas_secondaire"]
-    fins_p1 = [manifestes[k]["fin_utc"] for k in manifestes if f"|pas={p1}|" in k]
+    fins_p1 = [manifestes[k]["fin_utc"] for k in manifestes            # étape 1 = pas primaire ET références
+               if f"|pas={p1}|" in k or k.split("|")[0] in REFERENCES]
     debs_p2 = [debuts[k] for k in debuts if f"|pas={p2}|" in k]
     db["_regime"] = {k: v for k, v in c.items() if k != "seeds"}
     db["_regime"].update({
@@ -709,7 +752,9 @@ def agreger_r3(regle, deport=os.path.join("runs", "deport")):
                                  "et_pas": statistics.stdev(d1) if len(d1) >= 2 else None,
                                  "tenues_a_l_ecart": {k: (regle["seuils"].get("calibration") or {}).get(k)
                                                       for k in ("mu_pas", "tau_pas")}}
-    n_cellules = len(c["seeds"]) * 2 * (len(BRAS_ENTRAINES) + int(bool(c.get("bras_apparie")))) + \
+    pv = db["_regime"]["pre_vol"]
+    apparie = bool(pv["apparie_retenu"]) if pv else bool(c.get("bras_apparie"))     # pré-vol absent : prudent
+    n_cellules = len(c["seeds"]) * 2 * (len(BRAS_ENTRAINES) + int(apparie)) + \
         len(c["seeds"]) * len(REFERENCES)
     db["_design"] = declare_design(
         question=regle["question"],

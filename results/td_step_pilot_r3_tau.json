@@ -43,6 +43,32 @@
    "2.6.0+cpu"
   ]
  ],
+ "dispositif": {
+  "pas": 4.0,
+  "lambda": 0.9,
+  "episodes": 3000,
+  "n_agents": 16,
+  "K": 6,
+  "n_grille": 576,
+  "bras": [
+   "lam0",
+   "lam09"
+  ],
+  "seeds": [
+   13,
+   14,
+   15,
+   16,
+   17,
+   18,
+   19,
+   20,
+   21,
+   22,
+   23,
+   24
+  ]
+ },
  "cellules": {
   "lam0|seed=13": {
    "succes": 111,

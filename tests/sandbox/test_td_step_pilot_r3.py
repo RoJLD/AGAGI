@@ -134,19 +134,28 @@ def test_exact_equality_at_the_margin_counts_as_a_failure():
     assert L["comptes"]["lam09_sup_lam0"] == 0 and L["branche"] == "PAS_D_EFFET"
 
 
-@pytest.mark.parametrize("champ,valeur", [("sham_omis", 15), ("porte_rang0_non_nul", 1),
-                                           ("chemin_porte_applique", 1.2)])
+@pytest.mark.parametrize("champ,valeur", [("sham_omis", 15), ("chemin_porte_applique", 1.2)])
 def test_a_broken_instrument_blocks_every_reading(champ, valeur):
     regle, db = _db(0.0)
-    d = db["_dose"][r3._cle("sham09", "p1", 5)]
-    d = copy.deepcopy(d)
-    if champ == "porte_rang0_non_nul":
-        d["dose_instrument"][champ] = valeur
-    else:
-        d["sham"][champ] = valeur
+    d = copy.deepcopy(db["_dose"][r3._cle("sham09", "p1", 5)])
+    d["sham"][champ] = valeur
     db["_dose"][r3._cle("sham09", "p1", 5)] = d
     L = r3.classify_pas(db, regle, "p1")
     assert L["branche"] == "INSTRUMENT_ROMPU" and len(L["rompus"]) == 1
+
+
+def test_the_rank0_carried_term_is_no_branch_it_is_zero_BY_CONSTRUCTION_and_the_dose_of_every_arm_is_published():
+    """P10.b (revue v2) : le terme porté au rang 0 est mesuré juste après reset_traces, qui met les traces à zéro EN
+    PLACE -- il ne peut pas être non nul, une condition dessus ne pouvait pas échouer ; il n'est plus une branche.
+    P7.a : la dose de chaque bras, contrôle du chemin compris, est publiée à côté de la lecture."""
+    regle, db = _db(0.0)
+    d = copy.deepcopy(db["_dose"][r3._cle("sham09", "p1", 5)])
+    d["dose_instrument"]["porte_rang0_non_nul"] = 1
+    db["_dose"][r3._cle("sham09", "p1", 5)] = d
+    for sd in regle["cellule"]["seeds"]:
+        db["_dose"].setdefault(r3._cle("td0_d0", "p1", sd), {})["updates"] = 3000
+    L = r3.classify_pas(db, regle, "p1")
+    assert L["branche"] == "TRANSPORTE" and L["dose"]["updates_par_bras"]["td0_d0"] == [3000]
 
 
 def test_the_path_control_is_read_before_the_effect():
@@ -185,12 +194,16 @@ def _deux_pas(f1, f2, apparie=True):
     return regle, db
 
 
-def test_ENTRE_needs_TRANSPORTE_at_both_steps_and_the_E19_guard():
+def test_ENTRE_needs_TRANSPORTE_at_both_steps_and_the_E19_guard_is_PUBLISHED_without_a_branch():
+    """Décision 6 de robla (2026-10-14) : E19 appelée et publiée ; un refus de la garde ne change pas l'issue."""
     regle, db = _deux_pas(0.0, 0.0)
     out = r3.lecture_r3(db, regle)
     assert out["garde_e19"]["issue"] == "PASSE" and out["synthese"]["issue"] == "ENTRE"
+    assert out["synthese"]["garde_e19"] == out["garde_e19"]
     L = {p: out["par_pas"][p] for p in ("p1", "p2")}
-    assert r3.verdict_synthese(L, regle, None)["issue"] == "ATTEND"            # garde non appelée : jamais ENTRE
+    refus = {"issue": "VERDICT_DEPEND_DU_PAS", "raison": "test"}
+    assert r3.verdict_synthese(L, regle, refus)["issue"] == "ENTRE"
+    assert r3.verdict_synthese(L, regle, None)["issue"] == "ENTRE"
 
 
 def test_the_secondary_step_never_refuses_alone_but_the_primary_does():
@@ -201,24 +214,36 @@ def test_the_secondary_step_never_refuses_alone_but_the_primary_does():
     assert r3.lecture_r3(db, regle)["synthese"]["issue"] == "REFUSEE"
 
 
-def test_the_paired_arm_blocks_ENTRE_when_TD0_at_equal_net_dose_does_as_well():
+def test_the_paired_arm_is_DESCRIPTIVE_it_is_published_and_never_blocks_ENTRE():
+    """Décision 5 de robla (2026-10-14) : le TD(0) apparié tourne jusqu'à un pas de 7,5 (ρ mesuré 1,03-1,88 sur les
+    seeds tenues à l'écart), régime où TD(0) se dégrade -- « bat TD(0) à dose égale » serait confondu."""
     regle, db = _deux_pas(0.0, 0.0)
     for p in ("p1", "p2"):
         for sd in regle["cellule"]["seeds"]:
-            db[r3._cle("td0_app", p, sd)] = db[r3._cle("lam09", p, sd)]
+            db[r3._cle("td0_app", p, sd)] = db[r3._cle("lam09", p, sd)]       # TD(0) apparié fait jeu égal
     out = r3.lecture_r3(db, regle)
-    assert out["synthese"]["issue"] == "ATTEND"
-    assert any("DOSE" in m for m in out["synthese"]["manques"])
-
-
-def test_an_unmatched_paired_arm_is_named_not_read():
+    assert out["synthese"]["issue"] == "ENTRE"
+    assert out["synthese"]["apparie"]["p1"]["trace_bat_td0_a_dose_nette_egale"] is False
     regle, db = _deux_pas(0.0, 0.0)
-    for k, d in db["_dose"].items():
-        if k.startswith("td0_app|"):
-            db["_dose"][k] = {"dose_instrument": {"net_total": 3.0, "chemin_total": 6.0, "porte_rang0_non_nul": 0}}
+    for k in [k for k in db["_dose"] if k.startswith("td0_app|")]:
+        db["_dose"][k] = {"dose_instrument": {"net_total": 3.0, "chemin_total": 6.0, "porte_rang0_non_nul": 0}}
     out = r3.lecture_r3(db, regle)
-    assert out["synthese"]["issue"] == "ATTEND"
-    assert any("non lisible" in m for m in out["synthese"]["manques"])
+    assert out["synthese"]["issue"] == "ENTRE" and out["synthese"]["apparie"]["p2"]["lisible"] is False
+
+
+def test_margins_PER_USE_with_the_single_margin_as_fallback():
+    """Direction B de robla : 20 pour l'effet, 29 pour le chemin et la barre. Un effet de 25 pas passe la marge
+    d'effet 20 mais pas l'ancienne marge unique 29 ; une règle à marge unique garde son comportement."""
+    regle, db = _db(0.0, d=25)
+    assert r3.classify_pas(db, regle, "p1")["branche"] == "PAS_D_EFFET"            # marge unique 29
+    s = regle["seuils"]
+    s.update({"marge_effet_pas": 20, "marge_chemin_pas": 29, "marge_barre_pas": 29})
+    del s["marge_pas"]
+    L = r3.classify_pas(db, regle, "p1")
+    assert L["marges_pas"] == {"effet": 20, "chemin": 29, "barre": 29} and L["branche"] == "TRANSPORTE"
+    del s["marge_barre_pas"]
+    with pytest.raises(ValueError, match="barre"):
+        r3.classify_pas(db, regle, "p1")
 
 
 # ---------------------------------------------------------------------------------------------------- appariement
@@ -236,6 +261,12 @@ def test_rho_per_block_known_answer_and_refusals_instead_of_a_fabricated_rho():
         r3.rho_blocs(_dose_blocs([2.0]), _dose_blocs([1.0]), 2)
     with pytest.raises(ValueError, match="nul"):
         r3.rho_blocs(_dose_blocs([2.0, 6.0]), _dose_blocs([0.0, 3.0]), 2)
+
+
+def test_the_v2_calibration_VISITS_the_failing_path_control_whatever_f():
+    """Décision 9 de robla (2026-10-14) : la branche CONTROLE_CHEMIN_ECHOUE est visitée par la calibration."""
+    out = r3.calibrer_lecture_v2(_regle(), 40.0, 0.0, [0.0], [0.0], 5, 3)
+    assert out["chemin_rate"] == {"CONTROLE_CHEMIN_ECHOUE": 1.0}
 
 
 def test_calibration_by_injection_is_deterministic_and_its_frequencies_sum_to_one():
@@ -308,17 +339,36 @@ def test_the_rho_argument_round_trips_EXACTLY_through_the_command_line(depot):
     assert relu == r3.rho_blocs(_blocs(n9), _blocs(n0), 6)                # au bit, comme dans le pod
 
 
+def _prevol_cellules(depot, dep, cpu_app, simultanees=False):
+    for i, (b, u) in enumerate((("lam0", 70.0), ("lam09", 73.0), ("sham09", 73.0), ("td0_d0", 36.0),
+                                ("td0_app", cpu_app))):
+        debut = 0 if simultanees else 10 * i
+        _cellule_complete(depot, dep, f"{b}_p1_seed1", {"bras": b, "pas": "p1", "seed": 1, "cpu_s": u},
+                          debut=f"2026-10-14T09:{debut:02d}:00", fin=f"2026-10-14T09:{debut + 5:02d}:00")
+
+
 @pytest.mark.parametrize("cpu_app,retenu", [(70.0, True), (100.0, False), (84.0, False)])
 def test_the_preflight_decides_the_paired_arm_on_its_CPU_cost_only_and_is_FROZEN(depot, cpu_app, retenu):
-    regle = _regle_run()
-    for b, u in (("lam0", 70.0), ("lam09", 73.0), ("sham09", 73.0), ("td0_d0", 36.0), ("td0_app", cpu_app)):
-        _ecrire_cellule(depot, f"{b}_p1_seed1", {"cpu_s": u})
-    pv = r3.prevol_r3(regle)
+    regle, dep = _regle_run(), depot / "deport"
+    _prevol_cellules(depot, dep, cpu_app)
+    pv = r3.prevol_r3(regle, str(dep))
     assert pv["fraction_cout_apparie"] == pytest.approx(cpu_app / 252.0) and pv["apparie_retenu"] is retenu
-    assert r3.prevol_r3(regle) == pv                                        # même contenu : accepté
-    _ecrire_cellule(depot, "lam0_p1_seed1", {"cpu_s": 71.0})
+    assert r3.prevol_r3(regle, str(dep)) == pv                                # même contenu : accepté
+    _cellule_complete(depot, dep, "lam0_p1_seed1", {"bras": "lam0", "pas": "p1", "seed": 1, "cpu_s": 71.0},
+                      debut="2026-10-14T08:00:00", fin="2026-10-14T08:05:00", job="relance")
     with pytest.raises(ValueError, match="FIGÉ"):
-        r3.prevol_r3(regle)
+        r3.prevol_r3(regle, str(dep))
+
+
+def test_the_preflight_REFUSES_SIMULTANEOUS_or_untraced_cells(depot):
+    """P1.b (revue v2) : le temps CPU d'un même bras a varié ×5,2 avec la contention entre pods (pilote τ)."""
+    regle, dep = _regle_run(), depot / "deport"
+    _prevol_cellules(depot, dep, 70.0, simultanees=True)
+    with pytest.raises(ValueError, match="SIMULTANÉES"):
+        r3.prevol_r3(regle, str(dep))
+    _ecrire_cellule(depot, "td0_d0_p1_seed1", {"cpu_s": 36.0})               # réécrite hors Job : plus de MANIFEST
+    with pytest.raises(ValueError, match="sans MANIFEST"):
+        r3.prevol_r3(regle, str(dep))
 
 
 def test_the_preflight_REFUSES_without_its_measured_cells(depot):
@@ -326,16 +376,18 @@ def test_the_preflight_REFUSES_without_its_measured_cells(depot):
         r3.prevol_r3(_regle_run())
 
 
-def _cellule_complete(racine, deport, nom, rec, lieu="nexus", image=DIGEST, rc=0, sha="abc", job=None):
-    rec = dict(rec, provenance=rec.get("provenance", {"dirty": False, "git_sha": sha}), mur_s=1.0, cpu_s=1.0)
+def _cellule_complete(racine, deport, nom, rec, lieu="nexus", image=DIGEST, rc=0, sha="abc", job=None, limite=1.0,
+                      omp="1", debut="2026-10-14T08:00:00", fin="2026-10-14T08:02:00"):
+    rec = {"mur_s": 1.0, "cpu_s": 1.0, **rec, "provenance": rec.get("provenance", {"dirty": False, "git_sha": sha})}
     q = _ecrire_cellule(racine, nom, rec)
     h = hashlib.sha256(q.read_bytes()).hexdigest()
     j = deport / (job or f"job-{nom}")
     j.mkdir(parents=True, exist_ok=True)
     (j / "MANIFEST.json").write_text(json.dumps({
         "job": j.name, "lieu": lieu, "sha": sha, "returncode": rc, "commande": ["-m", "tools.td_step_pilot_r3"],
-        "image": f"10.1.2.3:5443/x/runner:t@{image}", "cpu": {"limite_cpu": 1.0, "threads_poses": {}},
-        "debut_utc": "2026-10-14T08:00:00", "fin_utc": "2026-10-14T08:02:00",
+        "image": f"10.1.2.3:5443/x/runner:t@{image}",
+        "cpu": {"limite_cpu": limite, "threads_poses": {"OMP_NUM_THREADS": omp}},
+        "debut_utc": debut, "fin_utc": fin,
         "fichiers": {f"results/td_step_pilot_r3/{nom}.json": {"sha256": h}}}), encoding="utf-8")
 
 
@@ -350,9 +402,16 @@ def test_the_aggregate_EXCLUDES_and_names_off_place_off_image_failed_dirty_or_un
                                                         provenance={"dirty": True}))
     _ecrire_cellule(depot, "lam0_p1_seed6", dict(base, bras="lam0", pas="p1", seed=6, provenance={"dirty": False},
                                                  mur_s=1.0, cpu_s=1.0))     # sans MANIFEST
+    _cellule_complete(depot, dep, "lam0_p1_seed7", dict(base, bras="lam0", pas="p1", seed=7), limite=2.0, omp="2")
+    _cellule_complete(depot, dep, "lr0_reference_seed1", dict(base, ref="lr0_reference", seed=1),
+                      debut="2026-10-14T10:00:00", fin="2026-10-14T10:01:00")
+    _cellule_complete(depot, dep, "lam0_p2_seed1", dict(base, bras="lam0", pas="p2", seed=1),
+                      debut="2026-10-14T09:00:00", fin="2026-10-14T09:02:00")
     db = r3.agreger_r3(regle, str(dep))
     raisons = {e["cellule"]: e["raison"] for e in db["_regime"]["exclues"]}
-    assert set(raisons) == {f"lam0_p1_seed{i}" for i in (2, 3, 4, 5, 6)}
+    assert set(raisons) == {f"lam0_p1_seed{i}" for i in (2, 3, 4, 5, 6, 7)}
+    assert "fils" in raisons["lam0_p1_seed7"]                                # P10.a : un fil par cellule EXIGÉ
+    assert db["_regime"]["etape2_apres_etape1"] is False                     # P10.c : la référence finit APRÈS
     assert "lieu" in raisons["lam0_p1_seed2"] and "image" in raisons["lam0_p1_seed3"]
     assert "code" in raisons["lam0_p1_seed4"] and "sale" in raisons["lam0_p1_seed5"]
     assert "MANIFEST" in raisons["lam0_p1_seed6"]

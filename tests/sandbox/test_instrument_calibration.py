@@ -2139,6 +2139,13 @@ CALIBRATED = {
                                                    "egalite-exacte-a-la-marge:pas-au-dessus",
                                                    "incomplet:tau-None-jamais-0-fabrique",
                                                    "seed-du-verdict:raises"],
+    # P4.19 R3, séance du 2026-10-14 (décisions de robla 7 et 8) -- témoin : tests/sandbox/test_td_step_pilot_r3_tau.py
+    "tools/td_step_pilot_r3_tau.py::measure_dispersion_dose": ["reponse-connue:bornes-incluses-hors-bande-1",
+                                                               "rapport-indefini:compte-a-part-jamais-remplace",
+                                                               "vide:None-jamais-0", "seed-du-verdict:raises"],
+    "tools/td_step_pilot_r3_tau.py::measure_noop_identite": ["identite-exacte:f-1-IC-[1,1]-12-identiques",
+                                                             "ecart-injecte:+-2-pas-compte-et-dispersion"],
+    "tools/td_step_pilot_r3_tau.py::measure_replication": ["paire-identique:1", "net-a-1e-10-pres:NON-identique"],
 }
 
 _GENOMES = os.path.join("results", "warm007_genomes")
