@@ -24,6 +24,7 @@ from __future__ import annotations
 
 import json
 import os
+import sys
 import time
 from dataclasses import asdict, dataclass
 from pathlib import Path
@@ -58,25 +59,46 @@ def _repo_root(cwd: Optional[Path] = None) -> Path:
     donc un worktree (`.claude/worktrees/...`) ne voyait pas le bail tenu dans l'arbre principal — pendant
     le run P4.9, 503 tests simulant un monde ont TOURNÉ dans un worktree (sautés dans l'arbre principal) ;
     la charge machine est partagée (E12 sur tout coût mesuré pendant). `git rev-parse --git-common-dir`
-    rend le `.git` COMMUN à tous les worktrees : son parent est l'arbre principal. Sans git (ou hors dépôt) :
-    le cwd, comme avant. Mis en cache par processus (`_reset_repo_root_cache()` pour les tests)."""
+    rend le `.git` COMMUN à tous les worktrees : son parent est l'arbre principal. Mis en cache par processus
+    (`_reset_repo_root_cache()` pour les tests).
+
+    P2.175 (2026-10-14, trouvé par INTEGRATION-LU) — SANS argument, l'ancre est l'emplacement de CE MODULE, jamais le cwd.
+    Avant, `git rev-parse` partait du cwd et, hors dépôt, se rabattait EN SILENCE sur lui : le bail de la purge KuzuDB,
+    lancée depuis un scratchpad, est parti dans `<scratchpad>/runs/leases` — invisible à la flotte, le doctor aurait lu
+    0 pendant 93 s, l'exclusion n'a tenu que par l'ordonnancement (E32). Le module vit toujours dans le dépôt ou dans un
+    worktree : la racine commune est donc juste QUEL QUE SOIT le cwd. `GIT_*` est retiré de cet appel : la vérité est
+    l'emplacement du fichier, pas un GIT_DIR hérité d'un crochet. Sans dépôt git autour du module — une copie isolée
+    sans dépôt git —, la racine est l'arbre du module lui-même (parents[2]) : déterminée, indépendante du cwd, et DITE
+    une fois sur stderr ; pas de refus. Cas mesuré par Master 2 : dans un pod nexus, le code arrive dans /work (WORKDIR
+    /work, `tools/jobs/remote.py:455`), le module vit en /work/tools/jobs/lease.py et le cwd vaut /work — la racine est
+    /work, la même qu'avant ce correctif, avec ou sans `.git` dans /work. Avec un `cwd` EXPLICITE (doctor, tests) : le
+    comportement d'avant, git depuis ce dossier, sinon ce dossier — c'est l'appelant qui l'a choisi."""
     global _REPO_ROOT
     if _REPO_ROOT is not None and cwd is None:
         return _REPO_ROOT
-    base = Path(cwd) if cwd is not None else Path.cwd()
-    root = base
+    import subprocess
+    explicite = cwd is not None
+    base = Path(cwd) if explicite else Path(__file__).resolve().parent
+    env = None if explicite else {k: v for k, v in os.environ.items() if not k.startswith("GIT_")}
+    root = None
     try:
-        import subprocess
         out = subprocess.run(["git", "rev-parse", "--git-common-dir"], cwd=str(base), capture_output=True,
-                             text=True, timeout=10)
+                             text=True, timeout=10, env=env)
         if out.returncode == 0 and out.stdout.strip():
             common = Path(out.stdout.strip())
             if not common.is_absolute():
                 common = base / common
             root = common.resolve().parent
-    except Exception:                               # noqa: BLE001 — git absent : racine = cwd, comme avant
-        root = base
-    if cwd is None:
+    except Exception:                               # noqa: BLE001 — git absent : repli ci-dessous
+        root = None
+    if root is None:
+        if explicite:
+            root = base                             # l'appelant a choisi ce dossier : comme avant
+        else:
+            root = Path(__file__).resolve().parents[2]       # <racine>/tools/jobs/lease.py : l'arbre du module
+            sys.stderr.write(f"[tools.jobs.lease] pas de dépôt git autour de {Path(__file__).resolve()} : COPIE "
+                             f"isolée, bails dans {root / DEFAULT_LEASES_DIR} (P2.175)\n")
+    if not explicite:
         _REPO_ROOT = root
     return root
 

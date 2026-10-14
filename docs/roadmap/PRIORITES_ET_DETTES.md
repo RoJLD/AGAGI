@@ -2057,6 +2057,43 @@ exige la réservation, et la porte 4 refuse une entrée dont le numéro est rés
 bail `kuzu`, pour un nom au lieu d'une ressource. Contre-exemple : deux réservations concurrentes du même numéro, une
 seule réussit. *Coût : agent 1-2 h.* Sans clause `closes_when` (déclaré).
 
+**P2.175 — rang 0 bis (Master 2, 2026-10-14 : avant l'audit des importorskip, commit séparé) — ✅ CLOSE le 2026-10-14
+(trouvée par INTEGRATION-LU, ouverte et fermée le même jour) — Hors dépôt, le dossier des bails suivait le CWD : un
+bail pris depuis un scratchpad était INVISIBLE à la flotte.**
+Preuve : `tools/jobs/lease.py::_repo_root` lançait `git rev-parse --git-common-dir` depuis le cwd et, hors dépôt, se
+rabattait EN SILENCE sur lui (« Sans git (ou hors dépôt) : le cwd, comme avant »). Le bail de la purge KuzuDB,
+lancée depuis le scratchpad d'INTEGRATION-LU, est parti dans `<scratchpad>/runs/leases` : le doctor de la flotte
+aurait lu 0 bail pendant 93 s, et l'exclusion de kuzu n'a tenu que par l'ordonnancement (E32, inscrite par
+INTEGRATION-LU). Contrôle positif du défaut rejoué : le lease.py de d1 (29ee5aec) et le corrigé, chargés chacun par leur chemin dans un processus neuf au cwd HORS dépôt : AVANT, les bails dans <cwd>/runs/leases (invisibles à la flotte) ; APRÈS, dans runs/leases de l'arbre principal.
+✅ **FERMÉE le 2026-10-14 (agagi-32)** — SANS argument, l'ancre est l'emplacement du MODULE (`Path(__file__)`),
+jamais le cwd : le module vit toujours dans le dépôt ou un worktree, donc la racine commune est juste quel que soit le
+cwd ; `GIT_*` est retiré de cet appel (la vérité est l'emplacement du fichier, pas un GIT_DIR hérité d'un crochet).
+Sans dépôt git autour du module — une copie isolée sans dépôt git —, la racine est l'arbre du module (parents[2]),
+déterminée et DITE sur stderr ; pas de refus (conception acceptée par Master 2). Cas mesuré par Master 2 : un pod nexus
+reçoit le code dans /work (`tools/jobs/remote.py:455`), le module y vit en /work/tools/jobs/lease.py et le cwd vaut
+/work — la racine reste /work, la même qu'avant ; côté batcave, `remote.py:1045` passe `leases_dir` explicitement :
+non touché. Un `cwd` EXPLICITE (doctor, tests) garde le comportement choisi par l'appelant. Témoins :
+`tests/sandbox/test_lease_racine.py` (5, de VRAIS sous-processus au cwd hors dépôt, qui CALCULENT `_dir(None)` sans
+jamais écrire un bail) — l'incident exact ; un GIT_DIR hérité d'un AUTRE dépôt ne détourne rien ; une copie sans git a
+ses bails dans SON arbre et le dit ; la même copie lancée depuis sa racine garde la racine d'avant (le cas /work) ;
+un cwd explicite inchangé. Windows 210 verts en 3 min 42, 0 saut (racine, jobs, jobs distants, bail sans psutil, doctor, gardes de bail, tableau du PM) ; Linux (WSL) 81 verts ; 1 cas désélectionné, le bout en bout (b) de test_lease_skip_guard, dont le pytest imbriqué de test_backend reste bloqué à la sortie sous WSL (défaut de banc connu, P2.171) — tué par motif ancré ; mutations à la main 4/4 tuées (l'ancre redevient le cwd ; GIT_* hérité ; sans git, repli sur le cwd ; repli muet), contrôle intact vert avant chacune.
+<!-- closes_when:grep_present=tools/jobs/lease.py::Path\(__file__\)\.resolve\(\)\.parent -->
+
+**P2.176 — GELÉE jusqu'à la levée du gel de méthode (le registre, ne bloque aucun run ; Master 2, 2026-10-14) —
+OUVERTE (2026-10-14, relevée par la revue de R3, P9.c, vérifiée par Master 2 et par agagi-32) — Deux classes d'erreur
+sous le MÊME numéro E27 : un compteur de classes qui ne compte pas ce qu'on croit.**
+Preuve : `docs/REF/REGISTRE_ERREURS.md:62` définit E27 comme « La VÉRIFICATION réécrit l'ÉVIDENCE » (un test de
+fumée qui rejoue le runner réel au seed de la mesure publiée et écrit à son chemin) ; `tools/check_evidence_provenance.py:12`
+(porte 20), le paragraphe de la porte 20 de CLAUDE.md et `tools/check_record_links.py:59` emploient E27 pour « une
+conclusion dont l'évidence n'est plus rouvrable » — de même que le titre de la porte 20 dans
+`tools/check_gate_mutation.py:450`, `tests/sandbox/test_evidence_provenance_gate.py`,
+`tests/sandbox/test_record_graph_completeness.py` et plusieurs revues du 2026-09-26 (sous docs/reviews). Les occurrences
+et leurs gardes se rangent donc sous une classe qui n'est pas la leur. **Remède** (retenu par Master 2 le 2026-10-14,
+à exécuter à la levée du gel) : une
+classe NEUVE pour l'évidence non rouvrable, ses citations renumérotées (code, tests, CLAUDE.md, revues), et une
+garde qui refuse qu'un numéro de classe cité porte un autre titre que celui du registre. *Coût : agent 1 h.* Sans
+clause `closes_when` (déclaré).
+
 **P2.143 — rang 6, GELÉE jusqu'à la levée du gel de méthode (une porte, qui ne bloque aucun run) (rang fixé par Master 2 le 2026-09-28) — OUVERTE (2026-09-28, extension exécutable d'E8 DÉCIDÉE par Master 2 ; inscrite par la session SCIENCE-HARNAIS) — Un nombre de PROSE qui porte une unité ou un compte, dans un record, DÉCLARE sa source ; une porte la vérifie.**
 Preuve : E8, occurrence du 2026-09-28 — six valeurs recopiées au lieu d'être relues en un jour (0,82 d'un rapport de chemin cité comme un rapport net ; 3 processus pour 6 ; 4e-7 pour 2,1e-5 ; « 24 à 718 », chiffre de conception cité comme mesure ; dose 1,0 pour ≈ 0,66 active ; heures de build estimées), toutes attrapées avant publication par une relecture contre la source — donc par un humain ou une revue, jamais par une porte : la porte 19 ne lit que « nom = valeur » d'un paramètre de régime (revue du record [[EDR-S2-BASSIN-FRAGILITY]], P2.b : elle rend SANS_PARAMETRE sur ce record, qui écrit « phase 2 à 200 ticks »). **Forme** : une balise DÉCLARÉE par l'auteur à côté du nombre — chemin `results/*.json` SUIVI, pointeur JSON, valeur et tolérance — sur le modèle des balises de compte de la porte 8 ; la porte relit le fichier et compare ; une valeur recalculée (médiane, rapport) déclare sa fonction et ses clés d'entrée. Ce qui est porteur est DÉCLARÉ, jamais deviné : la porte ne cherche pas les nombres NON balisés (elle les COMPTE et les rapporte, comme la porte 4 rapporte les entrées sans clause). Contre-exemples gelés : les cinq valeurs de cette occurrence qui ont une source JSON. À la livraison, la forme passe exécutable. *Coût : agent 3-4 h.* Sans clause `closes_when` (déclaré) : le nom de la porte n'est pas fixé.
 
