@@ -10,6 +10,7 @@
     "tools/pm/index_artefacts.py::indexer",
     "tools/pm/pilotage.py::compute_pilotage",
     "tools/pm/pilotage.py::parse_roadmap",
+    "tools/pm/science.py::compute_science",
     "tools/refutateur_temoins.py::juge_est_calibre",
     "tools/refutateur_temoins.py::plancher",
     "tools/refutateur_temoins.py::recevabilite",

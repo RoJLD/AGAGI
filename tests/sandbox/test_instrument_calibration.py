@@ -2101,12 +2101,23 @@ CALIBRATED = {
                                              "non-suivi:jamais-date",
                                              # revue adversariale du pas 2
                                              "no-op:liens-null-si-non-lus", "dates-hostiles:refus-local",
-                                             "futur:age-negatif-dit", "racine-a-crochets:jamais-zero"],
+                                             "futur:age-negatif-dit", "racine-a-crochets:jamais-zero",
+                                             # revue de la tâche 1 du plan 2 (I1-b)
+                                             "types:verdict-mal-type-jamais-masque-par-status"],
     "tools/pm/index_artefacts.py::calculer_dates_git": ["reel:depot-jetable-dates-utc", "tronque:clone-depth-1",
                                                         "config-heritee:sans-effet", "plus-ancienne:ajout-recree",
                                                         "fuite-git-dir:refusee", "git-dir-du-meme-depot:complet",
                                                         "vieux-git:jamais-complet", "suivis:head-jamais-index",
                                                         "config-heritee:log-showroot"],
+    "tools/pm/science.py::compute_science": ["no-op:sources-absentes-blocs-null", "injection:couverture-recopiee",
+                                             "prediction:une-refutee-retiree", "dense:semaine-intermediaire-zero",
+                                             "parite:famille-null", "reel:bout-a-bout",
+                                             # revue adversariale de la tâche 1 du plan 2 : chaque défaut devient un cas
+                                             "partielle:records-illisibles-dits", "no-op:tous-illisibles-jamais-vide",
+                                             "cause:semaines-null-raison-nommee", "borne:instantane-semaine-partielle",
+                                             "futur:date-future-jamais-en-semaines", "injection:preuves-assainies",
+                                             "entier-geant:jamais-refus-global", "reel:graphe-compte-connu",
+                                             "parite:contre-indexes"],
     # P4.19 R3 (2026-10-13) : lecture d'UN pas et synthèse vers l'ADR, confrontées à des réponses CONNUES par INJECTION
     # (fabrique `base_injection`, 0 simulation) -- f connu -> branche nommée, ordre imposé, égalité à la marge = échec,
     # instrument rompu bloquant, pas secondaire qui ne refuse jamais seul, TD(0) à dose nette égale qui retient l'entrée.

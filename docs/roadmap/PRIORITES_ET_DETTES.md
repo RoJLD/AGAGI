@@ -3188,8 +3188,9 @@ est trouvée. À faire : reproduire hors pytest (importer l'app, créer puis rel
 l'app de pytest, lire la pile native du fil en `pipe_write`, et joindre ou détacher le fil fautif à l'arrêt. *Coût :
 agent 1-2 h sous WSL ; calcul 0.* Dépend de : rien.
 
-**P2.170 — OUVERTE (2026-10-14, revue finale du plan 1 de P2.87, session FRONT) — onglet Index : cinq défauts mineurs
-différés, dont un manque de la spec (filtre « illisible ») et une écriture non atomique de `DATES_GIT.json`.**
+**P2.170 — OUVERTE (2026-10-14, revues du plan 1 de P2.87 et de la tâche 1 du plan 2 de P2.84, session FRONT) —
+index des artefacts, onglet Index et module science : vingt et un défauts mineurs différés, dont un manque de la spec
+(filtre « illisible ») et une écriture non atomique de `DATES_GIT.json`.**
 Preuve : relecteur opus en lecture seule, le 2026-10-13. Ses trois défauts importants (libellés qui affirmaient une
 propriété du fichier, âge négatif ramené à 0, famille non lue présentée comme vide) et quatre mineurs regradés sont
 CORRIGÉS dans le commit qui inscrit cette entrée ; restent :
@@ -3204,6 +3205,30 @@ d'une autre branche (Review Focus 2 du plan), et « relu à chaque sondage » es
 du dépôt, le cas NAS de la porte 12 — et le lien est cassé ;
 (e) `frontend/src/lib/index.ts` porte un nom de fichier-baril qu'un futur import du répertoire capterait ; un nom non
 ambigu (indexArtefacts) l'éviterait.
+Mineurs différés par les revues adversariales des pas 1 et 2 (jusque-là au seul grand livre d'exécution, hors git),
+tous dans `tools/pm/index_artefacts.py` ou `backend/app/services/index_service.py` :
+(f) les noms que git cite malgré core.quotepath=false (guillemet, antislash, caractère de contrôle — impossibles sous
+NTFS, possibles sous Linux) sortent sans_ajout_trouve ; correctif : `git log -z` ;
+(g) un `gate` d'un autre type qu'une chaîne est mis à None sans être compté ;
+(h) un titre vide rend cle_absente alors que la clé existe ;
+(i) le lecteur de titre markdown ignore les clôtures en tildes et une règle horizontale placée avant le titre ;
+(j) un fichier caché suivi dans une famille n'est ni lu ni compté hors familles ;
+(k) un fichier réduit à un BOM n'est pas classé fichier_vide ;
+(l) un mode dégradé passager du service est servi jusqu'à 60 s (un TTL court pour le mode dégradé) ;
+(m) le cache n'est pas indexé par la racine et il est servi par référence (un consommateur qui le mute le pollue) ;
+(n) validation laxiste des modèles Index* (True servi 1, « 3 » servi 3) — inatteignable depuis l'index, à durcir si un
+bloc lit du JSON externe ;
+(o) un 500 si le texte d'une exception lève lui-même (même défaut dans le service du pilotage) ;
+(p) l'image lancée SANS le volume des résultats rend « resultat : fichiers 0 » sans ligne (le compose le monte toujours) ;
+(q) le TTL du cache repose sur l'horloge murale (time.monotonic à préférer, même défaut dans le pilotage).
+Mineurs différés par la revue de la tâche 1 du plan 2 (opus, lecture seule, 2026-10-14 ; ses six importants et six
+mineurs sont corrigés dans le commit 4a), tous dans `tools/pm/science.py` :
+(r) `lire_pipeline` lit `check_preregistration_applied._ROOT`, jamais la racine reçue : `--repo-root X` sert la
+couverture d'un dépôt sous le `repo_root` d'un autre ;
+(s) des comptes égaux (graphe contre index) ne disent pas des ensembles égaux, et aucune ligne ne sort alors ;
+(t) des identifiants de capacité dupliqués, des arêtes boucles ou des arêtes établies dupliquées ne sont pas signalés ;
+(u) quand le module de la pipeline lève, la liste des pré-inscriptions — qui ne dépend que de l'index — part avec le
+bloc (une perte, pas une fabrication).
 *Coût : agent 1-2 h ; calcul 0.* Dépend de : rien.
 
 **P2.136 — rang 6 — ✅ CLOSE le 2026-09-28 (ouverte le 2026-09-26 sur arbitrage de Master 2 : la règle du registre

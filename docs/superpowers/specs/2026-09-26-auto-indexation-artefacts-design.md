@@ -202,7 +202,8 @@ bloc `null` + ligne (préfixe du bloc) quand sa source manque.
   pas dans `records_graph.json`, **périmé** (dernier commit le 2026-09-16, 131 verdicts, aucun horodatage — I9) ;
   `records_graph` sert seulement à publier l'écart : si son compte diffère de celui de l'index, ligne
   `trouvailles : results/records_graph.json compte n verdicts, docs/EDR en déclare m — graphe à regénérer
-  (tools/consolidate_records.py)`. **`par_semaine`** : par famille, sur UNE date nommée
+  (tools/consolidate_records.py)` *(libellé et forme de `par_semaine` précisés au §9, revue de la tâche 1 du plan
+  2)*. **`par_semaine`** : par famille, sur UNE date nommée
   (`date_ajout_git` pour record/adr/ref/sdr/resultat/preinscription, `date_declaree` pour spec/plan/revue) ; clés
   `"AAAA-Www"` (ISO, UTC), **denses** entre la première et la dernière semaine de la famille — un zéro y est une
   mesure puisque la source de date est complète ; artefacts sans cette date comptés dans `sans_date` par raison ; si
@@ -294,7 +295,15 @@ Mesuré à la conception : `git log` figé 0,15-0,19 s (3 passes, charge 73,7 %)
 charge FORTE notée : 97,3 % de CPU sur 1 s, 4 processus python du projet — donc des MAJORANTS, la mesure au repos reste
 à faire) : `calculer_dates_git` 0,96 / 0,69 / 0,66 s (historique complet, 790 dates, 823 fichiers suivis) ; `indexer`
 0,72 / 0,60 / 0,69 s ; 766 artefacts, `index_v1` de 351 Ko en JSON. Sous 2 s même sous charge : le cache du service
-reste à 60 s. `compute_science` : à mesurer au plan 2.
+reste à 60 s. **`compute_science`, mesuré au plan 2 le 2026-09-26** (même worktree, index déjà calculé, CPU à 24 % sur
+1 s, un bail tenu par une revue en cours) : 0,44 / 0,42 / 0,38 s — dominé par `couverture()` et `familles_sans_record()`,
+qui relisent chacune les EDR ; pipeline 47 / 10 / 1 / 58 familles, 5 arêtes, 139 verdicts, une ligne d'aveuglement
+(l'écart au graphe de records, périmé). **Re-mesuré au commit 4a le 2026-10-14**, après les correctifs de la revue
+(doctor : 0 bail, 0 processus python du projet ; mais CPU à 22 puis 27 % sur 1 s, charge HORS projet — un pytest d'une
+autre machine virtuelle possible —, donc pas une machine au repos) : `indexer` 0,71 s, puis `compute_science` et ses
+trois lecteurs 0,52 / 0,76 / 0,77 s ; pipeline 48 / 10 / 1 / 59 familles, 5 arêtes, 140 verdicts, aucun partiel, une
+ligne d'aveuglement (graphe 131 contre index 140). L'unité au repos reste NON mesurée ; sous 1 s même chargée, le TTL
+de 60 s du service n'est pas en jeu.
 
 ---
 
@@ -439,6 +448,24 @@ importants, 11 mineurs) :
 - **le smoke CI peut échouer** sur un bloc refusé et sur des artefacts null ou vides (E1), et il est confronté à des
   réponses connues par un témoin qui EXTRAIT ses deux contrôles du workflow ;
 - racine contenant des crochets : `glob.escape` (un « [1] » rendait 0 fichier, sans ligne).
+
+**Précisions apportées par la revue adversariale de la tâche 1 du plan 2** (opus, lecture seule, 2026-10-14 : 0
+critique, 6 importants, 10 mineurs ; amendement A1 du plan 2) — elles REMPLACENT les phrases contraires du §3.2 :
+- **verdicts** : un record illisible est dit (ligne `trouvailles :`, « liste PARTIELLE », `verdicts_partiels`) ; une
+  famille record entièrement illisible sert `verdicts: null`, jamais `[]` ; un `verdict` non-chaîne n'est plus masqué
+  par `status` à l'index (`type_inattendu`, conformément au §3.1) et science le relaie ;
+- **`par_semaine`** : toujours un objet `{date, semaines, sans_date, semaine_partielle, raison}`, la cause d'un
+  `semaines` null nommée dans un vocabulaire fermé (`famille_non_lue`, `parite_rompue`, `sans_date_nommee`,
+  `dates_absentes`, `historique_tronque`, `git_indisponible`) — le « `par_semaine[famille] = null` » du §3.2 est
+  caduc ; la densité va de la première semaine à la BORNE (jour UTC de l'instantané des dates pour git, de `now` pour un
+  nom daté), pas à la dernière date ; la semaine de la borne est dite partielle ; un artefact daté au-delà est compté
+  dans `sans_date` sous `date_future` ; le bloc `dates` de l'index est recopié (`trouvailles.dates`) ;
+- **taxonomie** : chaque arête porte `preuves` (sept champs de `evidence`, dont `specificity_control`) — décision
+  d'intégrateur de Master 2, conforme à « établie (avec `strength`, `evidence`) » ci-dessus ; une valeur mal typée ou
+  non finie est servie null ET nommée (fichier, indice, champ) ; un entier trop grand pour un flottant ne fait plus
+  refuser les trois blocs ;
+- **écart au graphe** : la ligne nomme les deux périmètres (graphe SDR/ADR/EDR/REF, index docs/EDR) et n'attribue
+  pas de cause ; un `nodes` qui n'est pas une liste est illisible, jamais 0.
 
 ---
 

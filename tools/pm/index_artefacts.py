@@ -226,9 +226,15 @@ def _lire_record(texte, art, manques):
     art["titre"], _, r = _premiere_chaine(meta, ("title",))
     if r:
         manques["titre"] = r
-    art["etat"], art["etat_source"], r = _premiere_chaine(meta, ("verdict", "status"))
-    if r:
-        manques["etat"] = r
+    # Un `verdict` MAL TYPÉ n'est jamais masqué par `status` (revue de la tâche 1 du plan 2, I1-b) : il sortait par
+    # `status`, sans un compte, et disparaissait de l'index ET des trouvailles. Spec §3.1 : `verdict: {x: 1}` → null.
+    _, r = _chaine(meta, "verdict")
+    if r == "type_inattendu":
+        art["etat"], art["etat_source"], manques["etat"] = None, None, r
+    else:
+        art["etat"], art["etat_source"], r = _premiere_chaine(meta, ("verdict", "status"))
+        if r:
+            manques["etat"] = r
     art["date_declaree"], r = _date(meta.get("date"))
     if r:
         manques["date_declaree"] = r
