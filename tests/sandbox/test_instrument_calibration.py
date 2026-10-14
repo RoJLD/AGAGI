@@ -2117,7 +2117,9 @@ CALIBRATED = {
                                              "cause:semaines-null-raison-nommee", "borne:instantane-semaine-partielle",
                                              "futur:date-future-jamais-en-semaines", "injection:preuves-assainies",
                                              "entier-geant:jamais-refus-global", "reel:graphe-compte-connu",
-                                             "parite:contre-indexes"],
+                                             "parite:contre-indexes",
+                                             # revue de la tâche 2 du plan 2
+                                             "relais:aveugle-de-l-index", "no-op:index-partage-jamais-mute"],
     # P4.19 R3 (2026-10-13) : lecture d'UN pas et synthèse vers l'ADR, confrontées à des réponses CONNUES par INJECTION
     # (fabrique `base_injection`, 0 simulation) -- f connu -> branche nommée, ordre imposé, égalité à la marge = échec,
     # instrument rompu bloquant, pas secondaire qui ne refuse jamais seul, TD(0) à dose nette égale qui retient l'entrée.

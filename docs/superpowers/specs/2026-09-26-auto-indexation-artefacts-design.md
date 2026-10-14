@@ -467,6 +467,16 @@ critique, 6 importants, 10 mineurs ; amendement A1 du plan 2) — elles REMPLACE
 - **écart au graphe** : la ligne nomme les deux périmètres (graphe SDR/ADR/EDR/REF, index docs/EDR) et n'attribue
   pas de cause ; un `nodes` qui n'est pas une liste est illisible, jamais 0.
 
+**Précisions apportées par la revue adversariale de la tâche 2 du plan 2** (opus, lecture seule, 2026-10-14 : 0
+critique, 5 importants, 9 mineurs ; amendement A2 du plan 2) :
+- **l'aveugle de l'index est RELAYÉ dans celui de science**, chaque ligne telle quelle sous « trouvailles : (index) » :
+  la vue Science n'affiche que `/api/pm/science`, et un âge négatif de l'instantané (qui exige « âge négatif ET une
+  ligne », ci-dessus), une famille non lue ou le mode dégradé de l'index y étaient servis sans leur ligne ;
+  `trouvailles.dates.age_s` reste l'âge à l'instant de l'index (jusqu'à 60 s de cache) ;
+- **la route sert EXACTEMENT la sortie du module** : pydantic retirant en silence une clé non déclarée, un témoin
+  compare chaque bloc servi à la sortie de `compute_science` ; les deux vocabulaires fermés (causes d'un `semaines`
+  null, champs de `preuves`) sont à parité exacte entre la route et le module.
+
 ---
 
 ## 10. Contraintes du dépôt honorées

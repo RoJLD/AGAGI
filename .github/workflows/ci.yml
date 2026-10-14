@@ -246,6 +246,12 @@ jobs:
           docker compose restart backend && sleep 10
           curl --fail -s --retry 10 --retry-connrefused --retry-delay 2 http://localhost:8000/api/pm/index -o index_present.json || { docker compose logs backend; exit 1; }
           python3 -c "import json, sys; d = json.load(open('index_present.json', encoding='utf-8')); av = d.get('aveugle') or []; bad = [a for a in av if a.startswith('index:') or ': bloc refusé' in a]; dt = d.get('dates') or {}; ok = dt.get('historique') in ('complet', 'tronque') and isinstance(dt.get('age_s'), (int, float)) and dt['age_s'] >= 0; arts = d.get('artefacts'); arts_ok = isinstance(arts, list) and len(arts) > 0; print('index (present) :', dt, '|', len(arts) if isinstance(arts, list) else None, 'artefacts'); [print('  DEGRADE :', a) for a in bad]; sys.exit(1 if bad or not ok or not arts_ok else 0)" || { docker compose logs backend; exit 1; }
+          # P2.84 (plan 2, Task 2) : la route science lit l'index dans SON cache (chaud, instantané présent). Rouge sur une
+          # ligne « science: », un bloc refusé, une pipeline null ou à total 0 (B2), une taxonomie sans arête, des
+          # verdicts null ou vides ; les deux issues confrontées à des réponses connues par
+          # tests/sandbox/test_ci_smoke_index.py, qui EXTRAIT cette ligne du workflow.
+          curl --fail -s http://localhost:8000/api/pm/science -o science_smoke.json || { docker compose logs backend; exit 1; }
+          python3 -c "import json, sys; d = json.load(open('science_smoke.json', encoding='utf-8')); av = d.get('aveugle') or []; bad = [a for a in av if a.startswith('science:') or ': bloc refusé' in a]; p = d.get('pipeline') or {}; tot = (p.get('couverture') or {}).get('total'); tx = d.get('taxonomie') or {}; tr = d.get('trouvailles') or {}; ver = tr.get('verdicts'); ver_ok = isinstance(ver, list) and len(ver) > 0; print('science :', d.get('schema'), '| pipeline total', tot, '| aretes', len(tx.get('aretes') or []), '| verdicts', len(ver) if isinstance(ver, list) else None); [print('  DEGRADE :', a) for a in bad]; sys.exit(1 if bad or d.get('schema') != 'science_v1' or not tot or not tx.get('aretes') or not ver_ok else 0)" || { docker compose logs backend; exit 1; }
           curl --fail http://localhost:4173
           # Install Playwright browsers and run E2E tests against the running services
           npm --prefix frontend install

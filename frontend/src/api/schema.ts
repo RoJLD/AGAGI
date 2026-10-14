@@ -325,6 +325,27 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/pm/science": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Science
+         * @description Lot 2 « Science » (P2.84) : pipeline, taxonomie, trouvailles — recopiés de sources publiées, jamais
+         *     recalculés ; blocs null avec leur ligne quand leur source manque ; cache 60 s, index lu dans SON cache.
+         */
+        get: operations["science_api_pm_science_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/provenance": {
         parameters: {
             query?: never;
@@ -1343,6 +1364,14 @@ export interface components {
             /** Schema */
             schema: string;
         };
+        /** Pipeline */
+        Pipeline: {
+            couverture: components["schemas"]["ScienceCouverture"];
+            /** Familles Sans Record */
+            familles_sans_record: string[];
+            /** Preinscriptions */
+            preinscriptions?: components["schemas"]["SciencePreinscription"][] | null;
+        };
         /** Porte */
         Porte: {
             baseline?: components["schemas"]["PorteBaseline"] | null;
@@ -1529,6 +1558,67 @@ export interface components {
             /** Seed */
             seed: number;
         };
+        /** ScienceCouverture */
+        ScienceCouverture: {
+            /** Inspectees */
+            inspectees: number;
+            /** Sans Grandeur */
+            sans_grandeur: number;
+            /** Sans Record */
+            sans_record: number;
+            /** Total */
+            total: number;
+        };
+        /** SciencePreinscription */
+        SciencePreinscription: {
+            /** Chemin */
+            chemin: string;
+            /** Date Ajout Git */
+            date_ajout_git?: string | null;
+            /** Scelle */
+            scelle?: boolean | null;
+            /** Titre */
+            titre?: string | null;
+        };
+        /**
+         * ScienceV1
+         * @description Enveloppe de `science_v1` (spec 2026-09-26 §3.2, §9). Chaque bloc validé par le service DANS son filet.
+         */
+        ScienceV1: {
+            /** Aveugle */
+            aveugle: string[];
+            /** Generated At */
+            generated_at: number;
+            pipeline?: components["schemas"]["Pipeline"] | null;
+            /** Repo Root */
+            repo_root?: string | null;
+            /** Schema */
+            schema: string;
+            taxonomie?: components["schemas"]["Taxonomie"] | null;
+            trouvailles?: components["schemas"]["Trouvailles"] | null;
+        };
+        /**
+         * SemainesFamille
+         * @description Plan 2, amendement A1 (I2, I3) : TOUJOURS servi ; `raison` dit pourquoi `semaines` est null, dans le
+         *     vocabulaire fermé `science.RAISONS_SEMAINES` ; `semaine_partielle` est la semaine de la borne (instantané des
+         *     dates ou `now`).
+         */
+        SemainesFamille: {
+            /** Date */
+            date?: string | null;
+            /** Raison */
+            raison?: ("famille_non_lue" | "parite_rompue" | "sans_date_nommee" | "dates_absentes" | "historique_tronque" | "git_indisponible") | null;
+            /** Sans Date */
+            sans_date?: {
+                [key: string]: number;
+            } | null;
+            /** Semaine Partielle */
+            semaine_partielle?: string | null;
+            /** Semaines */
+            semaines?: {
+                [key: string]: number;
+            } | null;
+        };
         /** StartRequest */
         StartRequest: {
             /**
@@ -1617,6 +1707,97 @@ export interface components {
             y_std?: {
                 [key: string]: number[];
             } | null;
+        };
+        /** Taxonomie */
+        Taxonomie: {
+            /** Aretes */
+            aretes: components["schemas"]["TaxonomieArete"][];
+            /** Capacites */
+            capacites: components["schemas"]["TaxonomieCapacite"][];
+        };
+        /** TaxonomieArete */
+        TaxonomieArete: {
+            /** Capacite */
+            capacite: string;
+            /** Depassee Par */
+            depassee_par?: string | null;
+            /** Force */
+            force?: string | null;
+            /** N */
+            n?: number | null;
+            /**
+             * Nature
+             * @enum {string}
+             */
+            nature: "etablie" | "refutee";
+            /** Prerequis */
+            prerequis: string;
+            preuves: components["schemas"]["TaxonomiePreuves"];
+            /** Raison */
+            raison?: string | null;
+            /** Ratio */
+            ratio?: number | null;
+            /** Record */
+            record?: string | null;
+            /** Verdict */
+            verdict?: string | null;
+        };
+        /** TaxonomieCapacite */
+        TaxonomieCapacite: {
+            /** Id */
+            id: string;
+            /** Record */
+            record?: string | null;
+            /** Titre */
+            titre?: string | null;
+        };
+        /**
+         * TaxonomiePreuves
+         * @description Plan 2, amendement A1 (I5, décision d'intégrateur) : les champs de `evidence` qui fondent une arête ; chacun une
+         *     chaîne, un nombre fini, ou null (absent de la source, ou mal typé ET nommé par une ligne `taxonomie :`).
+         */
+        TaxonomiePreuves: {
+            /** Ablation Target */
+            ablation_target?: string | number | null;
+            /** Ceiling Provenance */
+            ceiling_provenance?: string | number | null;
+            /** Coord Intact */
+            coord_intact?: string | number | null;
+            /** Emergence Bar */
+            emergence_bar?: string | number | null;
+            /** Functional Aliasing */
+            functional_aliasing?: string | number | null;
+            /** Incapable Ceiling */
+            incapable_ceiling?: string | number | null;
+            /** Specificity Control */
+            specificity_control?: string | number | null;
+        };
+        /** TrouvailleVerdict */
+        TrouvailleVerdict: {
+            /** Chemin */
+            chemin: string;
+            /** Date Ajout Git */
+            date_ajout_git?: string | null;
+            /** Gate */
+            gate?: string | null;
+            /** Titre */
+            titre?: string | null;
+            /** Verdict */
+            verdict: string;
+        };
+        /** Trouvailles */
+        Trouvailles: {
+            /** Compte Graphe */
+            compte_graphe?: number | null;
+            dates?: components["schemas"]["IndexDates"] | null;
+            /** Par Semaine */
+            par_semaine?: {
+                [key: string]: components["schemas"]["SemainesFamille"];
+            } | null;
+            /** Verdicts */
+            verdicts?: components["schemas"]["TrouvailleVerdict"][] | null;
+            /** Verdicts Partiels */
+            verdicts_partiels?: boolean | null;
         };
         /** ValidationError */
         ValidationError: {
@@ -2132,6 +2313,26 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    science_api_pm_science_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ScienceV1"];
                 };
             };
         };

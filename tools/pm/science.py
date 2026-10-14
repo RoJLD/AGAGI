@@ -320,7 +320,8 @@ def _trouvailles(index, graphe, aveugle, now):
 
 
 def compute_science(index, pipeline, taxonomie, graphe, now):
-    """`science_v1` — PUR ; chaque bloc null avec sa ligne quand sa source manque."""
+    """`science_v1` — PUR ; chaque bloc null avec sa ligne quand sa source manque ; les lignes de l'index
+    relayées sous « trouvailles : (index) »."""
     aveugle = []
     bloc_pipeline = _pipeline(index, pipeline, aveugle)
     bloc_taxonomie = _taxonomie(taxonomie, aveugle)
@@ -330,6 +331,10 @@ def compute_science(index, pipeline, taxonomie, graphe, now):
         bloc_trouvailles = None
     else:
         bloc_trouvailles = _trouvailles(index, graphe, aveugle, now)
+    # Revue de la tâche 2 (mineurs 4 et 5) : la vue Science n'affiche que /science. Chaque ligne de l'index (âge
+    # négatif de l'instantané, famille non lue, mode dégradé) est RELAYÉE telle quelle sous le préfixe du bloc
+    # qu'elle qualifie — jamais `index:` en tête, réservé au service de l'index.
+    aveugle.extend(f"trouvailles : (index) {a}" for a in index.get("aveugle") or [] if isinstance(a, str))
     return {"schema": SCHEMA, "generated_at": float(now), "repo_root": index.get("repo_root"), "aveugle": aveugle,
             "pipeline": bloc_pipeline, "taxonomie": bloc_taxonomie, "trouvailles": bloc_trouvailles}
 

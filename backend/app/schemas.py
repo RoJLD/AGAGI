@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import Any
+from typing import Any, Literal
 
 from pydantic import BaseModel, ConfigDict, Field
 
@@ -391,6 +391,104 @@ class IndexV1(BaseModel):
     familles: list[IndexFamille] | None = None
     hors_familles: IndexHorsFamilles | None = None
     artefacts: list[IndexArtefact] | None = None
+
+
+class ScienceCouverture(BaseModel):
+    inspectees: int
+    sans_grandeur: int
+    sans_record: int
+    total: int
+
+
+class SciencePreinscription(BaseModel):
+    chemin: str
+    titre: str | None = None
+    scelle: bool | None = None
+    date_ajout_git: str | None = None
+
+
+class Pipeline(BaseModel):
+    couverture: ScienceCouverture
+    familles_sans_record: list[str]
+    preinscriptions: list[SciencePreinscription] | None = None
+
+
+class TaxonomieCapacite(BaseModel):
+    id: str
+    titre: str | None = None
+    record: str | None = None
+
+
+class TaxonomiePreuves(BaseModel):
+    """Plan 2, amendement A1 (I5, décision d'intégrateur) : les champs de `evidence` qui fondent une arête ; chacun une
+    chaîne, un nombre fini, ou null (absent de la source, ou mal typé ET nommé par une ligne `taxonomie :`)."""
+    specificity_control: str | int | float | None = None
+    functional_aliasing: str | int | float | None = None
+    ablation_target: str | int | float | None = None
+    coord_intact: str | int | float | None = None
+    emergence_bar: str | int | float | None = None
+    incapable_ceiling: str | int | float | None = None
+    ceiling_provenance: str | int | float | None = None
+
+
+class TaxonomieArete(BaseModel):
+    capacite: str
+    prerequis: str
+    nature: Literal["etablie", "refutee"]
+    force: str | None = None
+    verdict: str | None = None
+    ratio: float | None = None
+    n: int | None = None
+    record: str | None = None
+    raison: str | None = None
+    depassee_par: str | None = None
+    preuves: TaxonomiePreuves
+
+
+class Taxonomie(BaseModel):
+    capacites: list[TaxonomieCapacite]
+    aretes: list[TaxonomieArete]
+
+
+class TrouvailleVerdict(BaseModel):
+    chemin: str
+    titre: str | None = None
+    verdict: str
+    gate: str | None = None
+    date_ajout_git: str | None = None
+
+
+class SemainesFamille(BaseModel):
+    """Plan 2, amendement A1 (I2, I3) : TOUJOURS servi ; `raison` dit pourquoi `semaines` est null, dans le
+    vocabulaire fermé `science.RAISONS_SEMAINES` ; `semaine_partielle` est la semaine de la borne (instantané des
+    dates ou `now`)."""
+    date: str | None = None
+    semaines: dict[str, int] | None = None
+    sans_date: dict[str, int] | None = None
+    semaine_partielle: str | None = None
+    raison: Literal["famille_non_lue", "parite_rompue", "sans_date_nommee", "dates_absentes", "historique_tronque",
+                    "git_indisponible"] | None = None
+
+
+class Trouvailles(BaseModel):
+    verdicts: list[TrouvailleVerdict] | None = None
+    verdicts_partiels: bool | None = None       # A1 (I1) : records illisibles ou état mal typé — liste PARTIELLE
+    compte_graphe: int | None = None
+    par_semaine: dict[str, SemainesFamille] | None = None
+    dates: IndexDates | None = None             # A1 (I3) : le bloc dates de l'index, lu avec son âge (D1)
+
+
+class ScienceV1(BaseModel):
+    """Enveloppe de `science_v1` (spec 2026-09-26 §3.2, §9). Chaque bloc validé par le service DANS son filet."""
+    model_config = ConfigDict(populate_by_name=True)
+
+    schema_: str = Field(alias="schema")
+    generated_at: float
+    repo_root: str | None = None
+    aveugle: list[str]
+    pipeline: Pipeline | None = None
+    taxonomie: Taxonomie | None = None
+    trouvailles: Trouvailles | None = None
 
 
 class SweepResult(BaseModel):

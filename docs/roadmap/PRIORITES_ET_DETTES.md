@@ -3297,7 +3297,7 @@ l'app de pytest, lire la pile native du fil en `pipe_write`, et joindre ou déta
 agent 1-2 h sous WSL ; calcul 0.* Dépend de : rien.
 
 **P2.170 — OUVERTE (2026-10-14, revues du plan 1 de P2.87 et de la tâche 1 du plan 2 de P2.84, session FRONT) —
-index des artefacts, onglet Index et module science : vingt et un défauts mineurs différés, dont un manque de la spec
+index des artefacts, onglet Index et module science : vingt-trois défauts mineurs différés, dont un manque de la spec
 (filtre « illisible ») et une écriture non atomique de `DATES_GIT.json`.**
 Preuve : relecteur opus en lecture seule, le 2026-10-13. Ses trois défauts importants (libellés qui affirmaient une
 propriété du fichier, âge négatif ramené à 0, famille non lue présentée comme vide) et quatre mineurs regradés sont
@@ -3336,7 +3336,13 @@ couverture d'un dépôt sous le `repo_root` d'un autre ;
 (s) des comptes égaux (graphe contre index) ne disent pas des ensembles égaux, et aucune ligne ne sort alors ;
 (t) des identifiants de capacité dupliqués, des arêtes boucles ou des arêtes établies dupliquées ne sont pas signalés ;
 (u) quand le module de la pipeline lève, la liste des pré-inscriptions — qui ne dépend que de l'index — part avec le
-bloc (une perte, pas une fabrication).
+bloc (une perte, pas une fabrication) ;
+différés par la revue de la tâche 2 du plan 2 (opus, lecture seule, 2026-10-14) :
+(v) `backend/app/services/index_service.py` appelle `_servable(_ENVELOPPE, out)` sans nom : le défaut de
+`pilotage_service._servable` est « pilotage », donc une enveloppe d'index refusée sur un non-fini serait libellée
+pilotage (théorique : `generated_at` est toujours fini ; corrigé pour science dans le commit 4b) ;
+(w) `trouvailles.dates.age_s` est l'âge calculé à l'instant de l'INDEX, recopié : jusqu'à 60 s de cache le séparent du
+`generated_at` de science — documenté au plan 2 (A2), non republié.
 *Coût : agent 1-2 h ; calcul 0.* Dépend de : rien.
 
 **P2.136 — rang 6 — ✅ CLOSE le 2026-09-28 (ouverte le 2026-09-26 sur arbitrage de Master 2 : la règle du registre

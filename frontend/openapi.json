@@ -1527,6 +1527,40 @@
         "title": "PilotageV1",
         "type": "object"
       },
+      "Pipeline": {
+        "properties": {
+          "couverture": {
+            "$ref": "#/components/schemas/ScienceCouverture"
+          },
+          "familles_sans_record": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Familles Sans Record",
+            "type": "array"
+          },
+          "preinscriptions": {
+            "anyOf": [
+              {
+                "items": {
+                  "$ref": "#/components/schemas/SciencePreinscription"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Preinscriptions"
+          }
+        },
+        "required": [
+          "couverture",
+          "familles_sans_record"
+        ],
+        "title": "Pipeline",
+        "type": "object"
+      },
       "Porte": {
         "properties": {
           "baseline": {
@@ -2108,6 +2142,224 @@
         "title": "RunSummary",
         "type": "object"
       },
+      "ScienceCouverture": {
+        "properties": {
+          "inspectees": {
+            "title": "Inspectees",
+            "type": "integer"
+          },
+          "sans_grandeur": {
+            "title": "Sans Grandeur",
+            "type": "integer"
+          },
+          "sans_record": {
+            "title": "Sans Record",
+            "type": "integer"
+          },
+          "total": {
+            "title": "Total",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "inspectees",
+          "sans_grandeur",
+          "sans_record",
+          "total"
+        ],
+        "title": "ScienceCouverture",
+        "type": "object"
+      },
+      "SciencePreinscription": {
+        "properties": {
+          "chemin": {
+            "title": "Chemin",
+            "type": "string"
+          },
+          "date_ajout_git": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Date Ajout Git"
+          },
+          "scelle": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Scelle"
+          },
+          "titre": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Titre"
+          }
+        },
+        "required": [
+          "chemin"
+        ],
+        "title": "SciencePreinscription",
+        "type": "object"
+      },
+      "ScienceV1": {
+        "description": "Enveloppe de `science_v1` (spec 2026-09-26 §3.2, §9). Chaque bloc validé par le service DANS son filet.",
+        "properties": {
+          "aveugle": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Aveugle",
+            "type": "array"
+          },
+          "generated_at": {
+            "title": "Generated At",
+            "type": "number"
+          },
+          "pipeline": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Pipeline"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "repo_root": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Repo Root"
+          },
+          "schema": {
+            "title": "Schema",
+            "type": "string"
+          },
+          "taxonomie": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Taxonomie"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "trouvailles": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Trouvailles"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "schema",
+          "generated_at",
+          "aveugle"
+        ],
+        "title": "ScienceV1",
+        "type": "object"
+      },
+      "SemainesFamille": {
+        "description": "Plan 2, amendement A1 (I2, I3) : TOUJOURS servi ; `raison` dit pourquoi `semaines` est null, dans le\nvocabulaire fermé `science.RAISONS_SEMAINES` ; `semaine_partielle` est la semaine de la borne (instantané des\ndates ou `now`).",
+        "properties": {
+          "date": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Date"
+          },
+          "raison": {
+            "anyOf": [
+              {
+                "enum": [
+                  "famille_non_lue",
+                  "parite_rompue",
+                  "sans_date_nommee",
+                  "dates_absentes",
+                  "historique_tronque",
+                  "git_indisponible"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Raison"
+          },
+          "sans_date": {
+            "anyOf": [
+              {
+                "additionalProperties": {
+                  "type": "integer"
+                },
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Sans Date"
+          },
+          "semaine_partielle": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Semaine Partielle"
+          },
+          "semaines": {
+            "anyOf": [
+              {
+                "additionalProperties": {
+                  "type": "integer"
+                },
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Semaines"
+          }
+        },
+        "title": "SemainesFamille",
+        "type": "object"
+      },
       "StartRequest": {
         "properties": {
           "batch_size": {
@@ -2278,6 +2530,416 @@
           "seed"
         ],
         "title": "SweepResult",
+        "type": "object"
+      },
+      "Taxonomie": {
+        "properties": {
+          "aretes": {
+            "items": {
+              "$ref": "#/components/schemas/TaxonomieArete"
+            },
+            "title": "Aretes",
+            "type": "array"
+          },
+          "capacites": {
+            "items": {
+              "$ref": "#/components/schemas/TaxonomieCapacite"
+            },
+            "title": "Capacites",
+            "type": "array"
+          }
+        },
+        "required": [
+          "capacites",
+          "aretes"
+        ],
+        "title": "Taxonomie",
+        "type": "object"
+      },
+      "TaxonomieArete": {
+        "properties": {
+          "capacite": {
+            "title": "Capacite",
+            "type": "string"
+          },
+          "depassee_par": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Depassee Par"
+          },
+          "force": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Force"
+          },
+          "n": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "N"
+          },
+          "nature": {
+            "enum": [
+              "etablie",
+              "refutee"
+            ],
+            "title": "Nature",
+            "type": "string"
+          },
+          "prerequis": {
+            "title": "Prerequis",
+            "type": "string"
+          },
+          "preuves": {
+            "$ref": "#/components/schemas/TaxonomiePreuves"
+          },
+          "raison": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Raison"
+          },
+          "ratio": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Ratio"
+          },
+          "record": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Record"
+          },
+          "verdict": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Verdict"
+          }
+        },
+        "required": [
+          "capacite",
+          "prerequis",
+          "nature",
+          "preuves"
+        ],
+        "title": "TaxonomieArete",
+        "type": "object"
+      },
+      "TaxonomieCapacite": {
+        "properties": {
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "record": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Record"
+          },
+          "titre": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Titre"
+          }
+        },
+        "required": [
+          "id"
+        ],
+        "title": "TaxonomieCapacite",
+        "type": "object"
+      },
+      "TaxonomiePreuves": {
+        "description": "Plan 2, amendement A1 (I5, décision d'intégrateur) : les champs de `evidence` qui fondent une arête ; chacun une\nchaîne, un nombre fini, ou null (absent de la source, ou mal typé ET nommé par une ligne `taxonomie :`).",
+        "properties": {
+          "ablation_target": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "integer"
+              },
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Ablation Target"
+          },
+          "ceiling_provenance": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "integer"
+              },
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Ceiling Provenance"
+          },
+          "coord_intact": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "integer"
+              },
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Coord Intact"
+          },
+          "emergence_bar": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "integer"
+              },
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Emergence Bar"
+          },
+          "functional_aliasing": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "integer"
+              },
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Functional Aliasing"
+          },
+          "incapable_ceiling": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "integer"
+              },
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Incapable Ceiling"
+          },
+          "specificity_control": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "integer"
+              },
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Specificity Control"
+          }
+        },
+        "title": "TaxonomiePreuves",
+        "type": "object"
+      },
+      "TrouvailleVerdict": {
+        "properties": {
+          "chemin": {
+            "title": "Chemin",
+            "type": "string"
+          },
+          "date_ajout_git": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Date Ajout Git"
+          },
+          "gate": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Gate"
+          },
+          "titre": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Titre"
+          },
+          "verdict": {
+            "title": "Verdict",
+            "type": "string"
+          }
+        },
+        "required": [
+          "chemin",
+          "verdict"
+        ],
+        "title": "TrouvailleVerdict",
+        "type": "object"
+      },
+      "Trouvailles": {
+        "properties": {
+          "compte_graphe": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Compte Graphe"
+          },
+          "dates": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/IndexDates"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "par_semaine": {
+            "anyOf": [
+              {
+                "additionalProperties": {
+                  "$ref": "#/components/schemas/SemainesFamille"
+                },
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Par Semaine"
+          },
+          "verdicts": {
+            "anyOf": [
+              {
+                "items": {
+                  "$ref": "#/components/schemas/TrouvailleVerdict"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Verdicts"
+          },
+          "verdicts_partiels": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Verdicts Partiels"
+          }
+        },
+        "title": "Trouvailles",
         "type": "object"
       },
       "ValidationError": {
@@ -2997,6 +3659,28 @@
           }
         },
         "summary": "Pilotage",
+        "tags": [
+          "pm"
+        ]
+      }
+    },
+    "/api/pm/science": {
+      "get": {
+        "description": "Lot 2 « Science » (P2.84) : pipeline, taxonomie, trouvailles — recopiés de sources publiées, jamais\nrecalculés ; blocs null avec leur ligne quand leur source manque ; cache 60 s, index lu dans SON cache.",
+        "operationId": "science_api_pm_science_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ScienceV1"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Science",
         "tags": [
           "pm"
         ]

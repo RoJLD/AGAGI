@@ -73,6 +73,32 @@ diffère de lui par les points suivants, et les Tasks 2 à 5 ont été amendées
   (tuple ordonné des sept champs) et `RAISONS_SEMAINES` (frozenset) ; `trouvailles` gagne `verdicts_partiels` et
   `dates` ; chaque arête gagne `preuves`. Témoins : 34 fonctions, 42 cas (20 avant).
 
+## Amendement A2 (2026-10-14) — revue adversariale de la tâche 2
+
+Revue opus en lecture seule, AVANT le créneau (témoins écrits, implémentation préparée hors dépôt) : 0 critique, 5
+importants, 9 mineurs. Tous traités par des témoins écrits avant le code, sauf trois mineurs différés.
+
+- **I1 — parité des CHAMPS route ↔ module.** pydantic retire en silence une clé non déclarée ; seuls `preuves` et
+  `par_semaine` étaient épinglés. Témoin : `test_science_route_sert_EXACTEMENT_la_sortie_du_module` (chaque bloc servi
+  ÉGAL à la sortie de `compute_science`, chaque bloc non null).
+- **I2 — le témoin de l'import refusé ne pouvait pas rougir** (« tools.pm.science » est dans le texte fixe du service) :
+  cause injectée « yaml » ; et le blocage RÉEL — la sonde sans `tools.pm` du pilotage interroge aussi `/api/pm/science`
+  (`test_le_backend_DEMARRE_sans_tools_pm_et_science_NOMME_l_absence`).
+- **I3 — le script d'application** écrivait relativement au répertoire courant (depuis l'arbre principal, il aurait
+  écrit dans l'arbre de la flotte) et n'était pas transactionnel : chemin absolu, branche vérifiée, tout calculé et
+  asserté avant d'écrire, mode `--essai`.
+- **I4 — le témoin du smoke manquait au plan** (fichiers, commandes, liste de commit) : ajouté ci-dessous.
+- **I5 — E25** : les comptes 3 / 2 / « plus de 100 » sont RECALCULÉS depuis les JSON de la taxonomie et depuis
+  `/api/pm/index`.
+- **Mineurs corrigés** : contrôles positifs des témoins M6 (l'index reçu EST le cache) et de l'espion git (`all([])`) ;
+  un cas du smoke où seule la clause « bloc refusé » rougit ; l'âge négatif de l'instantané et la cause du mode dégradé
+  de l'index sont RELAYÉS dans l'aveugle de science sous « trouvailles : (index) » (le §9 exige « âge négatif ET une
+  ligne », et la vue Science n'affiche que `/science`) — changement de `compute_science`, d'où `tools/pm/science.py` et
+  ses témoins dans le commit 4b ; `compute_science` ne mute jamais l'index partagé (témoin) ; TTL testé dans les deux
+  sens ; `_servable(…, "science")` ; `preuves` en `str | int | float | None` (un entier reste entier) ; la ligne
+  `pipeline : famille preinscription` épinglée par la route. **Différés** (P2.170) : le même libellé « pilotage » latent
+  dans `index_service` ; l'instant de l'âge recopié (celui de l'index, jusqu'à 60 s de cache) — documenté ici.
+
 ---
 
 ## Préalable
@@ -669,7 +695,7 @@ publier au §6 de la spec avec la charge notée (« `compute_science` : à mesur
 
 **Files:**
 - Create: `backend/app/services/science_service.py`
-- Modify: `backend/app/schemas.py` (après `IndexV1`), `backend/app/routes/pm.py`, `tests/test_backend.py`, `.github/workflows/ci.yml`, `frontend/openapi.json`, `frontend/src/api/schema.ts`
+- Modify: `backend/app/schemas.py` (après `IndexV1`), `backend/app/routes/pm.py`, `tests/test_backend.py`, `tests/sandbox/test_ci_smoke_index.py` (A2, I4), `tools/pm/science.py` et `tests/sandbox/test_pm_science.py` (A2, relais), `.github/workflows/ci.yml`, `frontend/openapi.json`, `frontend/src/api/schema.ts`
 
 **Interfaces:**
 - Consumes: `science.compute_science`, `science.lire_*` (Task 1) ; `index_service.get_index()` et `index_service._blocs_servables(out, blocs, adaptateurs)` (plan 1) ; `pilotage_service._EnveloppeRefusee, _resume, _servable, _texte_servable`.
@@ -776,7 +802,7 @@ def test_science_pipeline_sans_racine_null_et_ligne(monkeypatch, tmp_path) -> No
 
 - [ ] **Step 2 : les lancer, ils échouent**
 
-Run: `PYTHONIOENCODING=utf-8 python -m pytest tests/test_backend.py -q -p no:cacheprovider -k science`
+Run: `PYTHONIOENCODING=utf-8 python -m pytest tests/test_backend.py tests/sandbox/test_ci_smoke_index.py tests/sandbox/test_pm_science.py -q -p no:cacheprovider -k "science or smoke or aveugle"`
 Expected: FAIL — `ImportError` sur `science_service` (ou 404 sur la route).
 
 - [ ] **Step 3 : schémas, service, route**
@@ -813,13 +839,13 @@ class TaxonomieCapacite(BaseModel):
 class TaxonomiePreuves(BaseModel):
     """Amendement A1 (I5, décision d'intégrateur) : les champs de `evidence` qui fondent une arête ; chacun une
     chaîne, un nombre fini, ou null (absent de la source, ou mal typé ET nommé par une ligne `taxonomie :`)."""
-    specificity_control: str | float | None = None
-    functional_aliasing: str | float | None = None
-    ablation_target: str | float | None = None
-    coord_intact: str | float | None = None
-    emergence_bar: str | float | None = None
-    incapable_ceiling: str | float | None = None
-    ceiling_provenance: str | float | None = None
+    specificity_control: str | int | float | None = None
+    functional_aliasing: str | int | float | None = None
+    ablation_target: str | int | float | None = None
+    coord_intact: str | int | float | None = None
+    emergence_bar: str | int | float | None = None
+    incapable_ceiling: str | int | float | None = None
+    ceiling_provenance: str | int | float | None = None
 
 
 class TaxonomieArete(BaseModel):
@@ -996,12 +1022,13 @@ Expected: `science_v1 [] <total > 0> 5 <plus de 100>`.
 
 - [ ] **Step 7 : suites Windows et WSL, revue opus, commit du pas 4**
 
-Run: `PYTHONIOENCODING=utf-8 python -m pytest tests/test_backend.py tests/sandbox/test_pm_science.py tests/sandbox/test_pm_index_artefacts.py -q -p no:cacheprovider` (Windows) puis la même chose sous WSL.
+Run: `PYTHONIOENCODING=utf-8 python -m pytest tests/test_backend.py tests/sandbox/test_ci_smoke_index.py tests/sandbox/test_pm_science.py tests/sandbox/test_pm_index_artefacts.py -q -p no:cacheprovider` (Windows) puis la même chose sous WSL.
 Revue adversariale opus du diff des Tasks 1-2 (sources, comptes, filet, smoke, image), traitement des constats par TDD,
 puis `commit-exact` sur : `tools/pm/science.py`, `tests/sandbox/test_pm_science.py`,
 `tests/sandbox/test_instrument_calibration.py`, `tools/instrument_calibration_baseline.json`,
 `docs/roadmap/PRIORITES_ET_DETTES.md`, la spec (§6), `backend/app/services/science_service.py`,
-`backend/app/routes/pm.py`, `backend/app/schemas.py`, `tests/test_backend.py`, `.github/workflows/ci.yml`,
+`backend/app/routes/pm.py`, `backend/app/schemas.py`, `tests/test_backend.py`, `tests/sandbox/test_ci_smoke_index.py` (A2),
+`.github/workflows/ci.yml`,
 `frontend/openapi.json`, `frontend/src/api/schema.ts`. La porte de parité signale `/api/pm/science` non consommé
 jusqu'à la Task 3 : le dire dans le message.
 
@@ -1977,7 +2004,7 @@ export function TrouvaillesView() {
       </p>
       <p className="text-dim">
         {t.dates == null
-          ? "Dates d'entrée dans git : instantané absent de l'index (sa ligne est dans l'onglet Index)."
+          ? "Dates d'entrée dans git : instantané absent (voir la ligne « trouvailles : (index) dates : … »)."
           : `Dates d'entrée dans git : instantané git ${t.dates.historique}, âge ${Math.round(t.dates.age_s / 60)} min, HEAD ${t.dates.head ?? "inconnu"}.`}
       </p>
       {!t.verdicts ? (

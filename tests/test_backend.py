@@ -2,6 +2,7 @@ import copy
 import json
 import os
 import subprocess
+import sys
 import time
 
 import pytest
@@ -1006,9 +1007,25 @@ from fastapi.testclient import TestClient
 with TestClient(app, raise_server_exceptions=False) as c:
     h = c.get("/health")
     p = c.get("/api/pm/pilotage")
+    s = c.get("/api/pm/science")
 print("RESULTAT " + json.dumps({"health": h.status_code, "pilotage": p.status_code,
-                                "corps": p.json() if p.status_code == 200 else None}))
+                                "corps": p.json() if p.status_code == 200 else None,
+                                "science": s.status_code, "corps_science": s.json() if s.status_code == 200 else None}))
 '''
+
+
+def _sonder_sans_tools_pm(tmp_path) -> dict:
+    """Lance `_SONDE_SANS_TOOLS_PM` dans un processus NEUF et rend son résultat (santé, pilotage, science)."""
+    racine = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    sonde = tmp_path / "sonde_sans_tools_pm.py"
+    sonde.write_text(_SONDE_SANS_TOOLS_PM, encoding="utf-8")
+    env = dict(os.environ, PYTHONIOENCODING="utf-8")
+    env.pop("PYTHONPATH", None)
+    r = subprocess.run([os.sys.executable, str(sonde), racine], cwd=racine, capture_output=True,
+                       encoding="utf-8", errors="replace", env=env, timeout=300)
+    lignes = [ligne for ligne in r.stdout.splitlines() if ligne.startswith("RESULTAT ")]
+    assert r.returncode == 0 and lignes, f"le backend ne démarre pas sans tools.pm :\n{r.stderr[-3000:]}"
+    return json.loads(lignes[-1][len("RESULTAT "):])
 
 
 def test_le_backend_DEMARRE_sans_tools_pm_et_le_pilotage_NOMME_l_absence(tmp_path) -> None:
@@ -1020,16 +1037,7 @@ def test_le_backend_DEMARRE_sans_tools_pm_et_le_pilotage_NOMME_l_absence(tmp_pat
 
     Sous-processus obligatoire : l'import de `backend.app.main` est un état de processus, déjà fait ici par le
     module de test. Un chercheur de `sys.meta_path` y bloque `tools.pm`, sans toucher au disque."""
-    racine = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-    sonde = tmp_path / "sonde_sans_tools_pm.py"
-    sonde.write_text(_SONDE_SANS_TOOLS_PM, encoding="utf-8")
-    env = dict(os.environ, PYTHONIOENCODING="utf-8")
-    env.pop("PYTHONPATH", None)
-    r = subprocess.run([os.sys.executable, str(sonde), racine], cwd=racine, capture_output=True,
-                       encoding="utf-8", errors="replace", env=env, timeout=300)
-    lignes = [ligne for ligne in r.stdout.splitlines() if ligne.startswith("RESULTAT ")]
-    assert r.returncode == 0 and lignes, f"le backend ne démarre pas sans tools.pm :\n{r.stderr[-3000:]}"
-    res = json.loads(lignes[-1][len("RESULTAT "):])
+    res = _sonder_sans_tools_pm(tmp_path)
     assert res["health"] == 200, res
     assert res["pilotage"] == 200, res
     d = res["corps"]
@@ -1068,6 +1076,9 @@ def _cache_de_l_index_vide_apres_chaque_test():
     yield
     from backend.app.services import index_service
     index_service._vider_cache()
+    science_service = sys.modules.get("backend.app.services.science_service")    # P2.84 : même état de processus
+    if science_service is not None:
+        science_service._vider_cache()
 
 
 def test_index_ne_DATE_jamais_par_git_seule_la_racine_commune(monkeypatch) -> None:
@@ -1198,3 +1209,292 @@ def test_index_import_refuse_est_NOMME(monkeypatch) -> None:
     ix._vider_cache()
     d = client.get("/api/pm/index").json()
     assert d["aveugle"][0].startswith("index: ImportError") and "yaml" in d["aveugle"][0]
+
+
+# --- P2.84, lot 2 « Science » : GET /api/pm/science (plan 2, Task 2, amendement A1) ---------------------------------
+
+def test_science_repond_200_schema_science_v1_blocs_servis() -> None:
+    """Revue de la tâche 2 (I5, classe E25) : les comptes ne sont plus GELÉS (3 établies, 2 réfutées, plus de 100
+    verdicts) — ajouter une arête, un progrès, faisait rougir un test BACKEND. Ils sont RECALCULÉS depuis leurs
+    sources : les deux JSON de la taxonomie, et l'index servi par la route voisine (même processus, même cache)."""
+    from backend.app.services import index_service as ix, science_service as sc
+    from src import paths
+    from tools.pm.pilotage import racine_depot
+    ix._vider_cache()
+    sc._vider_cache()
+    r = client.get("/api/pm/science")
+    assert r.status_code == 200
+    d = r.json()
+    assert d["schema"] == "science_v1" and not any(a.startswith("science:") for a in d["aveugle"]), d["aveugle"]
+    assert d["pipeline"]["couverture"]["total"] > 0
+    rep = os.path.join(racine_depot(), paths.data_file("agi_taxonomy"))
+    attendu = {n: len(json.load(open(os.path.join(rep, f"{f}.json"), encoding="utf-8")))
+               for n, f in (("etablie", "demands"), ("refutee", "refuted"))}
+    natures = [a["nature"] for a in d["taxonomie"]["aretes"]]
+    assert attendu["etablie"] > 0 and {n: natures.count(n) for n in attendu} == attendu
+    assert all(a["preuves"]["specificity_control"] == "pass" for a in d["taxonomie"]["aretes"]
+               if a["nature"] == "etablie")                                   # A1 (I5)
+    index = client.get("/api/pm/index").json()
+    lus = [a for a in index["artefacts"] if a["famille"] == "record" and a["etat_source"] == "verdict"]
+    assert lus and len(d["trouvailles"]["verdicts"]) == len(lus)
+    assert all(set(e) == {"date", "semaines", "sans_date", "semaine_partielle", "raison"}
+               for e in d["trouvailles"]["par_semaine"].values())              # A1 (I2) : jamais null
+
+
+def test_science_route_sert_EXACTEMENT_la_sortie_du_module(monkeypatch) -> None:
+    """Revue de la tâche 2 (I1) : pydantic RETIRE en silence une clé que le modèle ne déclare pas. Un champ servi par
+    `compute_science` et absent du modèle — `depassee_par`, `compte_graphe`… — disparaissait de la route sans un rouge,
+    et `make api-types` régénérait un contrat cohérent avec la perte. Chaque bloc servi est ÉGAL à la sortie du module
+    (contrôle positif : chaque bloc non null)."""
+    from backend.app.services import index_service as ix, science_service as sc
+    vrai, sortie = sc.science.compute_science, {}
+
+    def _capture(*a, **k):
+        out = vrai(*a, **k)
+        sortie["out"] = json.loads(json.dumps(out))
+        return out
+    monkeypatch.setattr(sc.science, "compute_science", _capture)
+    ix._vider_cache()
+    sc._vider_cache()
+    d = client.get("/api/pm/science").json()
+    for bloc in ("pipeline", "taxonomie", "trouvailles"):
+        assert d[bloc] is not None, (bloc, d["aveugle"])
+        assert d[bloc] == sortie["out"][bloc], bloc
+    assert d["aveugle"] == sortie["out"]["aveugle"]
+
+
+def test_science_lit_l_index_dans_le_MEME_cache(monkeypatch) -> None:
+    """M6 : /science n'appelle pas indexer quand le cache de l'index est chaud. Revue de la tâche 2 (mineur 1) :
+    contrôle POSITIF — l'index reçu par `compute_science` est l'objet même du cache, et les trouvailles sont servies
+    (un science en mode dégradé avant toute lecture rendait ce compte à 0 trivialement)."""
+    from backend.app.services import index_service as ix, science_service as sc
+    ix._vider_cache()
+    ix.get_index()
+    appels, recu = {"n": 0}, {}
+    vrai_ix, vrai_sc = ix.index_artefacts.indexer, sc.science.compute_science
+
+    def _compte(*a, **k):
+        appels["n"] += 1
+        return vrai_ix(*a, **k)
+
+    def _recoit(index, *a, **k):
+        recu["index"] = index
+        return vrai_sc(index, *a, **k)
+    monkeypatch.setattr(ix.index_artefacts, "indexer", _compte)
+    monkeypatch.setattr(sc.science, "compute_science", _recoit)
+    sc._vider_cache()
+    d = client.get("/api/pm/science").json()
+    assert appels["n"] == 0
+    assert recu["index"] is ix._cache["valeur"] and d["trouvailles"] is not None, d["aveugle"]
+
+
+def test_science_compute_qui_leve_devient_une_ligne_science_jamais_un_500(monkeypatch) -> None:
+    from backend.app.services import science_service as sc
+
+    def _boum(*a, **k):
+        raise RuntimeError("science cassée")
+    monkeypatch.setattr(sc.science, "compute_science", _boum)
+    sc._vider_cache()
+    r = client.get("/api/pm/science")
+    assert r.status_code == 200
+    d = r.json()
+    assert d["aveugle"][0].startswith("science: RuntimeError")
+    assert (d["pipeline"], d["taxonomie"], d["trouvailles"]) == (None, None, None)
+
+
+def test_science_cache_sous_le_TTL(monkeypatch) -> None:
+    from backend.app.services import science_service as sc
+    vrai, appels = sc.science.compute_science, {"n": 0}
+
+    def _compte(*a, **k):
+        appels["n"] += 1
+        return vrai(*a, **k)
+    monkeypatch.setattr(sc.science, "compute_science", _compte)
+    sc._vider_cache()
+    client.get("/api/pm/science")
+    client.get("/api/pm/science")
+    assert appels["n"] == 1
+
+
+def test_science_cache_EXPIRE_au_dela_du_TTL(monkeypatch) -> None:
+    """Revue de la tâche 2 (mineur 8) : le témoin du TTL était à sens unique — un cache qui n'expire jamais passait."""
+    from backend.app.services import science_service as sc
+    vrai, appels = sc.science.compute_science, {"n": 0}
+
+    def _compte(*a, **k):
+        appels["n"] += 1
+        return vrai(*a, **k)
+    monkeypatch.setattr(sc.science, "compute_science", _compte)
+    sc._vider_cache()
+    sc.get_science(ttl_s=0)
+    sc.get_science(ttl_s=0)
+    assert appels["n"] == 2
+
+
+def test_science_bloc_de_type_etranger_devient_null_sans_500(monkeypatch) -> None:
+    from backend.app.services import science_service as sc
+    vrai = sc.science.compute_science
+
+    def _etranger(*a, **k):
+        out = vrai(*a, **k)
+        out["taxonomie"] = {"capacites": "beaucoup", "aretes": []}
+        return out
+    monkeypatch.setattr(sc.science, "compute_science", _etranger)
+    sc._vider_cache()
+    d = client.get("/api/pm/science").json()
+    assert d["taxonomie"] is None and d["pipeline"] is not None
+    assert any(a.startswith("taxonomie : bloc refusé") for a in d["aveugle"]), d["aveugle"]
+
+
+def test_science_raison_HORS_VOCABULAIRE_refuse_le_bloc_trouvailles_seul(monkeypatch) -> None:
+    """A1 (I2) : la cause d'un `semaines` null est un vocabulaire FERMÉ côté route aussi (Literal) — une cause
+    inventée ne passe pas pour une cause publiée ; le bloc est refusé avec sa ligne, les deux autres restent servis."""
+    from backend.app.services import science_service as sc
+    vrai = sc.science.compute_science
+
+    def _cause_inventee(*a, **k):
+        out = vrai(*a, **k)
+        next(iter(out["trouvailles"]["par_semaine"].values()))["raison"] = "git_en_panne"
+        return out
+    monkeypatch.setattr(sc.science, "compute_science", _cause_inventee)
+    sc._vider_cache()
+    d = client.get("/api/pm/science").json()
+    assert d["trouvailles"] is None and d["taxonomie"] is not None and d["pipeline"] is not None
+    assert any(a.startswith("trouvailles : bloc refusé") for a in d["aveugle"]), d["aveugle"]
+
+
+def test_science_import_refuse_est_NOMME(monkeypatch) -> None:
+    """Revue de la tâche 2 (I2) : « tools.pm.science » est DÉJÀ dans le texte fixe du service — le témoin ne pouvait
+    pas voir la perte de la CAUSE. La cause injectée (« yaml ») n'apparaît nulle part ailleurs."""
+    from backend.app.services import science_service as sc
+    monkeypatch.setattr(sc, "_IMPORT_REFUSE", ImportError("No module named 'yaml'"))
+    sc._vider_cache()
+    d = client.get("/api/pm/science").json()
+    assert d["aveugle"][0].startswith("science: ImportError") and "yaml" in d["aveugle"][0], d["aveugle"]
+
+
+def test_le_backend_DEMARRE_sans_tools_pm_et_science_NOMME_l_absence(tmp_path) -> None:
+    """Revue de la tâche 2 (I2) : le blocage RÉEL, pas un monkeypatch — l'image sans le volume ./tools. La route
+    science répond 200 en mode dégradé, et sa ligne `science:` nomme ImportError ET la cause d'origine."""
+    res = _sonder_sans_tools_pm(tmp_path)
+    assert res["science"] == 200, res
+    d = res["corps_science"]
+    assert d["schema"] == "science_v1" and (d["pipeline"], d["taxonomie"], d["trouvailles"]) == (None, None, None)
+    degrade = [a for a in d["aveugle"] if a.startswith("science:")]
+    assert len(degrade) == 1 and "ImportError" in degrade[0] and "ModuleNotFoundError" in degrade[0], degrade
+
+
+def test_science_pipeline_sans_racine_null_et_ligne(monkeypatch, tmp_path) -> None:
+    """B2 par la route : le module sans ses répertoires lève (P2.135), la pipeline est null, jamais (0, 0, 0, 0)."""
+    from backend.app.services import science_service as sc
+    from tools import check_preregistration_applied as cpa
+    monkeypatch.setattr(cpa, "_PREREG", str(tmp_path / "absent"))
+    sc._vider_cache()
+    d = client.get("/api/pm/science").json()
+    assert d["pipeline"] is None and any(a.startswith("pipeline : ") for a in d["aveugle"]), d["aveugle"]
+
+
+def test_science_index_DEGRADE_trouvailles_null_jamais_science_degrade(monkeypatch) -> None:
+    """Review Focus 1 du plan 2, par la route : l'index en mode dégradé (`index: …`) ne met pas science en mode
+    dégradé — trouvailles null avec SA ligne, pré-inscriptions null, taxonomie servie ; jamais une liste vide."""
+    from backend.app.services import index_service as ix, science_service as sc
+
+    def _boum(*a, **k):
+        raise RuntimeError("indexeur cassé")
+    monkeypatch.setattr(ix.index_artefacts, "indexer", _boum)
+    ix._vider_cache()
+    sc._vider_cache()
+    d = client.get("/api/pm/science").json()
+    assert not any(a.startswith("science:") for a in d["aveugle"]), d["aveugle"]
+    assert d["trouvailles"] is None and d["taxonomie"] is not None and d["pipeline"]["preinscriptions"] is None
+    assert any(a.startswith("pipeline : famille preinscription") for a in d["aveugle"]), d["aveugle"]
+    # revue de la tâche 2 (mineur 5) : la CAUSE du mode dégradé de l'index est relayée, la vue Science la montre
+    assert any(a.startswith("trouvailles : (index) index: RuntimeError") and "indexeur cassé" in a
+               for a in d["aveugle"]), d["aveugle"]
+
+
+def test_science_age_NEGATIF_de_l_instantane_DIT_dans_science(monkeypatch) -> None:
+    """Revue de la tâche 2 (mineur 4, regradé : spec §9 « âge négatif ET une ligne ») : `trouvailles.dates` recopie
+    l'âge de l'index, mais la ligne « FUTUR » restait dans /api/pm/index, que la vue Science n'affiche pas."""
+    from backend.app.services import index_service as ix, science_service as sc
+    futur = {"schema": "dates_git_v1", "generated_at": time.time() + 3600, "head": "abc", "historique": "tronque",
+             "dates": None, "suivis": None, "raison": "clone superficiel"}
+    monkeypatch.setattr(ix.index_artefacts, "read_dates", lambda racine: {"doc": futur, "chemin": "x", "raison": None})
+    ix._vider_cache()
+    sc._vider_cache()
+    d = client.get("/api/pm/science").json()
+    assert d["trouvailles"]["dates"]["age_s"] < 0, d["trouvailles"]["dates"]
+    assert any(a.startswith("trouvailles : (index) dates : instantané daté dans le FUTUR") for a in d["aveugle"]), \
+        d["aveugle"]
+
+
+def test_science_ne_DATE_jamais_par_git(monkeypatch) -> None:
+    """Leçon du pas 2 du plan 1 (I4), appliquée d'emblée : la requête /science ne lance que la commande git de l'index
+    (`rev-parse --git-common-dir`, racine commune) — jamais une commande qui DATE (espion sur `subprocess.Popen`)."""
+    from backend.app.services import index_service as ix, science_service as sc
+    vrai, git = subprocess.Popen, []
+
+    class _Espion(vrai):
+        def __init__(self, args, *a, **k):
+            if isinstance(args, (list, tuple)) and args and os.path.basename(str(args[0])).startswith("git"):
+                git.append(list(args))
+            super().__init__(args, *a, **k)
+    monkeypatch.setattr(subprocess, "Popen", _Espion)
+    ix._vider_cache()
+    sc._vider_cache()
+    r = client.get("/api/pm/science")
+    assert r.status_code == 200 and r.json()["trouvailles"] is not None
+    # revue de la tâche 2 (mineur 2) : `all([])` est vrai — l'espion doit avoir VU la commande de l'index
+    assert git and all(c == ["git", "rev-parse", "--git-common-dir"] for c in git), git
+
+
+def test_science_surrogate_dans_UNE_arete_echappe_jamais_le_bloc_entier(monkeypatch) -> None:
+    """Leçon du pas 2 du plan 1 (I2), appliquée d'emblée : `_blocs_servables` est partagé — une chaîne non encodable
+    est servie ÉCHAPPÉE et comptée, le bloc reste servi."""
+    from backend.app.services import science_service as sc
+    vrai = sc.science.compute_science
+
+    def _surrogate(*a, **k):
+        out = vrai(*a, **k)
+        out["taxonomie"]["aretes"][0]["raison"] = "\ud800x"
+        return out
+    monkeypatch.setattr(sc.science, "compute_science", _surrogate)
+    sc._vider_cache()
+    d = client.get("/api/pm/science").json()
+    assert d["taxonomie"] is not None and d["taxonomie"]["aretes"][0]["raison"] == "\\ud800x"
+    assert any(a.startswith("taxonomie : 1 chaîne") for a in d["aveugle"]), d["aveugle"]
+
+
+def test_science_enveloppe_refusee_est_NOMMEE(monkeypatch) -> None:
+    """Leçon du pas 2 du plan 1 (M4), appliquée d'emblée : le filet d'enveloppe a son témoin."""
+    from backend.app.services import science_service as sc
+    vrai = sc.science.compute_science
+
+    def _ligne_non_chaine(*a, **k):
+        out = vrai(*a, **k)
+        out["aveugle"] = out["aveugle"] + [None]
+        return out
+    monkeypatch.setattr(sc.science, "compute_science", _ligne_non_chaine)
+    sc._vider_cache()
+    d = client.get("/api/pm/science").json()
+    assert d["aveugle"][0].startswith("science: enveloppe refusée"), d["aveugle"]
+    assert (d["pipeline"], d["taxonomie"], d["trouvailles"]) == (None, None, None)
+
+
+def test_science_SCHEMA_du_service_egal_a_celui_du_module() -> None:
+    """Même garde que pour le pilotage : la constante du service ne dérive pas en silence de `science.SCHEMA`."""
+    from backend.app.services import science_service as sc
+    from tools.pm import science as S
+    assert sc._SCHEMA == S.SCHEMA
+
+
+def test_science_VOCABULAIRES_de_la_route_identiques_au_module() -> None:
+    """A1 : la route FERME deux vocabulaires que le module définit (causes d'un `semaines` null, champs de `preuves`).
+    Une cause ajoutée au module sans la route ferait refuser TOUT le bloc trouvailles ; un champ de preuve ajouté
+    serait retiré en silence par le modèle. Parité exacte, dans les deux sens."""
+    import typing
+    from backend.app.schemas import SemainesFamille, TaxonomiePreuves
+    from tools.pm import science as S
+    raison = SemainesFamille.model_fields["raison"].annotation
+    assert {v for arg in typing.get_args(raison) for v in typing.get_args(arg)} == set(S.RAISONS_SEMAINES)
+    assert list(TaxonomiePreuves.model_fields) == list(S.PREUVES)

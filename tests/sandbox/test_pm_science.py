@@ -86,7 +86,7 @@ def test_NO_OP_EXACT_toutes_sources_absentes():
     assert (out["pipeline"], out["taxonomie"], out["trouvailles"]) == (None, None, None)
     prefixes = {a.split(" : ")[0] for a in out["aveugle"]}
     assert prefixes == {"pipeline", "taxonomie", "trouvailles"}, out["aveugle"]
-    assert not any(a.startswith(("science:", "index:")) for a in out["aveugle"])     # l'aveugle de l'index : non relayé
+    assert not any(a.startswith(("science:", "index:")) for a in out["aveugle"])     # relayé SOUS « trouvailles : »
 
 
 def test_pipeline_recopiee_a_l_identique_et_preinscriptions_de_l_index():
@@ -452,6 +452,33 @@ def test_cles_de_sortie_enumerees_aucune_tendance():
     for a in out["taxonomie"]["aretes"]:
         assert set(a) == {"capacite", "prerequis", "nature", "force", "verdict", "ratio", "n", "record", "raison",
                           "depassee_par", "preuves"}
+
+
+def test_aveugle_de_l_INDEX_RELAYE_sous_trouvailles():
+    """Revue de la tâche 2 (mineurs 4 et 5) : la vue Science n'affiche que /science ; un âge négatif de l'instantané,
+    une famille non lue, le mode dégradé de l'index y étaient servis sans leur ligne, restée dans /api/pm/index.
+    Chaque ligne de l'index est relayée telle quelle, sous le préfixe du bloc qu'elle qualifie — jamais `index:` en
+    tête (réservé au service de l'index), jamais une ligne inventée."""
+    index = _index([])
+    index["aveugle"] = ["dates : instantané daté dans le FUTUR de 3600 s (horloge de l'écrivain en avance ?)",
+                        "famille adr : répertoire docs/ADR absent -- fichiers INCONNUS, jamais 0"]
+    out = _science([], index=index)
+    assert [a for a in out["aveugle"] if a.startswith("trouvailles : (index) ")] == [
+        "trouvailles : (index) " + a for a in index["aveugle"]]
+    assert not any(a.startswith(("science:", "index:")) for a in out["aveugle"])
+    assert not any("(index)" in a for a in _science([])["aveugle"])           # rien à relayer : rien d'inventé
+
+
+def test_compute_science_ne_MUTE_jamais_l_index_PARTAGE():
+    """Revue de la tâche 2 (mineur 7) : `get_index` rend son cache PAR RÉFÉRENCE. Sans la copie de `sans_date`, une
+    date future écrirait `date_future` DANS `champs_introuvables` de l'index — servie par /api/pm/index, puis comptée
+    deux fois au calcul suivant."""
+    index = _index([_art("spec", "docs/superpowers/specs/2999-01-01-a.md", date_declaree="2999-01-01"),
+                    _art("record", "docs/EDR/1.md", etat="V", etat_source="verdict", date_ajout_git="2026-09-01")])
+    avant = copy.deepcopy(index)
+    _science([], index=index, now=_ts("2026-09-16"))
+    _science([], index=index, now=_ts("2026-09-16"))
+    assert index == avant
 
 
 def test_DATE_PAR_FAMILLE_couvre_exactement_les_familles_de_l_index():
