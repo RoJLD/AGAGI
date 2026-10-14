@@ -1,0 +1,1062 @@
+{
+ "schema": "agagi.p2127.validation.v1",
+ "date": "2026-10-13",
+ "apply": "par robla, entre 17:00 et 17:28 (heure de Paris) ; kubectl diff VIDE à 17:28:13 contre le rendu des gabarits",
+ "sonde": "deux Jobs de l'image runner (digest d5341acf…) sur nexus : A sans label de build, B avec app.kubernetes.io/component=image-build ; mesures dns_kube, dns_pypi, tcp_pypi_443/80/22, tcp vers un Service RFC1918, requête DNS DIRECTE vers un résolveur public",
+ "passes": {
+  "apres": {
+   "phase": "apres",
+   "image_digest": "sha256:d5341acf6f9206968c5d9ac4793618a54b1a6734a1c090cfc305cfb62a1e1141",
+   "noeud": "<configuré>",
+   "resultats": {
+    "B_label_build": {
+     "job": "agagi-valreseau-b-9beb",
+     "etat": "Complete",
+     "horodatage_job": {
+      "cree_utc": "2026-10-13T15:28:30Z",
+      "debut_utc": "2026-10-13T15:28:30Z",
+      "fin_utc": "2026-10-13T15:28:33Z",
+      "source": "Job Kubernetes : metadata.creationTimestamp, status.startTime et status.completionTime (UTC)"
+     },
+     "mesures": {
+      "dns_direct_8888": [
+       "ok",
+       "90 octets"
+      ],
+      "dns_kube": [
+       "ok",
+       "<ip>"
+      ],
+      "dns_pypi": [
+       "ok",
+       "<ip>"
+      ],
+      "tcp_pypi_443": [
+       "ok",
+       "connecte"
+      ]
+     },
+     "journal_si_illisible": null
+    },
+    "A_sans_label": {
+     "job": "agagi-valreseau-a-9beb",
+     "etat": "Complete",
+     "horodatage_job": {
+      "cree_utc": "2026-10-13T15:28:28Z",
+      "debut_utc": "2026-10-13T15:28:28Z",
+      "fin_utc": "2026-10-13T15:28:38Z",
+      "source": "Job Kubernetes : metadata.creationTimestamp, status.startTime et status.completionTime (UTC)"
+     },
+     "mesures": {
+      "dns_direct_8888": [
+       "echec",
+       "TimeoutError: timed out"
+      ],
+      "dns_kube": [
+       "ok",
+       "<ip>"
+      ],
+      "dns_pypi": [
+       "ok",
+       "<ip>"
+      ],
+      "tcp_pypi_443": [
+       "echec",
+       "OSError: [Errno 101] Network is unreachable"
+      ]
+     },
+     "journal_si_illisible": null
+    }
+   },
+   "manquants": []
+  },
+  "apres_4": {
+   "phase": "apres_4",
+   "image_digest": "sha256:d5341acf6f9206968c5d9ac4793618a54b1a6734a1c090cfc305cfb62a1e1141",
+   "noeud": "<configuré>",
+   "resultats": {
+    "A_sans_label": {
+     "job": "agagi-valreseau-a-b394",
+     "etat": "Complete",
+     "horodatage_job": {
+      "cree_utc": "2026-10-13T15:34:57Z",
+      "debut_utc": "2026-10-13T15:34:57Z",
+      "fin_utc": "2026-10-13T15:35:08Z",
+      "source": "Job Kubernetes : metadata.creationTimestamp, status.startTime et status.completionTime (UTC)"
+     },
+     "mesures": {
+      "dns_direct_8888": [
+       "echec",
+       "TimeoutError: timed out"
+      ],
+      "dns_kube": [
+       "ok",
+       "<ip>"
+      ],
+      "dns_pypi": [
+       "ok",
+       "<ip>"
+      ],
+      "ip_du_pod": [
+       "ok",
+       "<ip>"
+      ],
+      "tcp_service_kubernetes_api_443": [
+       "echec",
+       "ConnectionRefusedError: [Errno 111] Connection refused"
+      ],
+      "tcp_pypi_22": [
+       "echec",
+       "OSError: [Errno 101] Network is unreachable"
+      ],
+      "tcp_pypi_443": [
+       "ok",
+       "connecte"
+      ],
+      "tcp_pypi_80": [
+       "ok",
+       "connecte"
+      ]
+     },
+     "journal_si_illisible": null
+    },
+    "B_label_build": {
+     "job": "agagi-valreseau-b-b394",
+     "etat": "Complete",
+     "horodatage_job": {
+      "cree_utc": "2026-10-13T15:34:58Z",
+      "debut_utc": "2026-10-13T15:34:58Z",
+      "fin_utc": "2026-10-13T15:35:10Z",
+      "source": "Job Kubernetes : metadata.creationTimestamp, status.startTime et status.completionTime (UTC)"
+     },
+     "mesures": {
+      "dns_direct_8888": [
+       "echec",
+       "TimeoutError: timed out"
+      ],
+      "dns_kube": [
+       "ok",
+       "<ip>"
+      ],
+      "dns_pypi": [
+       "ok",
+       "<ip>"
+      ],
+      "ip_du_pod": [
+       "ok",
+       "<ip>"
+      ],
+      "tcp_service_kubernetes_api_443": [
+       "echec",
+       "ConnectionRefusedError: [Errno 111] Connection refused"
+      ],
+      "tcp_pypi_22": [
+       "echec",
+       "OSError: [Errno 101] Network is unreachable"
+      ],
+      "tcp_pypi_443": [
+       "ok",
+       "connecte"
+      ],
+      "tcp_pypi_80": [
+       "echec",
+       "OSError: [Errno 101] Network is unreachable"
+      ]
+     },
+     "journal_si_illisible": null
+    }
+   },
+   "manquants": []
+  },
+  "apres_6": {
+   "phase": "apres_6",
+   "image_digest": "sha256:d5341acf6f9206968c5d9ac4793618a54b1a6734a1c090cfc305cfb62a1e1141",
+   "noeud": "<configuré>",
+   "resultats": {
+    "B_label_build": {
+     "job": "agagi-valreseau-b-091d",
+     "etat": "Complete",
+     "horodatage_job": {
+      "cree_utc": "2026-10-13T15:35:44Z",
+      "debut_utc": "2026-10-13T15:35:44Z",
+      "fin_utc": "2026-10-13T15:35:55Z",
+      "source": "Job Kubernetes : metadata.creationTimestamp, status.startTime et status.completionTime (UTC)"
+     },
+     "mesures": {
+      "dns_direct_8888": [
+       "echec",
+       "TimeoutError: timed out"
+      ],
+      "dns_kube": [
+       "ok",
+       "<ip>"
+      ],
+      "dns_pypi": [
+       "ok",
+       "<ip>"
+      ],
+      "ip_du_pod": [
+       "ok",
+       "<ip>"
+      ],
+      "tcp_service_kubernetes_api_443": [
+       "echec",
+       "ConnectionRefusedError: [Errno 111] Connection refused"
+      ],
+      "tcp_pypi_22": [
+       "echec",
+       "OSError: [Errno 101] Network is unreachable"
+      ],
+      "tcp_pypi_443": [
+       "ok",
+       "connecte"
+      ],
+      "tcp_pypi_80": [
+       "ok",
+       "connecte"
+      ]
+     },
+     "journal_si_illisible": null
+    },
+    "A_sans_label": {
+     "job": "agagi-valreseau-a-091d",
+     "etat": "Complete",
+     "horodatage_job": {
+      "cree_utc": "2026-10-13T15:35:43Z",
+      "debut_utc": "2026-10-13T15:35:43Z",
+      "fin_utc": "2026-10-13T15:36:00Z",
+      "source": "Job Kubernetes : metadata.creationTimestamp, status.startTime et status.completionTime (UTC)"
+     },
+     "mesures": {
+      "dns_direct_8888": [
+       "echec",
+       "TimeoutError: timed out"
+      ],
+      "dns_kube": [
+       "ok",
+       "<ip>"
+      ],
+      "dns_pypi": [
+       "ok",
+       "<ip>"
+      ],
+      "ip_du_pod": [
+       "ok",
+       "<ip>"
+      ],
+      "tcp_service_kubernetes_api_443": [
+       "echec",
+       "ConnectionRefusedError: [Errno 111] Connection refused"
+      ],
+      "tcp_pypi_22": [
+       "echec",
+       "OSError: [Errno 101] Network is unreachable"
+      ],
+      "tcp_pypi_443": [
+       "echec",
+       "OSError: [Errno 101] Network is unreachable"
+      ],
+      "tcp_pypi_80": [
+       "echec",
+       "OSError: [Errno 101] Network is unreachable"
+      ]
+     },
+     "journal_si_illisible": null
+    }
+   },
+   "manquants": []
+  },
+  "apres_bis": {
+   "phase": "apres_bis",
+   "image_digest": "sha256:d5341acf6f9206968c5d9ac4793618a54b1a6734a1c090cfc305cfb62a1e1141",
+   "noeud": "<configuré>",
+   "resultats": {
+    "B_label_build": {
+     "job": "agagi-valreseau-b-8438",
+     "etat": "Complete",
+     "horodatage_job": {
+      "cree_utc": "2026-10-13T15:29:33Z",
+      "debut_utc": "2026-10-13T15:29:33Z",
+      "fin_utc": "2026-10-13T15:29:37Z",
+      "source": "Job Kubernetes : metadata.creationTimestamp, status.startTime et status.completionTime (UTC)"
+     },
+     "mesures": {
+      "dns_direct_8888": [
+       "ok",
+       "90 octets"
+      ],
+      "dns_kube": [
+       "ok",
+       "<ip>"
+      ],
+      "dns_pypi": [
+       "ok",
+       "<ip>"
+      ],
+      "tcp_pypi_443": [
+       "ok",
+       "connecte"
+      ],
+      "tcp_pypi_80": [
+       "ok",
+       "connecte"
+      ]
+     },
+     "journal_si_illisible": null
+    },
+    "A_sans_label": {
+     "job": "agagi-valreseau-a-8438",
+     "etat": "Complete",
+     "horodatage_job": {
+      "cree_utc": "2026-10-13T15:29:33Z",
+      "debut_utc": "2026-10-13T15:29:33Z",
+      "fin_utc": "2026-10-13T15:29:45Z",
+      "source": "Job Kubernetes : metadata.creationTimestamp, status.startTime et status.completionTime (UTC)"
+     },
+     "mesures": {
+      "dns_direct_8888": [
+       "echec",
+       "TimeoutError: timed out"
+      ],
+      "dns_kube": [
+       "ok",
+       "<ip>"
+      ],
+      "dns_pypi": [
+       "ok",
+       "<ip>"
+      ],
+      "tcp_pypi_443": [
+       "echec",
+       "OSError: [Errno 101] Network is unreachable"
+      ],
+      "tcp_pypi_80": [
+       "echec",
+       "OSError: [Errno 101] Network is unreachable"
+      ]
+     },
+     "journal_si_illisible": null
+    }
+   },
+   "manquants": []
+  },
+  "apres_stable1": {
+   "phase": "apres_stable1",
+   "image_digest": "sha256:d5341acf6f9206968c5d9ac4793618a54b1a6734a1c090cfc305cfb62a1e1141",
+   "noeud": "<configuré>",
+   "resultats": {
+    "B_label_build": {
+     "job": "agagi-valreseau-b-4e1f",
+     "etat": "Complete",
+     "horodatage_job": {
+      "cree_utc": "2026-10-13T15:36:39Z",
+      "debut_utc": "2026-10-13T15:36:39Z",
+      "fin_utc": "2026-10-13T15:37:11Z",
+      "source": "Job Kubernetes : metadata.creationTimestamp, status.startTime et status.completionTime (UTC)"
+     },
+     "mesures": {
+      "attente_s": [
+       "ok",
+       "20"
+      ],
+      "dns_direct_8888": [
+       "echec",
+       "TimeoutError: timed out"
+      ],
+      "dns_kube": [
+       "ok",
+       "<ip>"
+      ],
+      "dns_pypi": [
+       "ok",
+       "<ip>"
+      ],
+      "ip_du_pod": [
+       "ok",
+       "<ip>"
+      ],
+      "tcp_service_kubernetes_api_443": [
+       "echec",
+       "ConnectionRefusedError: [Errno 111] Connection refused"
+      ],
+      "tcp_pypi_22": [
+       "echec",
+       "OSError: [Errno 101] Network is unreachable"
+      ],
+      "tcp_pypi_443": [
+       "ok",
+       "connecte"
+      ],
+      "tcp_pypi_80": [
+       "echec",
+       "OSError: [Errno 101] Network is unreachable"
+      ]
+     },
+     "journal_si_illisible": null
+    },
+    "A_sans_label": {
+     "job": "agagi-valreseau-a-4e1f",
+     "etat": "Complete",
+     "horodatage_job": {
+      "cree_utc": "2026-10-13T15:36:39Z",
+      "debut_utc": "2026-10-13T15:36:39Z",
+      "fin_utc": "2026-10-13T15:37:16Z",
+      "source": "Job Kubernetes : metadata.creationTimestamp, status.startTime et status.completionTime (UTC)"
+     },
+     "mesures": {
+      "attente_s": [
+       "ok",
+       "20"
+      ],
+      "dns_direct_8888": [
+       "echec",
+       "TimeoutError: timed out"
+      ],
+      "dns_kube": [
+       "ok",
+       "<ip>"
+      ],
+      "dns_pypi": [
+       "ok",
+       "<ip>"
+      ],
+      "ip_du_pod": [
+       "ok",
+       "<ip>"
+      ],
+      "tcp_service_kubernetes_api_443": [
+       "echec",
+       "ConnectionRefusedError: [Errno 111] Connection refused"
+      ],
+      "tcp_pypi_22": [
+       "echec",
+       "OSError: [Errno 101] Network is unreachable"
+      ],
+      "tcp_pypi_443": [
+       "echec",
+       "OSError: [Errno 101] Network is unreachable"
+      ],
+      "tcp_pypi_80": [
+       "echec",
+       "OSError: [Errno 101] Network is unreachable"
+      ]
+     },
+     "journal_si_illisible": null
+    }
+   },
+   "manquants": []
+  },
+  "apres_stable2": {
+   "phase": "apres_stable2",
+   "image_digest": "sha256:d5341acf6f9206968c5d9ac4793618a54b1a6734a1c090cfc305cfb62a1e1141",
+   "noeud": "<configuré>",
+   "resultats": {
+    "A_sans_label": {
+     "job": "agagi-valreseau-a-01e1",
+     "etat": "Complete",
+     "horodatage_job": {
+      "cree_utc": "2026-10-13T15:37:20Z",
+      "debut_utc": "2026-10-13T15:37:20Z",
+      "fin_utc": "2026-10-13T15:37:56Z",
+      "source": "Job Kubernetes : metadata.creationTimestamp, status.startTime et status.completionTime (UTC)"
+     },
+     "mesures": {
+      "attente_s": [
+       "ok",
+       "20"
+      ],
+      "dns_direct_8888": [
+       "echec",
+       "TimeoutError: timed out"
+      ],
+      "dns_kube": [
+       "ok",
+       "<ip>"
+      ],
+      "dns_pypi": [
+       "ok",
+       "<ip>"
+      ],
+      "ip_du_pod": [
+       "ok",
+       "<ip>"
+      ],
+      "tcp_service_kubernetes_api_443": [
+       "echec",
+       "ConnectionRefusedError: [Errno 111] Connection refused"
+      ],
+      "tcp_pypi_22": [
+       "echec",
+       "OSError: [Errno 101] Network is unreachable"
+      ],
+      "tcp_pypi_443": [
+       "echec",
+       "OSError: [Errno 101] Network is unreachable"
+      ],
+      "tcp_pypi_80": [
+       "echec",
+       "OSError: [Errno 101] Network is unreachable"
+      ]
+     },
+     "journal_si_illisible": null
+    },
+    "B_label_build": {
+     "job": "agagi-valreseau-b-01e1",
+     "etat": "Complete",
+     "horodatage_job": {
+      "cree_utc": "2026-10-13T15:37:20Z",
+      "debut_utc": "2026-10-13T15:37:20Z",
+      "fin_utc": "2026-10-13T15:37:52Z",
+      "source": "Job Kubernetes : metadata.creationTimestamp, status.startTime et status.completionTime (UTC)"
+     },
+     "mesures": {
+      "attente_s": [
+       "ok",
+       "20"
+      ],
+      "dns_direct_8888": [
+       "echec",
+       "TimeoutError: timed out"
+      ],
+      "dns_kube": [
+       "ok",
+       "<ip>"
+      ],
+      "dns_pypi": [
+       "ok",
+       "<ip>"
+      ],
+      "ip_du_pod": [
+       "ok",
+       "<ip>"
+      ],
+      "tcp_service_kubernetes_api_443": [
+       "echec",
+       "ConnectionRefusedError: [Errno 111] Connection refused"
+      ],
+      "tcp_pypi_22": [
+       "echec",
+       "OSError: [Errno 101] Network is unreachable"
+      ],
+      "tcp_pypi_443": [
+       "ok",
+       "connecte"
+      ],
+      "tcp_pypi_80": [
+       "echec",
+       "OSError: [Errno 101] Network is unreachable"
+      ]
+     },
+     "journal_si_illisible": null
+    }
+   },
+   "manquants": []
+  },
+  "apres_ter": {
+   "phase": "apres_ter",
+   "image_digest": "sha256:d5341acf6f9206968c5d9ac4793618a54b1a6734a1c090cfc305cfb62a1e1141",
+   "noeud": "<configuré>",
+   "resultats": {
+    "B_label_build": {
+     "job": "agagi-valreseau-b-38fa",
+     "etat": "Complete",
+     "horodatage_job": {
+      "cree_utc": "2026-10-13T15:34:03Z",
+      "debut_utc": "2026-10-13T15:34:03Z",
+      "fin_utc": "2026-10-13T15:34:14Z",
+      "source": "Job Kubernetes : metadata.creationTimestamp, status.startTime et status.completionTime (UTC)"
+     },
+     "mesures": {
+      "dns_direct_8888": [
+       "echec",
+       "TimeoutError: timed out"
+      ],
+      "dns_kube": [
+       "ok",
+       "<ip>"
+      ],
+      "dns_pypi": [
+       "ok",
+       "<ip>"
+      ],
+      "tcp_service_kubernetes_api_443": [
+       "echec",
+       "ConnectionRefusedError: [Errno 111] Connection refused"
+      ],
+      "tcp_pypi_22": [
+       "echec",
+       "OSError: [Errno 101] Network is unreachable"
+      ],
+      "tcp_pypi_443": [
+       "ok",
+       "connecte"
+      ],
+      "tcp_pypi_80": [
+       "ok",
+       "connecte"
+      ]
+     },
+     "journal_si_illisible": null
+    },
+    "A_sans_label": {
+     "job": "agagi-valreseau-a-38fa",
+     "etat": "Complete",
+     "horodatage_job": {
+      "cree_utc": "2026-10-13T15:34:03Z",
+      "debut_utc": "2026-10-13T15:34:03Z",
+      "fin_utc": "2026-10-13T15:34:14Z",
+      "source": "Job Kubernetes : metadata.creationTimestamp, status.startTime et status.completionTime (UTC)"
+     },
+     "mesures": {
+      "dns_direct_8888": [
+       "echec",
+       "TimeoutError: timed out"
+      ],
+      "dns_kube": [
+       "ok",
+       "<ip>"
+      ],
+      "dns_pypi": [
+       "ok",
+       "<ip>"
+      ],
+      "tcp_service_kubernetes_api_443": [
+       "echec",
+       "ConnectionRefusedError: [Errno 111] Connection refused"
+      ],
+      "tcp_pypi_22": [
+       "echec",
+       "OSError: [Errno 101] Network is unreachable"
+      ],
+      "tcp_pypi_443": [
+       "ok",
+       "connecte"
+      ],
+      "tcp_pypi_80": [
+       "ok",
+       "connecte"
+      ]
+     },
+     "journal_si_illisible": null
+    }
+   },
+   "manquants": []
+  },
+  "avant": {
+   "phase": "avant",
+   "image_digest": "sha256:d5341acf6f9206968c5d9ac4793618a54b1a6734a1c090cfc305cfb62a1e1141",
+   "noeud": "<configuré>",
+   "resultats": {
+    "A_sans_label": {
+     "job": "agagi-valreseau-a-9a64",
+     "etat": "Complete",
+     "horodatage_job": {
+      "cree_utc": "2026-10-13T12:20:40Z",
+      "debut_utc": "2026-10-13T12:20:40Z",
+      "fin_utc": "2026-10-13T12:20:45Z",
+      "source": "Job Kubernetes : metadata.creationTimestamp, status.startTime et status.completionTime (UTC)"
+     },
+     "mesures": {
+      "dns_direct_8888": [
+       "ok",
+       "90 octets"
+      ],
+      "dns_kube": [
+       "ok",
+       "<ip>"
+      ],
+      "dns_pypi": [
+       "ok",
+       "<ip>"
+      ],
+      "tcp_pypi_443": [
+       "echec",
+       "OSError: [Errno 101] Network is unreachable"
+      ]
+     },
+     "journal_si_illisible": null
+    },
+    "B_label_build": {
+     "job": "agagi-valreseau-b-9a64",
+     "etat": "Complete",
+     "horodatage_job": {
+      "cree_utc": "2026-10-13T12:20:42Z",
+      "debut_utc": "2026-10-13T12:20:42Z",
+      "fin_utc": "2026-10-13T12:20:45Z",
+      "source": "Job Kubernetes : metadata.creationTimestamp, status.startTime et status.completionTime (UTC)"
+     },
+     "mesures": {
+      "dns_direct_8888": [
+       "ok",
+       "90 octets"
+      ],
+      "dns_kube": [
+       "ok",
+       "<ip>"
+      ],
+      "dns_pypi": [
+       "ok",
+       "<ip>"
+      ],
+      "tcp_pypi_443": [
+       "ok",
+       "connecte"
+      ]
+     },
+     "journal_si_illisible": null
+    }
+   },
+   "manquants": []
+  }
+ },
+ "lecture": {
+  "avant": "A : DNS direct OK, 443 échec ; B : 443 OK, DNS direct OK (le DNS sortait partout)",
+  "apres_etat_stable": "passes apres_stable1 et apres_stable2, 20 s d'attente dans le pod avant les sondes : A — kube-dns OK, 443/80/22 et DNS direct ÉCHEC ; B — 443 OK, 80/22 et DNS direct ÉCHEC : la bascule « DNS direct OK → ÉCHEC » est mesurée",
+  "course_au_demarrage": "passes sans attente (apres, apres_bis, apres_ter, apres_4, apres_6) INCOHÉRENTES : seules les PREMIÈRES sondes passaient parfois (A a ouvert 443 et 80 à 17:34 ; B le port 80), jamais les dernières — les premières secondes d'un pod échappent à la NetworkPolicy (kube-router installe ses règles après le démarrage) ; s'y ajoute ~1-2 min de propagation après l'apply (DNS direct de B ouvert à 17:28/17:29, fermé à 17:30)"
+ },
+ "build_apres_restriction": {
+  "chemin": "python -m tools.jobs.remote image --sha HEAD --reconstruire (Python 3.13 ; le 3.14 des sessions refuse : pas de tzdata)",
+  "resultat": "RÉUSSI sous DNS restreint (PyPI, apt https, push au registre)",
+  "digest_2026-09-28": "sha256:d5341acf6f9206968c5d9ac4793618a54b1a6734a1c090cfc305cfb62a1e1141",
+  "digest_2026-10-13": "sha256:cd8b9f342f5ad21cd8fe01bba66322f261c6a75ce92d300ecf103d0b64715149",
+  "meme_contexte": true,
+  "empreinte_2026-09-28": {
+   "python": {
+    "entrees": 39411,
+    "sha256": "3b8aaa2bad4583ede08e7f9dffc69a40bc3ace11c901d2beae46d9ea5960825f"
+   },
+   "systeme": {
+    "entrees": 7194,
+    "sha256": "4baa682b58affa21571f1a148be539b06121bce94a7756835a36604147605aac"
+   }
+  },
+  "empreinte_2026-10-13": {
+   "python": {
+    "entrees": 39488,
+    "sha256": "5b8d6739318995d1ecd5878125b2726635a84fe69c385811f61e0b33bdcc3c23"
+   },
+   "systeme": {
+    "entrees": 7194,
+    "sha256": "f92f99924ee1b7580c1b6e62e9500920dc0c7f6cce4a6ad6afd7aa82e49c35e7"
+   }
+  },
+  "horodatage_job_2026-10-13": {
+   "cree_utc": "2026-10-13T15:39:18Z",
+   "debut_utc": "2026-10-13T15:39:18Z",
+   "fin_utc": "2026-10-13T15:41:28Z",
+   "source": "Job Kubernetes : metadata.creationTimestamp, status.startTime et status.completionTime (UTC)"
+  },
+  "freeze_et_dpkg_differents": {
+   "2026-09-28": [
+    "MarkupSafe==3.0.3",
+    "charset-normalizer==3.5.1",
+    "fonttools==4.66.0",
+    "iniconfig==2.3.0",
+    "jsonpatch==1.33",
+    "jsonpointer==3.1.1",
+    "langgraph-checkpoint==4.2.0",
+    "langsmith==0.14.1",
+    "orjson==3.12.0",
+    "perl-base=5.36.0-7+deb12u3",
+    "pytz==2026.4",
+    "rpds-py==2026.6.3",
+    "tenacity==9.1.4",
+    "truststore==0.10.4",
+    "tzdata==2026.4",
+    "websockets==17.1"
+   ],
+   "2026-10-13": [
+    "MarkupSafe==3.0.4",
+    "charset-normalizer==3.5.2",
+    "fonttools==4.66.1",
+    "iniconfig==2.3.1",
+    "jsonpatch==1.35",
+    "jsonpointer==3.2.1",
+    "langgraph-checkpoint==4.3.0",
+    "langsmith==0.14.8",
+    "orjson==3.13.0",
+    "perl-base=5.36.0-7+deb12u4",
+    "pytz==2026.5",
+    "rpds-py==2026.9.1",
+    "tenacity==9.2.1",
+    "truststore==0.10.5",
+    "tzdata==2026.5",
+    "websockets==17.2"
+   ],
+   "communes": 70
+  },
+  "lecture": "P2.134 (ii) ÉCHOUE à 15 jours : même contexte, autre digest ; l'empreinte localise les DEUX zones ; 15 dépendances Python TRANSITIVES non épinglées ont bougé + perl-base (apt) ; numpy, scipy, torch, kuzu, psutil identiques (épinglés). IMAGE.json reste sur d5341acf (toujours au registre).",
+  "freeze_pip_complet": {
+   "2026-09-28": [
+    "Jinja2==3.1.6",
+    "MarkupSafe==3.0.3",
+    "PyYAML==6.0.2",
+    "Pygments==2.21.0",
+    "annotated-doc==0.0.5",
+    "annotated-types==0.8.0",
+    "anyio==4.14.2",
+    "attrs==26.1.0",
+    "certifi==2026.7.22",
+    "charset-normalizer==3.5.1",
+    "click==8.5.0",
+    "cloudpickle==3.1.2",
+    "contourpy==1.4.0",
+    "cycler==0.12.1",
+    "distro==1.9.0",
+    "fastapi==0.128.8",
+    "filelock==3.25.2",
+    "fonttools==4.66.0",
+    "fsspec==2026.2.0",
+    "graphviz==0.21",
+    "h11==0.16.0",
+    "httpcore2==2.13.1",
+    "httpcore==1.0.9",
+    "httpx2==2.13.1",
+    "httpx==0.28.1",
+    "idna==3.20",
+    "iniconfig==2.3.0",
+    "joblib==1.6.0",
+    "jsonpatch==1.33",
+    "jsonpointer==3.1.1",
+    "jsonschema-specifications==2025.9.1",
+    "jsonschema==4.23.0",
+    "kiwisolver==1.5.1",
+    "kuzu==0.11.3",
+    "langchain-core==1.2.31",
+    "langchain==1.2.15",
+    "langgraph-checkpoint==4.2.0",
+    "langgraph-prebuilt==1.0.10",
+    "langgraph-sdk==0.3.15",
+    "langgraph==1.1.6",
+    "langsmith==0.14.1",
+    "matplotlib==3.10.8",
+    "mpmath==1.3.0",
+    "networkx==3.6.1",
+    "numpy==2.4.3",
+    "orjson==3.12.0",
+    "ormsgpack==1.12.2",
+    "packaging==26.3",
+    "pandas==2.3.3",
+    "pillow==12.3.0",
+    "pluggy==1.6.0",
+    "psutil==7.2.2",
+    "pydantic==2.12.5",
+    "pydantic_core==2.41.5",
+    "pyparsing==3.3.3",
+    "pytest==9.0.2",
+    "python-dateutil==2.9.0.post0",
+    "pytz==2026.4",
+    "referencing==0.37.0",
+    "requests-toolbelt==1.0.0",
+    "requests==2.34.2",
+    "rpds-py==2026.6.3",
+    "scikit-learn==1.8.0",
+    "scipy==1.17.1",
+    "setuptools==84.0.0",
+    "six==1.17.0",
+    "sniffio==1.3.1",
+    "starlette==0.52.1",
+    "sympy==1.13.1",
+    "tenacity==9.1.4",
+    "threadpoolctl==3.7.0",
+    "torch==2.6.0+cpu",
+    "truststore==0.10.4",
+    "typing-inspection==0.4.4",
+    "typing_extensions==4.15.0",
+    "tzdata==2026.4",
+    "urllib3==2.8.0",
+    "uuid_utils==0.17.1",
+    "uvicorn==0.40.0",
+    "websockets==17.1",
+    "xxhash==4.0.1",
+    "zstandard==0.25.0"
+   ],
+   "2026-10-13": [
+    "Jinja2==3.1.6",
+    "MarkupSafe==3.0.4",
+    "PyYAML==6.0.2",
+    "Pygments==2.21.0",
+    "annotated-doc==0.0.5",
+    "annotated-types==0.8.0",
+    "anyio==4.14.2",
+    "attrs==26.1.0",
+    "certifi==2026.7.22",
+    "charset-normalizer==3.5.2",
+    "click==8.5.0",
+    "cloudpickle==3.1.2",
+    "contourpy==1.4.0",
+    "cycler==0.12.1",
+    "distro==1.9.0",
+    "fastapi==0.128.8",
+    "filelock==3.25.2",
+    "fonttools==4.66.1",
+    "fsspec==2026.2.0",
+    "graphviz==0.21",
+    "h11==0.16.0",
+    "httpcore2==2.13.1",
+    "httpcore==1.0.9",
+    "httpx2==2.13.1",
+    "httpx==0.28.1",
+    "idna==3.20",
+    "iniconfig==2.3.1",
+    "joblib==1.6.0",
+    "jsonpatch==1.35",
+    "jsonpointer==3.2.1",
+    "jsonschema-specifications==2025.9.1",
+    "jsonschema==4.23.0",
+    "kiwisolver==1.5.1",
+    "kuzu==0.11.3",
+    "langchain-core==1.2.31",
+    "langchain==1.2.15",
+    "langgraph-checkpoint==4.3.0",
+    "langgraph-prebuilt==1.0.10",
+    "langgraph-sdk==0.3.15",
+    "langgraph==1.1.6",
+    "langsmith==0.14.8",
+    "matplotlib==3.10.8",
+    "mpmath==1.3.0",
+    "networkx==3.6.1",
+    "numpy==2.4.3",
+    "orjson==3.13.0",
+    "ormsgpack==1.12.2",
+    "packaging==26.3",
+    "pandas==2.3.3",
+    "pillow==12.3.0",
+    "pluggy==1.6.0",
+    "psutil==7.2.2",
+    "pydantic==2.12.5",
+    "pydantic_core==2.41.5",
+    "pyparsing==3.3.3",
+    "pytest==9.0.2",
+    "python-dateutil==2.9.0.post0",
+    "pytz==2026.5",
+    "referencing==0.37.0",
+    "requests-toolbelt==1.0.0",
+    "requests==2.34.2",
+    "rpds-py==2026.9.1",
+    "scikit-learn==1.8.0",
+    "scipy==1.17.1",
+    "setuptools==84.0.0",
+    "six==1.17.0",
+    "sniffio==1.3.1",
+    "starlette==0.52.1",
+    "sympy==1.13.1",
+    "tenacity==9.2.1",
+    "threadpoolctl==3.7.0",
+    "torch==2.6.0+cpu",
+    "truststore==0.10.5",
+    "typing-inspection==0.4.4",
+    "typing_extensions==4.15.0",
+    "tzdata==2026.5",
+    "urllib3==2.8.0",
+    "uuid_utils==0.17.1",
+    "uvicorn==0.40.0",
+    "websockets==17.2",
+    "xxhash==4.0.1",
+    "zstandard==0.25.0"
+   ],
+   "source": "2026-09-28 : /opt/agagi/pip-freeze.txt LU dans l'image d5341acf par un Job d'une ligne (2026-10-13) ; 2026-10-13 : DÉRIVÉ exactement, (freeze 2026-09-28 − seulement_2026-09-28) ∪ seulement_2026-10-13, le diff étant mesuré sur les deux images par le même Job (freeze_et_dpkg_differents)",
+   "communes_pip": 67,
+   "communes_dpkg_versions_non_consignees": [
+    "3 paquets parmi git, git-man, libcurl3-gnutls : versions ÉGALES entre les deux images, non recopiées ici"
+   ]
+  },
+  "couches": {
+   "sha256:d5341acf6f9206968c5d9ac4793618a54b1a6734a1c090cfc305cfb62a1e1141": {
+    "config": "sha256:26b3d098496fce7eaa2a1555a67b6cecc705b8c1768db192579f352e58c05109",
+    "couches": [
+     {
+      "digest": "sha256:62929eb4221e62f4d573949215297e45d209b609d991b60492efb6eb31d94792",
+      "octets": 32611083
+     },
+     {
+      "digest": "sha256:c9064e5166b30d6eb0a3496abdd7b3748c0e7c185f3953c14456e6b5be93dc4c",
+      "octets": 3938763
+     },
+     {
+      "digest": "sha256:19ca5d3fc539cadc6f404dd7a57e0b3f59b08987bd0eae3a961693035d854156",
+      "octets": 14154929
+     },
+     {
+      "digest": "sha256:973f4d632ca42f7dd851a35ef131b70bfb107a0db8f791cc282f1a05274a17ba",
+      "octets": 265
+     },
+     {
+      "digest": "sha256:8481a85bedf27563453e2a718b77d4b314d7a1a28d18fa111187f72d622f12e7",
+      "octets": 33920684
+     },
+     {
+      "digest": "sha256:c6920392f5f00fef761cfe2245630334557b4fd62669792a7fb2c5901a5a56a2",
+      "octets": 3531
+     },
+     {
+      "digest": "sha256:ce4c599b3f0a754f9795fbf5c21b2545cb054045fe95460a3ab10e2f7ee02531",
+      "octets": 446750447
+     },
+     {
+      "digest": "sha256:8a1017c1e9c7d08654c29b1a5f8ad07c8018b8498a73480180ad6a826a30e4d0",
+      "octets": 463
+     },
+     {
+      "digest": "sha256:1c4d75732dc7a8a8f36b2ff04d8a27b76dc689f526c6185646293c75df369431",
+      "octets": 120
+     }
+    ]
+   },
+   "sha256:cd8b9f342f5ad21cd8fe01bba66322f261c6a75ce92d300ecf103d0b64715149": {
+    "config": "sha256:4a90f389b11a521db47f74ace670ffad4cc0b48aaf8baa79115b5c4d2567bb9e",
+    "couches": [
+     {
+      "digest": "sha256:62929eb4221e62f4d573949215297e45d209b609d991b60492efb6eb31d94792",
+      "octets": 32611083
+     },
+     {
+      "digest": "sha256:c9064e5166b30d6eb0a3496abdd7b3748c0e7c185f3953c14456e6b5be93dc4c",
+      "octets": 3938763
+     },
+     {
+      "digest": "sha256:19ca5d3fc539cadc6f404dd7a57e0b3f59b08987bd0eae3a961693035d854156",
+      "octets": 14154929
+     },
+     {
+      "digest": "sha256:973f4d632ca42f7dd851a35ef131b70bfb107a0db8f791cc282f1a05274a17ba",
+      "octets": 265
+     },
+     {
+      "digest": "sha256:cd2aa413e0d23c25268c128dc8d8acb67c588b373d70aeb3e189747fa583d925",
+      "octets": 36526331
+     },
+     {
+      "digest": "sha256:c6920392f5f00fef761cfe2245630334557b4fd62669792a7fb2c5901a5a56a2",
+      "octets": 3531
+     },
+     {
+      "digest": "sha256:1064c22f8c66127a302fd0911ed37ff2b3cf9dcd4b7a60946ee7e6420a388991",
+      "octets": 446808608
+     },
+     {
+      "digest": "sha256:a7c713b212dab5bfc3ebcbfa12bde7131275ebaf7157a08cbde4de1e35141f6d",
+      "octets": 465
+     },
+     {
+      "digest": "sha256:1c4d75732dc7a8a8f36b2ff04d8a27b76dc689f526c6185646293c75df369431",
+      "octets": 120
+     }
+    ]
+   },
+   "couches_differentes": [
+    4,
+    6,
+    7
+   ],
+   "nombre": [
+    9,
+    9
+   ]
+  },
+  "conservation": "Ce fichier suffit comme preuve de P2.134 (ii) SANS l'image cd8b9f34 : digest, empreintes des deux zones, freeze pip complet, couches. L'image d5341acf reste au registre ET archivée hors registre (OCI vérifié)."
+ },
+ "renommages": {
+  "tcp_service_kubernetes_api_443": "clé renommée le 2026-10-13 avant le commit : l'ancien nom portait l'adresse ClusterIP du Service kubernetes (API du cluster) ; la mesure est inchangée — connexion TCP au port 443 de ce Service depuis le pod"
+ }
+}

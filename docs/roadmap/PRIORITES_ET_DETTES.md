@@ -1384,6 +1384,15 @@ namespace renommé ne serait pas sauté : `standard` (4 Gi) y serait reposée, l
 `plafonds_limitrange` ferait REFUSER bruyamment tout palier > 4 Gi (un refus, pas une faute muette). Écrit dans la REF
 (clé `namespace`), dans 00/01 et dans `deploy/deport.example.json` ; option à proposer à ELYSIUM : brancher le saut sur
 le label `elysium.io/limitrange-tier` plutôt que sur une liste de noms.
+**Avancement du 2026-10-13 (session INFRA-NEXUS)** — (1) et (2) APPLIQUÉS sur le cluster par robla (entre 17:00 et
+17:28, heure de Paris ; `kubectl diff` vide à 17:28:13) et VALIDÉS dans les deux sens (`results/deport_p2127_validation.json`,
+heures lues au statut des Jobs). Mesure AVANT prise à 12:20Z : le DNS sortait de partout (DNS direct vers un résolveur
+public OK, avec et sans label de build). APRÈS, en régime établi (20 s d'attente dans le pod) : sans le label de build,
+kube-dns résout, et 443, 80, 22 et le DNS direct ÉCHOUENT ; avec le label, le 443 passe, le reste échoue ; un vrai build
+(`image --reconstruire`) RÉUSSIT sous la restriction. Trouvé en validant : une COURSE AU DÉMARRAGE — sans attente, les
+premières sondes d'un pod passent parfois (kube-router pose ses règles après le démarrage du pod), plus ~1-2 min de
+propagation après un apply ; écrite dans la REF (État mesuré), une validation de NetworkPolicy attend donc dans le pod
+avant de sonder. **Reste** : (3), (4), (5), (6), inchangés.
 
 **P2.131 — rang 22 — OUVERTE (2026-09-26, trouvée en passant par la revue /refutateur d'EDR-DEPORT-NEXUS-TEMOIN, P8.5)
 — Des citations de ligne PÉRIMÉES pour la formule du corps : trois sites renvoient à `src/agents/mamba_agent.py:47-50`,
@@ -1455,8 +1464,25 @@ et publiée dans chaque MANIFEST ; témoin de recette `test_recette_reproductibl
 pour clore** : (i) FAIT le 2026-09-28 au soir (`results/deport_p2134_adoption.json`) — image construite par le chemin de
 PRODUCTION puis RECONSTRUITE (`--reconstruire`) : MÊME digest `sha256:d5341acf…`, MÊMES empreintes de contenu (lues
 dans le journal de chaque build), `deploy/nexus/runner/IMAGE.json` écrit ; témoin evo011 --smoke sur la nouvelle image :
-un seul écart hors `elapsed_s` contre le tour 4, `git_sha` (attendu) ; (ii) une reconstruction un AUTRE jour, même digest ou écart localisé par
-l'empreinte ; (iii) décider pour apt (épingler ou instantané daté).
+un seul écart hors `elapsed_s` contre le tour 4, `git_sha` (attendu) ; (ii) une reconstruction un AUTRE jour — ÉCHOUÉE le
+2026-10-13, ci-dessous ; (iii) décider pour apt (épingler ou instantané daté).
+**Mesuré le 2026-10-13 (session INFRA-NEXUS, `results/deport_p2127_validation.json`, bloc `build_apres_restriction`) —
+(ii) ÉCHOUE à 15 jours.** La même recette (même contexte haché, tag `py3.13.12-1c77aaaf3cf1`), reconstruite le
+2026-10-13 (Job 15:39:18Z → 15:41:28Z), rend un AUTRE digest, `sha256:cd8b9f34…`, couches 4, 6 et 7 différentes.
+L'empreinte localise les DEUX zones (python : 39 411 → 39 488 entrées ; systeme : 7 194 entrées, hash différent) ; la
+cause, lue dans les deux images (pip freeze et quatre paquets dpkg, freeze complet des deux images consigné) : 15
+dépendances Python TRANSITIVES non épinglées ont bougé (MarkupSafe, charset-normalizer, fonttools, iniconfig, jsonpatch,
+jsonpointer, langgraph-checkpoint, langsmith, orjson, pytz, rpds-py, tenacity, truststore, tzdata, websockets) et
+perl-base côté apt (deb12u3 → deb12u4) ; numpy, scipy, torch, kuzu et psutil sont identiques (épinglés). La recette tient
+un digest dans la JOURNÉE, pas dans le TEMPS : l'hypothèse (a), réfutée le 26/09 sur deux builds du même soir, redevient
+nécessaire à 15 jours. **Décision de Master 2 (2026-10-13)** : `deploy/nexus/runner/IMAGE.json` RESTE sur d5341acf (τ de
+P4.19 y a été mesuré ; R3 et le retest de P4.18 y tournent) ; la bascule sur un constraints complet est P2.174. **Rétention** (réponse
+d'ELYSIUM, 2026-10-13) : le registre n'a ni suppression automatique ni sauvegarde ; l'image d5341acf est ARCHIVÉE hors
+registre sur la batcave (disposition OCI, chaque blob vérifié par son sha256, procédure de re-push livrée et non
+exercée) et c'est l'archive qui fait référence — `docs/REF/REF-DEPORT-NEXUS.md`, section « Registre d'images », qui
+tient aussi la règle de protection des images et le journal des suppressions. **Reste pour clore** : (ii) refaire
+après P2.174 (deux reconstructions à des jours différents, même digest) ; (iii) la couche apt, qui ne tient pas
+non plus dans le temps (perl-base).
 
 **P2.132 — rang 4 — OUVERTE (2026-09-26, trouvée par la revue adversariale de la règle S2-BASSIN-FRAGILITY v4,
 critique P7.1, vérifiée à la lecture du code par la session SCIENCE-HARNAIS) — Le harnais IMMORTEL de P4.4 à P4.16
@@ -3121,6 +3147,29 @@ du runner ; un argparse en échec sort en 2. Contournement appliqué par SCIENCE
 cellule en lisant « [remote] REFUS » dans son journal, jamais le seul code. À faire : un code DÉDIÉ au refus local (hors
 des codes d'un runner usuel et des 86/87 de `remote_entry`), publié dans la REF, avec un témoin qui fait sortir un runner
 en 2 et vérifie qu'il ne se lit pas comme un refus local. Sans clause `closes_when` (déclaré) : le code n'est pas choisi.
+
+**P2.173 — rang à fixer par Master 2 — OUVERTE (2026-10-13, vue en lançant le build de contrôle de P2.127, session
+INFRA-NEXUS) — Le CLI du déport REFUSE sous le `python` des sessions (3.14 sans tzdata) : `executer`, `soumettre` et
+`image` s'arrêtent sur « fuseau 'Europe/Paris' illisible ».**
+Preuve : `tools/jobs/remote.py`, calcul de la fenêtre d'allumage du nœud (`ZoneInfo(fenetre["tz"])`, branche qui lève
+`Refus`) ; sous Windows, `zoneinfo` n'a pas de base de fuseaux sans le paquet `tzdata`, absent du 3.14 en tête du PATH
+(même interpréteur que P2.157, côté crochet). Le refus est la BONNE face — une fenêtre devinée laisserait partir un run
+que l'extinction du nœud tuerait — ; le défaut est qu'il ne nomme pas le remède et que chaque session y retombe. Parade
+en vigueur : lancer avec Python 3.13 (REF, État mesuré du 2026-10-13). **Forme** : le refus nomme le remède (installer
+tzdata, ou le 3.13 par son chemin), témoin sous un `zoneinfo` sans base ; ou une épingle d'interpréteur sur le modèle
+d'`AGAGI:INTERPRETE`. Sans clause `closes_when` (déclaré) : la forme n'est pas choisie.
+
+**P2.174 — rang à fixer par Master 2, à faire APRÈS R3 de P4.19 et le retest de P4.18 — OUVERTE (2026-10-13, conséquence
+de P2.134 (ii), session INFRA-NEXUS) — Basculer l'image runner sur un constraints COMPLET : toutes les dépendances
+transitives épinglées.**
+Preuve : P2.134 (ii) — 15 transitives non épinglées ont bougé en 15 jours (`results/deport_p2127_validation.json`,
+freeze complet des deux images). Prêt HORS suivi (décision de Master 2 : il ne doit pas entrer dans le contexte haché
+avant la bascule) : la liste des 82 versions du freeze écrit DANS l'image d5341acf, avec son en-tête. **Geste** : en
+faire `deploy/nexus/runner/constraints.txt` (fichier HACHÉ : nouveau tag, nouvelle image), UN build, commit
+d'`IMAGE.json` ; puis deux reconstructions à des jours différents pour clore P2.134 (ii). Pas avant R3 de P4.19 ni le
+retest de P4.18, qui tournent sur d5341acf — ou alors avec une re-mesure de τ. Hors de portée de pip : la couche apt,
+P2.134 (iii).
+<!-- closes_when:grep_present=deploy/nexus/runner/constraints.txt::websockets== -->
 
 **P2.151 — OUVERTE (2026-09-28, vue en passant par la session FRONT pendant le pas 2 de P2.87) — sous WSL,
 `pytest tests/test_backend.py` FINIT ses tests puis reste BLOQUÉ À LA SORTIE du processus ; le job CI qui lance ce

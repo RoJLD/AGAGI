@@ -160,7 +160,7 @@ minimal ; les deux publient les variables déclarées dans le MANIFEST.
   LimitRange dans le namespace, quota 24 / 40 Gi, `kubectl diff` vide ensuite.
 * 2026-09-28 : gabarits de P2.127 (labels de propriété AGAGI sur les cinq objets, annotation derived-from, DNS restreint
   à kube-dns) écrits dans le dépôt et NON appliqués : `kubectl diff` non vide jusqu'au prochain `namespace --appliquer`
-  par robla.
+  par robla (appliqués le 2026-10-13, ci-dessous).
 * 2026-09-28 (P2.134, `results/deport_p2134_reproductibilite.json`, heures lues au statut des Jobs, UTC) : un build
   Kaniko devient REPRODUCTIBLE au bit avec le Dockerfile NETTOYÉ (journaux apt/dpkg et cache ldconfig retirés ; pip
   `--no-compile` puis `.pyc` à empreinte de hash) ET `--reproducible` — 4 builds sur 4 au même digest, à deux paliers
@@ -186,6 +186,25 @@ minimal ; les deux publient les variables déclarées dans le MANIFEST.
   Témoin `evo011_preflight --smoke` sur cette image : contre les trois côtés du tour 4 d'EDR-DEPORT-NEXUS-TEMOIN (batcave,
   nexus ×2, ancienne image), un SEUL écart hors `elapsed_s` — `git_sha`, la provenance, qui diffère par construction ;
   aucun nombre ne change. Le MANIFEST porte l'empreinte (`image_empreinte`). Reste : une reconstruction un AUTRE jour.
+* 2026-10-13 (P2.127, `results/deport_p2127_validation.json`, heures lues au statut des Jobs) : gabarits APPLIQUÉS par
+  robla entre 17:00 et 17:28 (heure de Paris), `kubectl diff` vide à 17:28:13. Sonde : deux Jobs de l'image runner, A sans
+  le label de build, B avec. AVANT (12:20Z) : A — DNS OK, 443 en échec, DNS DIRECT vers un résolveur public OK ; B — 443 OK,
+  DNS direct OK : le DNS sortait de partout. APRÈS, en régime établi (20 s d'attente dans le pod avant de sonder) : A —
+  kube-dns OK, 443, 80, 22 et DNS direct en ÉCHEC ; B — 443 OK, 80, 22 et DNS direct en ÉCHEC. ⚠️ **Course au
+  démarrage** : sans attente, les PREMIÈRES sondes d'un pod passent parfois (A a ouvert 443 et 80 à 17:34), jamais les
+  dernières — kube-router pose ses règles après le démarrage du pod ; s'y ajoutent ~1-2 min de propagation après un
+  apply. Conséquences : une validation de NetworkPolicy attend dans le pod avant de sonder, et la restriction ne garantit
+  rien pendant les premières secondes d'un pod.
+* 2026-10-13 : build de contrôle SOUS DNS restreint (`image --sha HEAD --reconstruire`, Job 15:39:18Z → 15:41:28Z) :
+  réussi (PyPI, apt en https, push) — mais AUTRE digest, `sha256:cd8b9f34…`, pour le MÊME contexte que d5341acf :
+  **P2.134 (ii) ÉCHOUE à 15 jours**. L'empreinte localise les deux zones (python : 39 411 → 39 488 entrées ; systeme :
+  7 194 entrées, hash différent) ; 15 dépendances Python TRANSITIVES non épinglées ont bougé, et perl-base côté apt ;
+  numpy, scipy, torch, kuzu et psutil sont identiques (épinglés). `IMAGE.json` RESTE sur d5341acf : τ de P4.19 y a été
+  mesuré, R3 et le retest de P4.18 y tournent. L'image cd8b9f34 n'est référencée par aucun run (tag `-r1c7f`, cf.
+  Registre d'images). Un constraints COMPLET (les 82 versions du freeze de d5341acf) est préparé hors suivi ; la bascule
+  — un seul build — vient APRÈS R3 et le retest de P4.18.
+* 2026-10-13 : le `python` des sessions est un 3.14 SANS tzdata : `executer`, `soumettre` et `image` REFUSENT (« fuseau
+  illisible »). Les lancer avec Python 3.13 (P2.173).
 
 ## Surveillance d'un run
 
@@ -289,14 +308,60 @@ pour décider d'un lieu par le coût.
   pour la carte de propriété (Σ-MANIFEST-MYCORHIZE, SIGIL-1762) — la copie de LimitRange comprise, qui ne se déclare
   plus `elysium-core` et dit sa source par l'annotation `elysium.io/derived-from: SIGIL-1627` (P2.127, accord
   d'elysium-91 et d'elysium-8d le 2026-09-28 : aucun lecteur ELYSIUM de ces labels sur une LimitRange ; posés sur le
-  cluster au prochain `namespace --appliquer`) ; verser les
+  cluster par robla le 2026-10-13) ; verser les
   manifestes dans `gitops/` d'ELYSIUM (ou une Application ArgoCD) quand ce sera stable.
 * DNS restreint à kube-dns (P2.127, même accord) : bloc repris d'opa-ingress, UN élément `to:` qui porte
-  namespaceSelector ET podSelector. Validation après application : un pod de l'image runner SANS le label de build doit
-  résoudre `pypi.org` et `kubernetes.default` et ÉCHOUER à ouvrir `pypi.org:443` (contrôle négatif du default-deny) ;
-  AVEC le label de build, le 443 doit passer. kube-dns : relu le 2026-10-13, TROIS endpoints prêts (coredns sur
+  namespaceSelector ET podSelector. VALIDÉ le 2026-10-13 en régime établi (cf. État mesuré) : un pod de l'image runner
+  SANS le label de build résout `pypi.org` et `kubernetes.default` par kube-dns et ÉCHOUE à ouvrir `pypi.org:443` comme à
+  joindre un résolveur public (contrôle négatif du default-deny) ; AVEC le label de build, le 443 passe et le DNS direct
+  reste fermé — sauf pendant les premières secondes d'un pod (course au démarrage). kube-dns : relu le 2026-10-13, TROIS endpoints prêts (coredns sur
   orbit-01, coredns-elysium sur orbit-03 et sur nexus), tous `k8s-app=kube-dns`, donc tous couverts par la règle ; la
   « réplique unique » du 2026-09-28 n'est plus vraie.
+
+## Registre d'images : conservation et journal de suppression
+
+**Le registre** (réponse d'elysium-f8, 2026-10-13) : un conteneur `registry:2` sur l'HÔTE orbit-01, hors de k8s ; ni
+garbage-collect ni rétention (`storage.delete` désactivé) ; AUCUNE sauvegarde ; stockage sur le disque RACINE d'orbit-01
+(serveur k3s, 89-90 % plein). Chaque build au contenu neuf y ajoute ~0,5 Go : reconstruire au strict nécessaire. ELYSIUM
+a pris la durabilité du registre dans son chantier P3 (copie hors site, restauration prouvée). L'image de production
+`sha256:d5341acf…` est ARCHIVÉE hors registre sur la batcave (disposition OCI, 11 blobs vérifiés par leur sha256, manifest
+relu = d5341acf ; `repousser.py` livré avec l'archive, NON exercé contre un registre) — c'est l'archive, pas le registre,
+qui fait référence.
+
+**Règle de protection** (Master 2, 2026-10-13, amendée le soir même) : une image est PROTÉGÉE si un run cité par un
+résultat suivi ou par un record a tourné DESSUS, ou si elle porte une mesure consignée nulle part ailleurs. Une image qui
+n'est qu'une preuve de BUILD — digest, couches et freeze déjà consignés dans un JSON suivi — est SUPPRIMABLE. Le journal
+ci-dessous ne protège rien : y citer un digest au statut « SUPPRIMÉ » ne fait pas de l'image une dépendance (la première
+forme de la règle, « tout digest cité par un JSON suivi », protégeait ce qu'on consignait au moment de le supprimer).
+Toute suppression exige la phrase d'accord de robla dans la session qui la fait ; elle se fait PAR DIGEST, sans retrait
+de tag sur une image protégée ni `--delete-untagged`.
+
+**Inventaire du 2026-10-13** (lecture seule : catalogue, tags, manifests ; dépôts dont le nom contient « agagi » —
+aucun dépôt de cache Kaniko AGAGI ; citations cherchées dans tous les fichiers suivis de d1 `0af0fa49`, de toutes les
+branches et sur le disque de tous les worktrees). Octets « propres » = blobs qu'aucune autre image AGAGI ne porte, un
+MAJORANT de ce que libère une suppression (le partage avec les dépôts non-AGAGI n'est pas vu) ; total AGAGI 3,67 Gi.
+
+| digest | tags | statut | pourquoi | propres |
+|---|---|---|---|---|
+| `d5341acf…` | runner `py3.13.12-1c77aaaf3cf1`, `-r3bdf` | PROTÉGÉE | production : τ de P4.19, R3, retest de P4.18 | 0 Mi |
+| `7c860b30…` | runner `py3.13.12-2bf24b9ccf41` | PROTÉGÉE | témoin de lieu de P4.18, témoin du déport tour 4 | 459 Mi |
+| `a1d6e4eb…` | runner `py3.13.12-39fe2c9bda57` | PROTÉGÉE | témoin du déport tours 1-3, premiers runs du 26/09 | 459 Mi |
+| `cf08cef4…` | essais `p2134-r1-*` (4) | à laisser | preuve de build ; ne libère RIEN (blobs tous partagés) | 0 Mi |
+| `cd8b9f34…` | runner `py3.13.12-1c77aaaf3cf1-r1c7f` | supprimable si manque d'espace | preuve de build de P2.134 (ii), consignée dans `results/deport_p2127_validation.json` (digest, empreintes, freeze complet, couches) | 461 Mi |
+| `9f6e2d24…`, `5caa5ff0…` | essais `p2134-r3-0-a787`, `-r3-1-26fa` | supprimable si manque d'espace, APRÈS consignation du freeze | ablation C de P2.134 : digest et couches dans `results/deport_p2134_reproductibilite.json`, freeze PAS encore consigné | 456 Mi chacune |
+| `536dbfcd…`, `d5d96dec…` | essais `p2134-r2-0-d281`, `-r2-1-efcf` | SUPPRIMÉES le 2026-10-13 (journal) | builds d'essai du 2026-09-26 (17:01 UTC), cités nulle part ; résultat écrit dans P2.134 (3) | ≤ 920 Mi à deux |
+
+**Journal de suppression** (une ligne par geste d'ELYSIUM : date et heure, digest, tags, session qui l'a fait, accord de
+robla) :
+
+* 2026-10-13T20:12:27Z — DELETE par digest via l'API du registre, HTTP 202, par la session Arboreal (ELYSIUM), accord de
+  l'Architecte (robla) rapporté par Arboreal : `elysium/agagi-runner-essais@sha256:536dbfcdd161be6e991655fe16f47149fe3fa4cafa882a11d8050a4f906d6b54`
+  (tag `p2134-r2-0-d281`) et `elysium/agagi-runner-essais@sha256:d5d96decc0b3b2d703b405df2249fb2fd5727905312f510ca6d20bbcdafb7e41`
+  (tag `p2134-r2-1-efcf`). `registry garbage-collect` SANS `--delete-untagged` à 20:13:05–20:13:06Z. Arboreal : pull réel de
+  `d5341acf…` depuis nexus à 20:13:40Z, complet ; une copie du registre faite AVANT le GC (20:10:54Z) est gardée sur nexus,
+  donc une restauration reste possible. Vérifié ensuite par INFRA-NEXUS (lecture seule, 20:14Z et après) : les deux
+  manifests rendent 404, comme un digest inventé (contrôle positif du 404) ; 7 images AGAGI restantes, 11 tags, et leurs 65
+  blobs (configs et couches) répondent tous avec la taille attendue — le GC n'a ramassé aucun blob partagé.
 
 ## Coordination
 

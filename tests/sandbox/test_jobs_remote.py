@@ -20,6 +20,10 @@ from tools._git_env import env_isole          # noqa: E402
 from tools.jobs import remote as R            # noqa: E402
 from tools.jobs import remote_entry as E      # noqa: E402
 
+# L'environnement RÉEL, lu à l'import, AVANT toute fixture : la seule lecture déclarée de la vraie configuration
+# (test_l_adresse_CONFIGUREE_du_registre_…), qui n'en publie jamais la valeur.
+_ENV_REEL = dict(os.environ)
+
 # Configuration de TEST, adresses de documentation (RFC 5737) : aucun test ne lit la vraie configuration de la machine
 # (~/.agagi/deport.json), et aucune adresse réelle n'entre dans le dépôt.
 CONFIG_TEST = {"AGAGI_KUBE_CONTEXT": "ctx-test", "AGAGI_REGISTRY": "203.0.113.10:5443", "AGAGI_DEPORT_NOEUD": "noeud-test",
@@ -841,19 +845,73 @@ def test_manifestes_rendus_sans_placeholder_et_registre_par_IP():
 
 def test_aucune_adresse_privee_ecrite_en_dur_dans_le_deport():
     """Garde contre le RETOUR silencieux d'une adresse LAN dans le code et les gabarits du déport (le dépôt est public).
-    Seuls les blocs RFC 1918 GÉNÉRIQUES (0.0/16, 0.0.0/8, 16.0.0/12) sont admis, comme `except` de NetworkPolicy."""
+    Seuls les blocs RFC 1918 GÉNÉRIQUES (0.0/16, 0.0.0/8, 16.0.0/12) sont admis, comme `except` de NetworkPolicy.
+    Élargie le 2026-10-13 sur deux axes, après une adresse trouvée AVANT commit dans une preuve : le PÉRIMÈTRE couvre
+    aussi les preuves et les docs du déport (`results/deport_*.json`, la REF, les records DEPORT-*), où atterrissent
+    les mesures prises sur le cluster ; le MOTIF lit aussi une adresse écrite avec `_` ou `-` — elle était encodée
+    dans un NOM de clé de sonde, `tcp_<adresse>_443`, que l'ancien motif (points seuls, `\\b`) ne voyait pas.
+    ⚠️ Ses contrôles positifs sont FICTIFS, et doivent le rester : le 2026-10-14, l'un d'eux était l'adresse RÉELLE
+    du registre écrite avec des tirets (refusé au push) — la garde par la configuration, ci-dessous, l'aurait vu."""
     import re
-    motif = re.compile(r"\b(?:10\.\d{1,3}|192\.168|172\.(?:1[6-9]|2\d|3[01]))\.\d{1,3}\.\d{1,3}\b")
+    sep = r"[._-]"
+    motif = re.compile(rf"(?<![0-9])(?:10{sep}[0-9]{{1,3}}|192{sep}168|172{sep}(?:1[6-9]|2[0-9]|3[01]))"
+                       rf"{sep}[0-9]{{1,3}}{sep}[0-9]{{1,3}}(?![0-9])")
     generiques = {"192.168.0.0", "10.0.0.0", "172.16.0.0"}
-    assert motif.search("registre 10.1.2.3:5000") and motif.search("hote 172.20.0.9")   # contrôle positif du motif
+    for positif in ("registre 10.1.2.3:5000", "hote 172.20.0.9", "tcp_10_99_0_7_443", "192-168-7-9"):
+        assert motif.search(positif), positif                                       # contrôle positif du motif
+    for negatif in ("torch 2.6.0", "2026.10.13", "1.10.4.2", "py3.13.12-1c77aaaf3cf1", "perl-base=5.36.0-7+deb12u3"):
+        assert not motif.search(negatif), negatif                                   # versions, dates, tags : muets
     racine = R.racine_depot()
     fichiers = [racine / "tools" / "jobs" / "remote.py", racine / "tools" / "jobs" / "remote_entry.py",
-                racine / "deploy" / "deport.example.json"] + sorted(
-        f for f in (racine / "deploy" / "nexus").rglob("*.*") if "__pycache__" not in f.parts and f.suffix != ".pyc")
+                racine / "deploy" / "deport.example.json", racine / "docs" / "REF" / "REF-DEPORT-NEXUS.md"] + sorted(
+        f for f in (racine / "deploy" / "nexus").rglob("*.*") if "__pycache__" not in f.parts and f.suffix != ".pyc") + sorted(
+        racine.glob("results/deport_*.json")) + sorted(racine.glob("docs/EDR/DEPORT-*.md"))
+    assert any(f.name.startswith("deport_") for f in fichiers) and any(f.name.startswith("DEPORT-") for f in fichiers)
     fautes = [(str(f.relative_to(racine)), m.group(0)) for f in fichiers
-              for m in motif.finditer(f.read_text(encoding="utf-8")) if m.group(0) not in generiques]
+              for m in motif.finditer(f.read_text(encoding="utf-8"))
+              if re.sub(r"[_-]", ".", m.group(0)) not in generiques]
     assert fautes == []
 
+
+
+def _occurrences_d_un_hote(hote, textes):
+    """Les occurrences de `hote` sous ses TROIS écritures (points, tirets bas, tirets) dans des couples (nom, texte).
+    Factorisée pour se calibrer sur un hôte FICTIF, sans jamais écrire le vrai."""
+    import re
+    motif = re.compile(r"(?<![0-9A-Za-z])" + r"[._-]".join(re.escape(p) for p in hote.split("."))
+                       + r"(?![0-9A-Za-z])")
+    return [(nom, m.group(0)) for nom, texte in textes for m in motif.finditer(texte)]
+
+
+def test_l_adresse_CONFIGUREE_du_registre_n_est_ecrite_dans_AUCUN_fichier_suivi():
+    """La donnée protégée, lue là où elle vit — la configuration HORS dépôt — et cherchée dans TOUS les fichiers
+    suivis, sous ses trois écritures. Née le 2026-10-14 : un contrôle positif de la garde d'adresse ci-dessus portait
+    l'adresse RÉELLE du registre écrite avec des tirets ; ni le périmètre de cette garde (sans tests/) ni le grep du
+    contrôleur avant push (points seuls) ne la voyaient — Master 2 l'a refusée au push, le commit n'a jamais été
+    publié. Un témoin positif ne porte JAMAIS la donnée que la garde protège : celle-ci la lit dans la configuration.
+    Sans configuration (CI, clone neuf), SAUT DÉCLARÉ : ce test protège le poste qui CONNAÎT l'adresse.
+    SEULE exception déclarée à la règle du fichier (« aucun test ne lit la vraie configuration ») : la configuration de
+    TEST posée par `config_de_test` serait ici un témoin qui ne protège rien. L'environnement RÉEL est lu à l'import
+    (`_ENV_REEL`), avant toute fixture ; et l'échec ne nomme que des FICHIERS — jamais l'adresse, qui sinon partirait
+    dans la sortie de pytest, donc dans les journaux de la CI."""
+    # calibration sur un hôte FICTIF : trois écritures trouvées, un octet voisin et un préfixe ignorés
+    trouve = _occurrences_d_un_hote("10.1.2.3", [("x", "a tcp_10_1_2_3_443 b 10-1-2-3 c 10.1.2.3:5000 "
+                                                        "d 10.1.2.30 e 110.1.2.3")])
+    assert [m for _, m in trouve] == ["10_1_2_3", "10-1-2-3", "10.1.2.3"], trouve
+    try:
+        hote = R.charger_config(env=_ENV_REEL)["registre"].rsplit(":", 1)[0]
+    except R.Refus:
+        pytest.skip("pas de configuration RÉELLE du déport sur ce poste : rien à protéger ici")
+    racine = R.racine_depot()
+    textes = []
+    for rel in filter(None, R._git(["ls-files", "-z"], racine).split("\0")):
+        brut = (racine / rel).read_bytes() if (racine / rel).is_file() else b""
+        if b"\0" not in brut:                                   # binaires exclus : une adresse s'y lirait au hasard
+            textes.append((rel, brut.decode("utf-8", errors="replace")))
+    # le scan a vu au moins le fichier où vivent les témoins — l'endroit exact où l'adresse était entrée
+    assert "tests/sandbox/test_jobs_remote.py" in {n for n, _ in textes}, f"périmètre sans ce fichier ({len(textes)})"
+    noms = sorted({n for n, _ in _occurrences_d_un_hote(hote, textes)})
+    assert not noms, f"l'adresse du registre est écrite dans {noms}"
 
 # ------------------------------------------------------------------------------------------ surveillance
 def _j(nom, cond=None):
