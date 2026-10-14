@@ -3170,7 +3170,8 @@ plus `local` pour un build. Contre-exemples gelés : `test_soumission_juge_contr
 trois tests de `construire_image` sur un faux cluster.
 <!-- closes_when:grep_present=tests/sandbox/test_jobs_remote.py::juge_contre_plafonds_et_quota -->
 
-**P2.150 — rang 22 — OUVERTE (2026-09-28, trouvée par la revue adversariale du diff « après ml-heavy », session
+**P2.150 — ✅ CLOSE le 2026-10-14 (PÉRIMÉE dès son écriture, vue en dressant l'état des dettes de la session INFRA-NEXUS ;
+décision de Master 2) — ouverte le 2026-09-28 (trouvée par la revue adversariale du diff « après ml-heavy », session
 INFRA-NEXUS) — Le témoin de LIEU torch (batcave contre nexus), qui décide que P4.18 tourne sur la batcave, n'a AUCUNE
 évidence dans le dépôt (classe E27).**
 Preuve : la REF-DEPORT-NEXUS (« Choisir le lieu ») et le bandeau du 2026-09-28 d'EDR-DEPORT-NEXUS-TEMOIN rapportent le
@@ -3182,6 +3183,15 @@ ni results/. MANIFEST et génomes vivent hors suivi dans le worktree science-pre
 suivie (les trois MANIFEST et les sha256 des génomes, ou les génomes eux-mêmes) — en RETIRANT l'adresse du registre que
 les MANIFEST portent dans leur champ `image` (dépôt public) — puis faire pointer la REF et le bandeau dessus. Sans
 clause `closes_when` (déclaré) : le chemin de l'évidence n'existe pas encore.
+✅ **FERMÉE le 2026-10-14 — le constat était FAUX dès son écriture.** L'évidence est suivie depuis le 2026-09-28 :
+`results/s2_bassin_fragility_temoin_lieu.json`, publiée par le commit du record P4.18 (838446e6, 21:16) — les trois lieux
+et leurs Jobs (430f, a6db, local-fa0a), l'image `sha256:7c860b30…`, la plateforme, les W comparés au bit
+(`W_entre_lieux_au_bit` : vrai entre nexus à 2 et à 16 threads, faux contre la batcave), leur écart max (2,4e-7), les
+empreintes ; relue le 2026-10-14 : aucune adresse. Or 838446e6 est un ANCÊTRE du commit qui écrit cette entrée
+(ea09dbb9, 21:38), et tmp/nexus l'avait fusionné à 21:26 : le `git grep` qui la fondait, sans sha ni heure cités, décrivait
+un état ANTÉRIEUR à celui qu'il qualifiait. Le cas est rangé au registre (E4 : une absence de correspondance lue comme une
+absence). La REF (« Choisir le lieu ») et le bandeau d'EDR-DEPORT-NEXUS-TEMOIN pointent désormais sur le fichier.
+<!-- closes_when:grep_present=docs/REF/REF-DEPORT-NEXUS.md::results/s2_bassin_fragility_temoin_lieu.json -->
 
 **P2.167 — ✅ CLOSE le 2026-10-13 (ouverte et fermée dans la même passe, session INFRA-NEXUS, décision de Master 2 :
 elle BLOQUAIT les runs scellés sur nexus) — l'envoi des sources, `attendre` et `rapatrier` ne toléraient AUCUN accroc de
@@ -3212,7 +3222,8 @@ Hypothèse NON établie : la charge de dix transferts simultanés par l'API cont
 survenu sans charge) ; échelonner les soumissions ne coûte rien.
 <!-- closes_when:grep_present=tests/sandbox/test_jobs_remote.py::accrocs_k_fois_puis_reponse -->
 
-**P2.168 — rang 23 — OUVERTE (2026-10-13, vue en préparant le pilote τ, session INFRA-NEXUS) — `python -m
+**P2.168 — ✅ CLOSE le 2026-10-14 (ouverte le 2026-10-13, vue en préparant le pilote τ, session INFRA-NEXUS ; entrée
+dans le gel « ce qui bloque un run » par décision de Master 2 : elle sert le lancement de R3) — `python -m
 tools.jobs.remote executer` rend 2 pour un refus LOCAL (fenêtre, garde d'image, quota, nœud éteint, accroc au-delà du
 plafond) ET le code du runner, qui peut lui-même valoir 2 (argparse) : le code de sortie seul ne les distingue pas.**
 Preuve : `main()` (`tools/jobs/remote.py`, branche `except Refus` : « return 2 ») et `code_de_sortie(...)` qui rend le code
@@ -3220,9 +3231,23 @@ du runner ; un argparse en échec sort en 2. Contournement appliqué par SCIENCE
 cellule en lisant « [remote] REFUS » dans son journal, jamais le seul code. À faire : un code DÉDIÉ au refus local (hors
 des codes d'un runner usuel et des 86/87 de `remote_entry`), publié dans la REF, avec un témoin qui fait sortir un runner
 en 2 et vérifie qu'il ne se lit pas comme un refus local. Sans clause `closes_when` (déclaré) : le code n'est pas choisi.
+✅ **FERMÉE le 2026-10-14** — chaque dénouement du déport a SON code, hors des codes d'un runner usuel et rangé avec les
+86/87 de `remote_entry` (`tools/jobs/remote.py`, `CODES_DEPORT`) : 85 refus AVANT la soumission (et arguments du CLI,
+qu'argparse rendait en 2) ; 86 refus dans le pod ; 87 sortie perdue ; 88 Job fini SANS sortie prête (son état est
+imprimé) ; 89 abandon APRÈS la soumission (le run a pu tourner : rapatrier, jamais relancer à l'aveugle). Trouvé en le
+faisant, et corrigé avec : le jumeau de ce défaut — une fin d'infrastructure (OOM, éviction, délai…) rendait 1, comme un
+runner en échec. Seul le 85 commence par « [remote] REFUS » : le classement par journal des scripts de vague reste
+juste. Un runner qui rend lui-même 85 à 89 est SIGNALÉ, jamais réécrit (`code_du_runner`). Table dans la REF (« Codes de
+sortie d'executer »). Témoins (`tests/sandbox/test_jobs_remote.py`, `test_P2_168_*`) : le runner qui sort en 2 rend 2
+sans ligne de refus ; refus avant la soumission, configuration incomplète par le VRAI chemin et arguments invalides →
+85 ; dix états de fin → leur code ; refus après la soumission → 89, ou le code qu'il porte ; `local` distingue l'avant
+de l'après ; un `REFUS.json` → 86 ; un code réservé rendu par le runner est signalé. ⚠️ Pour les scripts de vague (celui
+du pilote τ attend déjà 86 et 87 en code d'`executer`, qui ne les rendait JAMAIS : un refus du pod sortait en 2 ou en 1) :
+classer 88 et 89, nouveaux.
+<!-- closes_when:grep_present=tools/jobs/remote.py::SORTIE_REFUS_LOCAL = 85 -->
 
-**P2.173 — rang à fixer par Master 2 — OUVERTE (2026-10-13, vue en lançant le build de contrôle de P2.127, session
-INFRA-NEXUS) — Le CLI du déport REFUSE sous le `python` des sessions (3.14 sans tzdata) : `executer`, `soumettre` et
+**P2.173 — ✅ CLOSE le 2026-10-14 (ouverte le 2026-10-13, vue en lançant le build de contrôle de P2.127, session
+INFRA-NEXUS ; entrée dans le gel « ce qui bloque un run » par décision de Master 2) — Le CLI du déport REFUSE sous le `python` des sessions (3.14 sans tzdata) : `executer`, `soumettre` et
 `image` s'arrêtent sur « fuseau 'Europe/Paris' illisible ».**
 Preuve : `tools/jobs/remote.py`, calcul de la fenêtre d'allumage du nœud (`ZoneInfo(fenetre["tz"])`, branche qui lève
 `Refus`) ; sous Windows, `zoneinfo` n'a pas de base de fuseaux sans le paquet `tzdata`, absent du 3.14 en tête du PATH
@@ -3231,6 +3256,15 @@ que l'extinction du nœud tuerait — ; le défaut est qu'il ne nomme pas le rem
 en vigueur : lancer avec Python 3.13 (REF, État mesuré du 2026-10-13). **Forme** : le refus nomme le remède (installer
 tzdata, ou le 3.13 par son chemin), témoin sous un `zoneinfo` sans base ; ou une épingle d'interpréteur sur le modèle
 d'`AGAGI:INTERPRETE`. Sans clause `closes_when` (déclaré) : la forme n'est pas choisie.
+✅ **FERMÉE le 2026-10-14** — forme retenue : le refus nomme son remède (`remede_fuseau`), et il DISTINGUE les deux causes
+par la base de fuseaux de CET interpréteur — vide : il nomme l'interpréteur (`sys.executable`, version) et le remède
+(installer tzdata dans cet interpréteur, ou lancer avec le Python 3.13 du projet) ; pleine : il accuse la configuration
+(`tz` de la fenêtre), pas l'interpréteur. Le refus reste. L'épingle d'interpréteur est écartée, et dite : le CLI est
+lancé par l'appelant, qui choisit l'interpréteur ; le crochet, lui, le choisit seul (P2.157). Témoins :
+`test_P2_173_un_interpreteur_SANS_base_de_fuseaux_nomme_tzdata_et_l_interpreteur` et
+`test_P2_173_un_fuseau_ABSENT_d_une_base_presente_accuse_la_configuration_pas_l_interpreteur` (un `zoneinfo` qui refuse,
+base vide ou pleine).
+<!-- closes_when:grep_present=tools/jobs/remote.py::def remede_fuseau -->
 
 **P2.174 — rang à fixer par Master 2, à faire APRÈS R3 de P4.19 et le retest de P4.18 — OUVERTE (2026-10-13, conséquence
 de P2.134 (ii), session INFRA-NEXUS) — Basculer l'image runner sur un constraints COMPLET : toutes les dépendances

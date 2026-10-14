@@ -509,6 +509,128 @@ def test_fenetre_de_nexus_minuit_dur():
     assert R.fenetre_restante_s(dict(FEN, debut_h=9, fin_h=17), _paris(17, 30)) == 0
 
 
+def _zoneinfo_qui_refuse(monkeypatch, base):
+    """Un `zoneinfo` dont ZoneInfo LÈVE comme sans tzdata, et dont la base compte `base` fuseaux."""
+    import zoneinfo
+
+    def refuse(cle):
+        raise zoneinfo.ZoneInfoNotFoundError(f"No time zone found with key {cle}")
+    monkeypatch.setattr(zoneinfo, "ZoneInfo", refuse)
+    monkeypatch.setattr(zoneinfo, "available_timezones", lambda: {f"Zone/{i}" for i in range(base)})
+
+
+def test_P2_173_un_interpreteur_SANS_base_de_fuseaux_nomme_tzdata_et_l_interpreteur(monkeypatch):
+    """Le cas mesuré le 2026-10-13 : le Python 3.14 des sessions, sans tzdata, faisait refuser executer/soumettre/image
+    sur « fuseau illisible » sans dire quoi faire. Le refus RESTE (une fenêtre devinée laisserait partir un run que
+    l'extinction du nœud tuerait) ; il nomme maintenant l'interpréteur fautif et le remède."""
+    import sys as _sys
+    _zoneinfo_qui_refuse(monkeypatch, 0)
+    with pytest.raises(R.Refus) as e:
+        R.fenetre_restante_s(FEN, None)
+    texte = str(e.value)
+    assert "AUCUNE base de fuseaux" in texte and "pip install tzdata" in texte and _sys.executable in texte
+    assert "ZoneInfoNotFoundError" in texte and "corriger" not in texte
+
+
+def test_P2_173_un_fuseau_ABSENT_d_une_base_presente_accuse_la_configuration_pas_l_interpreteur(monkeypatch):
+    """L'autre cause, l'autre remède : la base existe, c'est le nom qui est faux — dire tzdata ici enverrait chercher
+    au mauvais endroit."""
+    _zoneinfo_qui_refuse(monkeypatch, 598)
+    with pytest.raises(R.Refus) as e:
+        R.fenetre_restante_s(dict(FEN, tz="Europe/Pariss"), None)
+    assert "en compte 598" in str(e.value) and "corriger « tz »" in str(e.value) and "tzdata" not in str(e.value)
+
+
+# ------------------------------------------------------------------------------------------ codes de sortie (P2.168)
+def _cli(monkeypatch, capsys, argv, **remplacements):
+    """`main` avec les étapes du déport REMPLACÉES (aucun cluster) ; rend (code, stderr)."""
+    for nom, f in remplacements.items():
+        monkeypatch.setattr(R, nom, f)
+    code = R.main(argv)
+    return code, capsys.readouterr().err
+
+
+def _leve(exc):
+    def f(*a, **k):
+        raise exc
+    return f
+
+
+def test_P2_168_les_codes_du_deport_sont_HORS_des_codes_d_un_runner_usuel():
+    assert set(R.CODES_DEPORT) == {85, 86, 87, 88, 89} and not set(R.CODES_DEPORT) & {0, 1, 2}
+    assert (R.SORTIE_REFUS_POD, R.SORTIE_PERDUE) == (E.REFUS, E.NON_RAPATRIE)       # ceux de remote_entry, rangés
+    assert set(R.LIBELLES_SORTIE) == set(R.CODES_DEPORT)
+    assert [c for c, l in R.LIBELLES_SORTIE.items() if l.startswith("REFUS")] == [R.SORTIE_REFUS_LOCAL]
+
+
+def test_P2_168_un_RUNNER_qui_sort_en_2_rend_2_et_ne_se_lit_PAS_comme_un_refus_local(monkeypatch, capsys):
+    """Le témoin demandé par P2.168 : avant, un refus local rendait 2, comme un argparse de runner en échec."""
+    code, err = _cli(monkeypatch, capsys, ["executer", "--", "-m", "m"], soumettre=lambda *a, **k: "job-x",
+                     attendre=lambda job: {"etat": "pret", "job": job}, rapatrier=lambda job, into=None: {"returncode": 2})
+    assert code == 2 and "[remote] REFUS" not in err and "RÉSERVÉ" not in err
+
+
+def test_P2_168_un_refus_AVANT_la_soumission_rend_85(monkeypatch, capsys):
+    code, err = _cli(monkeypatch, capsys, ["executer", "--", "-m", "m"], soumettre=_leve(R.Refus("quota plein")))
+    assert code == R.SORTIE_REFUS_LOCAL and err.startswith("[remote] REFUS (85) : quota plein")
+
+
+def test_P2_168_une_configuration_incomplete_rend_85_par_le_VRAI_chemin(monkeypatch, capsys):
+    monkeypatch.delenv("AGAGI_REGISTRY")
+    code, err = _cli(monkeypatch, capsys, ["config"])
+    assert code == R.SORTIE_REFUS_LOCAL and "configuration du déport incomplète" in err
+
+
+def test_P2_168_des_arguments_du_CLI_invalides_rendent_85_et_l_aide_0(monkeypatch, capsys):
+    assert _cli(monkeypatch, capsys, ["executer", "--cpu", "pas-un-nombre", "--", "-m", "m"])[0] == R.SORTIE_REFUS_LOCAL
+    assert _cli(monkeypatch, capsys, ["--help"])[0] == 0
+
+
+@pytest.mark.parametrize("etat,code", [("oom", 88), ("evince", 88), ("noeud_perdu", 88), ("delai_depasse", 88),
+                                       ("pod_disparu", 88), ("inconnu", 88), ("termine", 88), ("refus_entree", 86),
+                                       ("non_rapatrie", 87), ("expire", 89)])
+def test_P2_168_un_Job_fini_SANS_sortie_rend_le_code_de_son_etat(monkeypatch, capsys, etat, code):
+    fin = {"etat": etat, "job": "job-x", "relancable": etat in ("oom", "evince", "noeud_perdu")}
+    obtenu, err = _cli(monkeypatch, capsys, ["executer", "--", "-m", "m"], soumettre=lambda *a, **k: "job-x",
+                       attendre=lambda job: fin, rapatrier=_leve(AssertionError("jamais rapatrié sans .pret")))
+    assert obtenu == code and f"({code})" in err and json.dumps(fin, ensure_ascii=False) in err
+    assert "[remote] REFUS" not in err
+
+
+def test_P2_168_un_refus_APRES_la_soumission_rend_89_ou_le_code_qu_il_porte(monkeypatch, capsys):
+    pret = dict(soumettre=lambda *a, **k: "job-x", attendre=lambda job: {"etat": "pret", "job": job})
+    code, err = _cli(monkeypatch, capsys, ["executer", "--", "-m", "m"], **pret,
+                     rapatrier=_leve(R.Refus("API injoignable 3 fois de suite")))
+    assert code == R.SORTIE_ABANDON and err.startswith("[remote] ABANDON") and "[remote] REFUS" not in err
+    code, err = _cli(monkeypatch, capsys, ["executer", "--", "-m", "m"], **pret,
+                     rapatrier=_leve(R.RefusApres("pod absent", R.SORTIE_PERDUE)))
+    assert code == R.SORTIE_PERDUE and err.startswith("[remote] SORTIE PERDUE (87)")
+    code, _ = _cli(monkeypatch, capsys, ["executer", "--", "-m", "m"], soumettre=lambda *a, **k: "job-x",
+                   attendre=_leve(R.Refus("API injoignable pendant l'attente")))
+    assert code == R.SORTIE_ABANDON
+    code, _ = _cli(monkeypatch, capsys, ["rapatrier", "job-x"], rapatrier=_leve(R.Refus("conflit d'installation")))
+    assert code == R.SORTIE_ABANDON                            # l'action porte sur un run DÉJÀ soumis
+
+
+def test_P2_168_local_distingue_le_refus_d_AVANT_le_run_de_celui_d_APRES(monkeypatch, capsys):
+    assert _cli(monkeypatch, capsys, ["local", "--", "-m", "m"], executer_local=_leve(R.Refus("sha inconnu")))[0] == 85
+    assert _cli(monkeypatch, capsys, ["local", "--", "-m", "m"],
+                executer_local=_leve(R.RefusApres("conflit d'installation")))[0] == R.SORTIE_ABANDON
+
+
+def test_P2_168_un_REFUS_json_dans_la_sortie_rend_86_le_code_du_refus_du_pod(tmp_path):
+    (tmp_path / "REFUS.json").write_text('{"raison": "sha"}', encoding="utf-8")
+    with pytest.raises(R.RefusApres) as e:
+        R.controler_sortie(tmp_path, "job-x")
+    assert e.value.code == R.SORTIE_REFUS_POD
+
+
+def test_P2_168_un_runner_qui_rend_un_code_RESERVE_est_SIGNALE_jamais_reecrit(monkeypatch, capsys):
+    code, err = _cli(monkeypatch, capsys, ["executer", "--", "-m", "m"], soumettre=lambda *a, **k: "job-x",
+                     attendre=lambda job: {"etat": "pret", "job": job}, rapatrier=lambda job, into=None: {"returncode": 86})
+    assert code == 86 and "le RUNNER a rendu 86" in err and "RÉSERVÉ" in err
+
+
 STD = [{"type": "Container", "max": {"cpu": "2", "memory": "4Gi"}}]
 MLH = [{"type": "Container", "max": {"cpu": "12", "memory": "32Gi"}}]
 QUOTA = {"requests.cpu": "8", "limits.cpu": "16", "requests.memory": "24Gi", "limits.memory": "40Gi", "pods": "16"}
@@ -1154,9 +1276,10 @@ def test_build_OOMKilled_NOMME_dans_le_refus(depot_image):
     repo, sha = depot_image
     k = KubeBuild([_job_build(), _job_build("Failed", "BackoffLimitExceeded")],
                   _pod_build(kaniko={"exitCode": 137, "reason": "OOMKilled"}))
-    with pytest.raises(R.Refus, match="OOMKilled"):
+    with pytest.raises(R.Refus, match="OOMKilled") as e:
         _construire(repo, sha, k)
     assert not (repo / R.IMAGE_JSON).exists()
+    assert e.value.code == R.SORTIE_FIN_SANS_SORTIE          # P2.168 : le build a TOURNÉ, ce n'est pas un refus local
 
 
 def test_build_reussi_publie_ses_heures_LUES_et_leur_source(depot_image):
@@ -1177,6 +1300,7 @@ def test_build_encore_actif_apres_le_delai_est_RETIRE_et_le_dit(depot_image):
         _construire(repo, sha, k, delai_s=-1)
     assert len(k.supprimes) == 1 and not (repo / R.IMAGE_JSON).exists()
     assert "(logs)" in str(e.value)                              # ce qu'on sait est lu AVANT de retirer le Job
+    assert e.value.code == R.SORTIE_FIN_SANS_SORTIE
 
 
 def test_delai_local_du_build_DEPASSE_l_echeance_du_Job():

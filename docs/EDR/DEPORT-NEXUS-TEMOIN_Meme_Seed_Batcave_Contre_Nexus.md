@@ -109,9 +109,10 @@ dans leurs statuts : 27 à 39 s ; source envoyée : 19,6 à 19,7 Mo par Job.
   > mais DIFFÈRENT au dernier bit de ceux de la batcave (torch 2.6.0+cpu Linux contre 2.6.0+cu124 Windows) ; âges de
   > survie et dose identiques partout ; `dW_abs_sum` dépend du lieu ET du nombre de threads. D'où la règle de lieu
   > (REF-DEPORT-NEXUS, « Choisir le lieu ») : P4.18 tourne sur la batcave. Ce record reste vrai tel quel — il n'établit
-  > rien pour torch ; le résultat torch vit dans la REF, pas dans un record, et ce bandeau l'y renvoie. ⚠️ Son
-  > évidence (MANIFEST des trois Jobs, génomes appris) n'est PAS publiée dans le dépôt : elle vit hors suivi, dans le
-  > worktree de la session SCIENCE — un clone ne peut pas la rouvrir (classe E27, dette inscrite au backlog).
+  > rien pour torch ; le résultat torch vit dans la REF, pas dans un record, et ce bandeau l'y renvoie. Son évidence
+  > est SUIVIE : `results/s2_bassin_fragility_temoin_lieu.json` (838446e6, 2026-09-28 — les trois lieux, l'image, les W
+  > comparés au bit et leur écart max). *(Rectifié le 2026-10-14 : ce bandeau la disait non publiée ; c'était faux dès
+  > son écriture — le fichier était déjà dans l'historique du commit qui l'affirmait. P2.150, close.)*
 * **Défaut hors de ce runner** : tout runner qui écrit ses résultats en mode texte sans `newline="\n"` rend des octets
   dépendants de la plateforme. git les normalise au commit (`core.autocrlf`), donc le dépôt ne le voit pas ; une
   comparaison d'octets bruts entre deux machines, si.

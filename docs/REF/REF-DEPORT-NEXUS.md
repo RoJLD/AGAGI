@@ -204,7 +204,9 @@ minimal ; les deux publient les variables déclarées dans le MANIFEST.
   Registre d'images). Un constraints COMPLET (les 82 versions du freeze de d5341acf) est préparé hors suivi ; la bascule
   — un seul build — vient APRÈS R3 et le retest de P4.18.
 * 2026-10-13 : le `python` des sessions est un 3.14 SANS tzdata : `executer`, `soumettre` et `image` REFUSENT (« fuseau
-  illisible »). Les lancer avec Python 3.13 (P2.173).
+  illisible »). Les lancer avec Python 3.13. Depuis P2.173 (2026-10-14), le refus nomme l'interpréteur fautif et le
+  remède, et distingue les deux causes par la base de fuseaux de CET interpréteur : vide → installer tzdata ou changer
+  d'interpréteur ; pleine → corriger le `tz` de la fenêtre.
 
 ## Surveillance d'un run
 
@@ -227,9 +229,26 @@ compté dans `runs/deport/<job>/accrocs_api.json`. Au-delà, ils abandonnent en 
 (`--attente-s` après la fin du runner) et quelle commande relancer : `python -m tools.jobs.remote rapatrier <job>`. À
 l'état `pret`, `attendre` imprime l'heure LIMITE du rapatriement. Un pod resté en Running après la fin du runner n'est
 PAS une sortie perdue : si le rapatriement a eu lieu mais que le marqueur de libération n'a pas pu être posé, la sortie est
-en sûreté et le pod sortira en 87 à l'échéance. Codes de sortie d'`executer` : le code du RUNNER ; 86 et 87 sont ceux de
-`remote_entry` dans le pod (rien n'a tourné ; sortie non rapatriée) ; un refus LOCAL rend 2 — ambigu avec un runner qui
-sort en 2 (P2.168) : lire « [remote] REFUS » dans le journal, jamais le seul code.
+en sûreté et le pod sortira en 87 à l'échéance.
+
+**Codes de sortie d'`executer` (P2.168, 2026-10-14).** Le code du RUNNER passe tel quel quand le run a tourné et que sa
+sortie est installée ; tout autre dénouement a SON code, hors des codes d'un runner usuel (0, 1, 2 d'argparse), et le
+journal le dit sur une ligne `[remote] <libellé> (<code>)` :
+
+| code | libellé | ce qui s'est passé | quoi faire |
+|---|---|---|---|
+| 85 | `REFUS` | refusé AVANT la soumission (fenêtre, garde d'image, quota, nœud éteint, configuration, arguments du CLI) : rien n'a tourné, aucun Job ne reste | corriger, relancer |
+| 86 | `POD : remote_entry a refusé avant exécution` | refus DANS le pod (sha, archive, commande) : rien n'a tourné | lire `REFUS.json` |
+| 87 | `SORTIE PERDUE` | fenêtre de rapatriement passée ou pod disparu | relancer le run |
+| 88 | `FIN SANS SORTIE` | le Job a fini sans sortie prête — l'état (`oom`, `evince`, `preempte`, `noeud_perdu`, `delai_depasse`…) et `relancable` sont imprimés | selon l'état |
+| 89 | `ABANDON après la soumission` | API injoignable au-delà du plafond, sortie corrompue ou en conflit, attente échue : le run a PU tourner | `rapatrier <job>` ou `installer`, jamais relancer à l'aveugle |
+
+Seul le 85 commence par « [remote] REFUS » : un script de vague qui cherche ce texte continue d'y lire le refus local.
+`image` suit la même table : 88 pour un build en échec (OOMKilled nommé) ou encore actif après son échéance, 89 pour un
+digest illisible (le build a tourné, l'image a pu être poussée sans qu'`IMAGE.json` la nomme).
+Un runner qui rend LUI-MÊME un code de 85 à 89 est SIGNALÉ (« le RUNNER a rendu … ») et jamais réécrit — le MANIFEST
+tranche. Avant P2.168, un refus local rendait 2, comme un argparse de runner en échec, et une fin d'infrastructure rendait
+1, comme un runner en échec : le code seul ne les distinguait pas.
 
 ## Ressources d'un Job
 
@@ -269,9 +288,11 @@ Pourquoi — deux mesures, deux bibliothèques :
   (déclarés), mais DIFFÈRENT au dernier bit de ceux de la batcave — torch 2.6.0+cpu Linux contre 2.6.0+cu124 Windows,
   même version, autre build. Les 12 âges de survie et toute la dose sont identiques partout. Le chemin cumulé
   `dW_abs_sum` diffère selon le lieu ET selon le nombre de threads : une somme de réductions dépend de leur ordre.
-  Conséquence : P4.18, dont la règle exige la réplication au bit, tourne sur la batcave. ⚠️ Évidence NON publiée dans
-  le dépôt : MANIFEST et génomes du témoin vivent hors suivi, dans le worktree de la session SCIENCE (dette inscrite au
-  backlog, classe E27) — le résultat est rapporté ici, pas rouvrable par un clone.
+  Conséquence : P4.18, dont la règle exige la réplication au bit, tourne sur la batcave. Évidence suivie :
+  `results/s2_bassin_fragility_temoin_lieu.json` (depuis 838446e6, le commit du record P4.18, 2026-09-28) — les trois
+  lieux et leurs Jobs, l'image, la plateforme, les W comparés au bit (`W_entre_lieux_au_bit`) et leur écart max
+  (2,4e-7), les empreintes ; aucune adresse. La phrase « évidence NON publiée » qui vivait ici était PÉRIMÉE dès son
+  écriture (P2.150, close).
 
 Unité de coût de ce témoin — lire avec sa charge, publiée dans chaque MANIFEST :
 
