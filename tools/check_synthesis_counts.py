@@ -58,6 +58,8 @@ _DOCS = (
     os.path.join("docs", "roadmap", "FIL_DIRECTEUR_AGI.md"),
     os.path.join("docs", "roadmap", "SCIENCE.md"),
     os.path.join("docs", "roadmap", "ROLES.md"),
+    # 2026-10-14 (P2.177) : le compteur « témoin manqué » du Réfutateur vit dans son registre, qui se compte lui-même.
+    os.path.join("docs", "roadmap", "REFUTATEUR_REVUES_NULLES.md"),
 )
 
 _TAG = re.compile(r"<!--\s*count:([a-z0-9_]+)\s*=\s*(-?\d+)\s*-->")
@@ -179,6 +181,33 @@ def _roles(statut):
     return sum(1 for l in lignes(_lire(os.path.join("docs", "roadmap", "ROLES.md"))) if l["statut"] == statut)
 
 
+_REVUES_NULLES = os.path.join("docs", "roadmap", "REFUTATEUR_REVUES_NULLES.md")
+
+
+def _revues_nulles(classe, texte=None):
+    """P2.177 (2026-10-14) — les lignes du registre des revues NULLES du Réfutateur dont la colonne « Classe » vaut
+    `classe`. La colonne se trouve par l'EN-TÊTE, jamais par sa position ; la ligne séparatrice est sautée ; un registre
+    non vide SANS colonne « Classe » LÈVE au lieu de rendre 0 (un compteur illisible n'est pas un compteur nul). PURE
+    sur `texte`."""
+    t = _lire(_REVUES_NULLES) if texte is None else texte
+    col, n = None, 0
+    for ligne in t.splitlines():
+        if not ligne.lstrip().startswith("|"):
+            continue
+        c = _cellules(ligne)
+        if col is None:
+            if "Classe" in c:
+                col = c.index("Classe")
+            continue
+        if all(set(x) <= set("-: ") for x in c):
+            continue                                    # la ligne séparatrice
+        if len(c) > col and _statut_cellule(c[col]) == classe:
+            n += 1
+    if col is None and t.strip():
+        raise ValueError(f"{_REVUES_NULLES} : aucune colonne « Classe » — le compteur ne se lit pas")
+    return n
+
+
 COMPTEURS = {
     "instruments_detectes": lambda: len(_calib()[0]),
     "instruments_calibres": lambda: len(_calib()[1]),
@@ -196,6 +225,7 @@ COMPTEURS = {
     "regles_scellees": _regles_scellees,
     "roles_instancies": lambda: _roles("instancié"),
     "roles_candidats": lambda: _roles("candidat"),
+    "refutateur_temoins_manques": lambda: _revues_nulles("témoin manqué"),
     "syntheses_balisees": lambda: sum(len(_TAG.findall(_lire(d))) for d in _DOCS),
 }
 

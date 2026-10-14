@@ -2094,6 +2094,42 @@ classe NEUVE pour l'évidence non rouvrable, ses citations renumérotées (code,
 garde qui refuse qu'un numéro de classe cité porte un autre titre que celui du registre. *Coût : agent 1 h.* Sans
 clause `closes_when` (déclaré).
 
+**P2.177 — rang 0 ter (levée du gel par robla pour ce point, 2026-10-14 : « COMPTEUR D'ABORD, puis relance » d'E34)
+— ✅ CLOSE le 2026-10-14 (ouverte et fermée le même jour) — Le compteur « témoin manqué » que la REF fait monter, et
+qui décide du re-scellage des prompts du Réfutateur, n'existait NULLE PART.**
+Preuve : `docs/REF/REF-REVUE-ADVERSARIALE.md:119-120` — « le compteur `témoin manqué` s'incrémente dans `ROLES.md`.
+Deux fois → les prompts sont re-scellés » ; `ROLES.md` n'en portait aucun (« manqu » : 0 ligne, motif validé sur la
+REF, Master 2). Une règle documentée sans application (E10), révélée par la revue réduite d'E34, NULLE ce jour
+(wf_7fe5a019-982 : un témoin à défaut manqué).
+✅ **FERMÉE le 2026-10-14 (agagi-32)** — option B de Master 2 : `docs/roadmap/REFUTATEUR_REVUES_NULLES.md`, SUIVI, une
+ligne par run NUL avec sa CLASSE (témoin manqué / indécidable / transport / instrument), aucun témoin nommé (le roster
+n'est pas publié), et la balise `refutateur_temoins_manques` recomputée par la porte 8 depuis la colonne « Classe »
+(lue par l'EN-TÊTE ; un registre sans cette colonne LÈVE). Le registre entre dans les documents de la porte 8 ET dans
+son déclencheur du crochet ; un témoin vérifie que CHAQUE document de la porte 8 la déclenche (sinon un compte
+périmé passerait seul). `ROLES.md` n'est édité qu'UNE fois — la case Compteurs du Réfutateur cite le registre — par
+décision d'INTÉGRATEUR (Master 2), le writer unique PM ne tournant pas, signalée à robla ; la REF l.119-120 dit où vit
+le compteur. **Compte initial MESURÉ** (lecture seule des runs persistés `<session>/workflows/wf_*.json` des sept
+dossiers de projet AGAGI, du 2026-09-24 au 2026-10-14) : 24 revues du Réfutateur — 17 retrouvées, 7 nulles : 1 témoin
+manqué (E34, aujourd'hui), 1 indécidable (wf_b7cd5fdc-d98, S2-BASSIN-FRAGILITY v6, le 2026-09-26 : classé selon la
+lettre de la REF, Master 2, robla peut en décider autrement), 4 de transport, 1 d'instrument (le témoin cru sain qui
+faisait barrière, corrigé le 2026-09-24) ; deux runs homonymes (scripts citant le module sans être des revues)
+exclus. Publié « AU MOINS 1 » : un run antérieur ou non persisté est inconnu. Le seuil de re-scellage (2) n'est pas
+atteint ; la relance d'E34 se fait telle quelle. Windows : 92 verts en 5 min 16, 0 saut (comptes publiés, crochet, déploiement, registre des rôles, compteurs du PM, fusion) ; Linux (WSL) : 69 verts, 1 saut (le cas CRLF, Windows seul), sur une copie de TOUT l'arbre suivi — deux essais de banc d'abord, faute de data/agi_taxonomy puis d'un instrument hors des dossiers copiés ; mutations à la main 4/4 tuées (le compteur qui compte toutes les classes ; le registre sorti des documents de la porte 8 ; le crochet qui ne la déclenche plus sur lui ; un registre sans colonne Classe qui rend 0), contrôle intact vert avant chacune. Suite : P2.178 (gelée).
+<!-- closes_when:path_present=docs/roadmap/REFUTATEUR_REVUES_NULLES.md -->
+
+**P2.178 — GELÉE jusqu'à la levée du gel de méthode (le Réfutateur, ne bloque aucun run ; Master 2, 2026-10-14) —
+OUVERTE (2026-10-14, agagi-32, en fermant P2.177) — Le compteur « témoin manqué » s'écrit à la main, et le workflow
+range un témoin INDÉCIDABLE parmi les défauts non retrouvés : automatiser l'un sans corriger l'autre fausserait le
+compte.**
+Preuve : (1) `.claude/workflows/refutateur.js:253-254` — `rates` retient tout témoin dont le statut n'est ni RETROUVE
+ni MESURE, donc INDECIDABLE compris, et la revue sort NUL « defaut manque » là où la REF dit « indécidable » (code 2) ;
+mesuré sur wf_b7cd5fdc-d98 (2026-09-26). (2) Le workflow n'écrit rien lui-même, il passe par des agents ; une revue
+nulle s'inscrit donc à la main dans le registre de P2.177. **Forme** : le workflow distingue INDÉCIDABLE (code 2) de
+NUL ; une commande idempotente `--consigner-nulle` de `tools/refutateur_temoins.py`, indexée par l'identifiant du run,
+ajoute la ligne au registre ; une étape du workflow la fait lancer et relit son code de sortie (le modèle de
+`--racine-valide`) ; la porte 8 recompte. Les deux vont ensemble (Master 2). *Coût : agent 1-2 h.* Sans clause
+`closes_when` (déclaré).
+
 **P2.143 — rang 6, GELÉE jusqu'à la levée du gel de méthode (une porte, qui ne bloque aucun run) (rang fixé par Master 2 le 2026-09-28) — OUVERTE (2026-09-28, extension exécutable d'E8 DÉCIDÉE par Master 2 ; inscrite par la session SCIENCE-HARNAIS) — Un nombre de PROSE qui porte une unité ou un compte, dans un record, DÉCLARE sa source ; une porte la vérifie.**
 Preuve : E8, occurrence du 2026-09-28 — six valeurs recopiées au lieu d'être relues en un jour (0,82 d'un rapport de chemin cité comme un rapport net ; 3 processus pour 6 ; 4e-7 pour 2,1e-5 ; « 24 à 718 », chiffre de conception cité comme mesure ; dose 1,0 pour ≈ 0,66 active ; heures de build estimées), toutes attrapées avant publication par une relecture contre la source — donc par un humain ou une revue, jamais par une porte : la porte 19 ne lit que « nom = valeur » d'un paramètre de régime (revue du record [[EDR-S2-BASSIN-FRAGILITY]], P2.b : elle rend SANS_PARAMETRE sur ce record, qui écrit « phase 2 à 200 ticks »). **Forme** : une balise DÉCLARÉE par l'auteur à côté du nombre — chemin `results/*.json` SUIVI, pointeur JSON, valeur et tolérance — sur le modèle des balises de compte de la porte 8 ; la porte relit le fichier et compare ; une valeur recalculée (médiane, rapport) déclare sa fonction et ses clés d'entrée. Ce qui est porteur est DÉCLARÉ, jamais deviné : la porte ne cherche pas les nombres NON balisés (elle les COMPTE et les rapporte, comme la porte 4 rapporte les entrées sans clause). Contre-exemples gelés : les cinq valeurs de cette occurrence qui ont une source JSON. À la livraison, la forme passe exécutable. *Coût : agent 3-4 h.* Sans clause `closes_when` (déclaré) : le nom de la porte n'est pas fixé.
 
@@ -5391,7 +5427,7 @@ L'écran mécanique l'a remplacée, et il a coûté zéro simulation.
   par le branchement de la porte 8 elle-même. ⚠️ **Portée déclarée** : il vérifie ce qu'on lui
   DÉCLARE, il ne découvre pas les chiffres non balisés (deviner produirait des faux positifs sur
   toute date et tout chiffre historique) ; la couverture croît par annotation : aujourd'hui
-  **19 comptes balisés** <!-- count:syntheses_balisees=19 --> — et ce nombre-là est balisé LUI AUSSI, donc
+  **20 comptes balisés** <!-- count:syntheses_balisees=20 --> — et ce nombre-là est balisé LUI AUSSI, donc
   une régression de couverture se voit. *(Auto-audit du 2026-09-07 : cette phrase AFFIRMAIT cette
   propriété sans la tenir — la balise n'existait pas. Une affirmation non vérifiée écrite dans le
   cliquet qui les traque : c'est E10 au méta-niveau, corrigé le jour même. ⚠️ Et ce compteur est
