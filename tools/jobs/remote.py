@@ -113,6 +113,21 @@ _API_TRANSITOIRE = re.compile(r"Unable to connect to the server|pas de réponse 
                               r"|i/o timeout|TLS handshake timeout|unexpected EOF|http2: client connection lost", re.I)
 MARGE_TRANSFERT_S = 1200               # préparation + tirage d'image + envoi des sources, borne haute
 ATTENTE_MIN_S = 60
+# Codes de sortie PROPRES au déport (P2.168). `executer` rend le code du RUNNER tel quel quand le run a tourné et que sa
+# sortie est installée ; tout autre dénouement a SON code, hors des codes d'un runner usuel (0, 1, 2 d'argparse) et rangé
+# avec les 86/87 de remote_entry, dans l'ordre où il survient. Avant P2.168, un refus local rendait 2 — le code d'un
+# argparse en échec — et une fin d'infrastructure rendait 1 : le code seul ne distinguait ni l'un ni l'autre d'un runner.
+SORTIE_REFUS_LOCAL = 85        # refusé AVANT la soumission (ou arguments du CLI) : rien n'a tourné, aucun Job ne reste
+SORTIE_REFUS_POD = E.REFUS     # 86 : remote_entry a refusé dans le pod (sha, archive, commande) : rien n'a tourné
+SORTIE_PERDUE = E.NON_RAPATRIE  # 87 : la sortie est PERDUE (fenêtre de rapatriement passée, pod disparu)
+SORTIE_FIN_SANS_SORTIE = 88    # le Job a fini sans sortie prête (OOM, éviction, préemption, nœud, délai…) : état imprimé
+SORTIE_ABANDON = 89            # APRÈS la soumission, sortie non installée (API injoignable, contrôle, conflit, attente
+                               # échue) : le run a pu tourner — `rapatrier <job>` ou `installer`, jamais relancer à l'aveugle
+CODES_DEPORT = (SORTIE_REFUS_LOCAL, SORTIE_REFUS_POD, SORTIE_PERDUE, SORTIE_FIN_SANS_SORTIE, SORTIE_ABANDON)
+# Le libellé du journal : seul le refus LOCAL commence par « [remote] REFUS » (les scripts de vague le cherchent).
+LIBELLES_SORTIE = {SORTIE_REFUS_LOCAL: "REFUS", SORTIE_REFUS_POD: "POD : remote_entry a refusé avant exécution",
+                   SORTIE_PERDUE: "SORTIE PERDUE", SORTIE_FIN_SANS_SORTIE: "FIN SANS SORTIE",
+                   SORTIE_ABANDON: "ABANDON après la soumission"}
 # Environnement de `local` : le strict nécessaire pour qu'un python tourne, RIEN de la session appelante.
 _ENV_SYSTEME = ("PATH", "SYSTEMROOT", "SYSTEMDRIVE", "WINDIR", "COMSPEC", "PATHEXT", "TEMP", "TMP", "TMPDIR",
                 "USERPROFILE", "HOMEDRIVE", "HOMEPATH", "HOME", "APPDATA", "LOCALAPPDATA", "PROGRAMDATA",
@@ -124,7 +139,16 @@ ENV_COMMUN = {"PYTHONIOENCODING": "utf-8", "PYTHONUTF8": "1", "PYTHONDONTWRITEBY
 
 
 class Refus(RuntimeError):
-    """Refus bruyant, AVANT tout effet : rien n'est créé, rien n'est écrit."""
+    """Refus bruyant. Levé AVANT la soumission, rien n'est créé ni écrit (code 85) ; levé par une étape qui suit la
+    soumission (attendre, rapatrier, installer), il rend 89 — sauf un `RefusApres` qui porte son propre code."""
+
+
+class RefusApres(Refus):
+    """Refus APRÈS la soumission ou l'exécution, qui porte le code disant ce qu'il reste à faire (P2.168)."""
+
+    def __init__(self, message, code=SORTIE_ABANDON):
+        super().__init__(message)
+        self.code = code
 
 
 def _fenetre_depuis_texte(v: str):
@@ -417,6 +441,24 @@ def _secu_conteneur() -> dict:
     return {"allowPrivilegeEscalation": False, "readOnlyRootFilesystem": True, "capabilities": {"drop": ["ALL"]}}
 
 
+def remede_fuseau() -> str:
+    """Ce qu'il faut faire quand un fuseau est illisible (P2.173) — deux causes, deux remèdes, DISTINGUÉES par la base
+    de fuseaux de CET interpréteur : vide, c'est l'interpréteur (le Python 3.14 des sessions n'a pas tzdata, mesuré le
+    2026-10-13) ; pleine, c'est la configuration. Le refus reste la bonne face — une fenêtre devinée laisserait partir
+    un run que l'extinction du nœud tuerait — mais il nomme son remède."""
+    try:
+        from zoneinfo import available_timezones
+        base = len(available_timezones())
+    except Exception:                                         # noqa: BLE001 — sans module, sans base : dit ci-dessous
+        base = 0
+    if base:
+        return (f"La base de fuseaux de cet interpréteur en compte {base} et n'a pas celui-ci : corriger « tz » de la "
+                "fenêtre (AGAGI_DEPORT_FENETRE, ou la clé fenetre de la configuration).")
+    return (f"Cet interpréteur ({sys.executable}, Python {sys.version.split()[0]}) n'a AUCUNE base de fuseaux : installer "
+            f"tzdata (« {sys.executable} -m pip install tzdata »), ou lancer le déport avec un Python qui en a une — sur la "
+            "batcave, le Python 3.13 du projet (REF-DEPORT-NEXUS, P2.173).")
+
+
 def fenetre_restante_s(fenetre, maintenant: _dt.datetime | None = None) -> float:
     """Secondes utilisables avant l'extinction du nœud (fin de sa fenêtre, marge déduite) ; 0 hors de la fenêtre ;
     l'infini si le nœud est DÉCLARÉ toujours allumé (fenetre = null). Pour nexus en 2026-09 : Europe/Paris,
@@ -427,7 +469,8 @@ def fenetre_restante_s(fenetre, maintenant: _dt.datetime | None = None) -> float
         from zoneinfo import ZoneInfo
         tz = ZoneInfo(fenetre["tz"])
     except Exception as e:                                    # noqa: BLE001 — refus dit, pas avalé
-        raise Refus(f"fuseau {fenetre.get('tz')!r} illisible ({e}) : la fenêtre du nœud ne peut pas être calculée")
+        raise Refus(f"fuseau {fenetre.get('tz')!r} illisible ({type(e).__name__}: {e}) : la fenêtre du nœud ne peut pas "
+                    f"être calculée. {remede_fuseau()}")
     t = (maintenant or _dt.datetime.now(tz)).astimezone(tz)
     if t.hour < int(fenetre["debut_h"]) or t.hour >= int(fenetre["fin_h"]):
         return 0.0
@@ -527,7 +570,8 @@ def controler_sortie(sortie: Path, job: str, attendu: dict | None = None) -> dic
       * un fichier listé absent ou d'empreinte différente → transfert corrompu ;
       * un fichier présent et NON listé → refus de rapatrier ce qu'on ne sait pas d'où vient."""
     if (sortie / "REFUS.json").is_file():
-        raise Refus(f"{job} : remote_entry a REFUSÉ avant exécution : {(sortie / 'REFUS.json').read_text('utf-8')}")
+        raise RefusApres(f"{job} : remote_entry a REFUSÉ avant exécution : {(sortie / 'REFUS.json').read_text('utf-8')}",
+                         SORTIE_REFUS_POD)
     mf = sortie / E.MANIFEST
     if not mf.is_file():
         raise Refus(f"{job} : pas de {E.MANIFEST} dans la sortie — run incomplet ou jamais terminé")
@@ -982,7 +1026,8 @@ def _rapatrier(job, kube, racine, dest, sortie, acc) -> dict:
     attendu = {"sha": ann.get("agagi.io/sha"), "job": job, "entry_sha256": ann.get("agagi.io/entry-sha256")}
     pod = acc.appeler("rapatriement : lecture du pod", lambda: kube.pod_du_job(job), conseil)
     if pod is None or pod.get("status", {}).get("phase") != "Running":
-        raise Refus(f"{job} : pod absent ou terminé — sa sortie (emptyDir) est PERDUE ; relancer le run")
+        raise RefusApres(f"{job} : pod absent ou terminé — sa sortie (emptyDir) est PERDUE ; relancer le run",
+                         SORTIE_PERDUE)
     nom_pod = pod["metadata"]["name"]
     brut = acc.appeler("rapatriement : tirage de la sortie",
                        lambda: kube.executer_dans(nom_pod, "run", ["tar", "-c", "-C", "/out", "."], timeout=1800).stdout,
@@ -1044,7 +1089,12 @@ def executer_local(commande, *, sha="HEAD", into=None, racine=None, sortie=print
         # au doctor) — sans celui-ci, un run local échapperait à la règle « un seul run lourd à la fois ».
         with hold("kuzu", owner=nom, ttl_s=6 * 3600, leases_dir=bail_dir):
             subprocess.run(args + ["--", *commande], env=env_local(env_declare))
-        bilan = installer_sorties(t / "out", dest, nom, {"sha": sha, "job": nom})
+        try:
+            bilan = installer_sorties(t / "out", dest, nom, {"sha": sha, "job": nom})
+        except RefusApres:
+            raise
+        except Refus as e:                                    # le runner a TOURNÉ : un refus ici n'est pas « rien »
+            raise RefusApres(str(e)) from e
     sortie(f"[remote] {nom} (local) : rc {bilan['returncode']}, {len(bilan['copies'])} sortie(s) copiée(s)")
     return bilan
 
@@ -1185,8 +1235,8 @@ def construire_image(*, sha="HEAD", kube=None, racine=None, sortie=print, delai_
         if "Failed" in conds:
             cause = raison_echec_build(j, pod)
             logs = kube.brut(["logs", f"job/{job}", "-c", "kaniko", "--tail=40"], verifier=False).stdout
-            raise Refus(f"build {job} en échec — {cause['resume']} {json.dumps(cause, ensure_ascii=False)}\n"
-                        f"{logs.decode('utf-8', 'replace')}")
+            raise RefusApres(f"build {job} en échec — {cause['resume']} {json.dumps(cause, ensure_ascii=False)}\n"
+                             f"{logs.decode('utf-8', 'replace')}", SORTIE_FIN_SANS_SORTIE)
         if pod is None and time.monotonic() - t0 > 30:
             evs = kube.evenements(job)
             kube.supprimer_job(job)
@@ -1196,13 +1246,14 @@ def construire_image(*, sha="HEAD", kube=None, racine=None, sortie=print, delai_
             cause = raison_echec_build(j, pod)
             logs = kube.brut(["logs", f"job/{job}", "-c", "kaniko", "--tail=40"], verifier=False).stdout
             kube.supprimer_job(job)
-            raise Refus(f"build {job} encore actif après {delai_s} s (au-delà de son échéance) : Job RETIRÉ, aucune "
-                        f"image enregistrée — {cause['resume']} {json.dumps(cause, ensure_ascii=False)}\n"
-                        f"{logs.decode('utf-8', 'replace')}")
+            raise RefusApres(f"build {job} encore actif après {delai_s} s (au-delà de son échéance) : Job RETIRÉ, aucune "
+                             f"image enregistrée — {cause['resume']} {json.dumps(cause, ensure_ascii=False)}\n"
+                             f"{logs.decode('utf-8', 'replace')}", SORTIE_FIN_SANS_SORTIE)
     st = [c for c in pod["status"]["containerStatuses"] if c["name"] == "kaniko"][0]
     digest = st["state"]["terminated"].get("message", "").strip()
     if not re.fullmatch(r"sha256:[0-9a-f]{64}", digest):
-        raise Refus(f"digest illisible dans le statut de {job} : {digest!r}")
+        raise RefusApres(f"digest illisible dans le statut de {job} : {digest!r} — le build a TOURNÉ, l'image a pu être "
+                         "poussée sans qu'IMAGE.json la nomme", SORTIE_ABANDON)
     journal = kube.brut(["logs", f"job/{job}", "-c", "kaniko"], verifier=False).stdout
     kube.brut(["delete", "configmap", cm], verifier=False)      # le quota compte les ConfigMaps
     info = {"image": cfg["depot_image"], "tag": tag, "digest": digest, "ctx_hash12": ctx["hash12"],
@@ -1417,6 +1468,23 @@ def code_de_sortie(rc) -> int:
     return rc if isinstance(rc, int) and not isinstance(rc, bool) else 1
 
 
+def code_du_runner(rc, sortie=None) -> int:
+    """`code_de_sortie`, et un runner qui rend LUI-MÊME un code de la plage du déport est SIGNALÉ — jamais réécrit :
+    le code passe tel quel, le journal dit qu'il ne vient pas du déport (P2.168)."""
+    code = code_de_sortie(rc)
+    if code in CODES_DEPORT:
+        (sortie or (lambda m: print(m, file=sys.stderr)))(
+            f"[remote] ⚠ le RUNNER a rendu {code}, un code RÉSERVÉ au déport ({LIBELLES_SORTIE[code]}) : ce code vient "
+            "du runner, pas du déport — lire son MANIFEST")
+    return code
+
+
+def code_fin_sans_sortie(fin: dict) -> int:
+    """Le code d'un Job suivi jusqu'au bout SANS sortie prête, selon son état (`attendre`, `lire_fin`)."""
+    return {"refus_entree": SORTIE_REFUS_POD, "non_rapatrie": SORTIE_PERDUE,
+            "expire": SORTIE_ABANDON}.get(fin.get("etat"), SORTIE_FIN_SANS_SORTIE)
+
+
 def _commun(p):
     p.add_argument("--sha", default="HEAD")
 
@@ -1472,33 +1540,40 @@ def main(argv=None) -> int:
                    help="sous-chaîne de nom DÉCLARÉE dont les anomalies sont comptées mais ne réveillent pas")
     p = sp.add_parser("temoin", help="rejouer les comptes d'un témoin publié depuis ses octets embarqués")
     p.add_argument("json")
-    a = ap.parse_args(argv)
+    try:
+        a = ap.parse_args(argv)
+    except SystemExit as e:                                   # arguments du CLI : rien n'a tourné (argparse rendait 2)
+        return 0 if e.code in (0, None) else SORTIE_REFUS_LOCAL
+    apres = a.action in ("attendre", "rapatrier", "installer")   # ces actions portent sur un run DÉJÀ soumis
     try:
         if a.action in ("executer", "soumettre"):
             kw = dict(sha=a.sha, cpu=a.cpu, req_cpu=a.req_cpu, mem=a.mem, req_mem=a.req_mem, env=a.env,
                       attente_s=a.attente_s, deadline_s=a.deadline_s,
                       image_divergente_ok=a.image_divergente_ok)
             job = soumettre(a.commande, **kw)
+            apres = True
             if a.action == "soumettre":
                 print(job)
                 return 0
             fin = attendre(job)
             if fin["etat"] == "pret":
                 # rapatrier lit lui-même le Job et le pod : un accroc entre les deux étapes est toléré et compté
-                return code_de_sortie(rapatrier(job, into=a.into)["returncode"])
-            print(f"[remote] {job} : {json.dumps(fin, ensure_ascii=False)}", file=sys.stderr)
-            return 1
+                return code_du_runner(rapatrier(job, into=a.into)["returncode"])
+            code = code_fin_sans_sortie(fin)
+            print(f"[remote] {LIBELLES_SORTIE[code]} ({code}) — {job} : {json.dumps(fin, ensure_ascii=False)}",
+                  file=sys.stderr)
+            return code
         if a.action == "local":
             env = valider_env(a.env)
-            return code_de_sortie(executer_local(a.commande, sha=a.sha, into=a.into, env=env)["returncode"])
+            return code_du_runner(executer_local(a.commande, sha=a.sha, into=a.into, env=env)["returncode"])
         if a.action == "attendre":
             print(json.dumps(attendre(a.job), ensure_ascii=False))
             return 0
         if a.action == "rapatrier":
-            return code_de_sortie(rapatrier(a.job, into=a.into)["returncode"])
+            return code_du_runner(rapatrier(a.job, into=a.into)["returncode"])
         if a.action == "installer":
             d = Path(a.repertoire)
-            return code_de_sortie(installer_sorties(d, Path(a.into), d.parent.name)["returncode"])
+            return code_du_runner(installer_sorties(d, Path(a.into), d.parent.name)["returncode"])
         if a.action == "image":
             construire_image(sha=a.sha, reconstruire=a.reconstruire)
             return 0
@@ -1534,8 +1609,9 @@ def main(argv=None) -> int:
                 print(f"{k:12s} = {cfg.get(k)!r}   <- {cfg['_source'].get(k, 'absente')}")
             return 0
     except Refus as e:
-        print(f"[remote] REFUS : {e}", file=sys.stderr)
-        return 2
+        code = e.code if isinstance(e, RefusApres) else SORTIE_ABANDON if apres else SORTIE_REFUS_LOCAL
+        print(f"[remote] {LIBELLES_SORTIE[code]} ({code}) : {e}", file=sys.stderr)
+        return code
     return 0
 
 

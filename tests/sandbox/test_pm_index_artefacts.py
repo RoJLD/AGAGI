@@ -74,6 +74,16 @@ def test_types_inattendus_normalises_a_None(tmp_path):
     assert manques["liens"] == "type_inattendu" and a["liens"] == []
 
 
+def test_verdict_mal_type_JAMAIS_masque_par_un_status_valide(tmp_path):
+    """Revue de la tâche 1 du plan 2 (I1-b) : le témoin ci-dessus passait parce que son `status: 3` était LUI AUSSI mal
+    typé. Avec un `status` valide, `verdict: 12` donnait etat='open', etat_source='status' et aucun manque : le verdict
+    déclaré disparaissait de l'index ET des trouvailles, sans un compte."""
+    _, a, manques, _ = _lire(_ecrire(tmp_path / "x.md", "---\nid: X\nverdict: 12\nstatus: open\n---\n"), "record")
+    assert (a["etat"], a["etat_source"], manques.get("etat")) == (None, None, "type_inattendu")
+    _, a, manques, _ = _lire(_ecrire(tmp_path / "y.md", "---\nid: Y\nstatus: open\n---\n"), "record")
+    assert (a["etat"], a["etat_source"], manques.get("etat")) == ("open", "status", None)     # sans verdict : status
+
+
 def test_fichier_vide_et_encodage(tmp_path):
     assert _lire(_ecrire(tmp_path / "v.md", ""), "spec") == ("illisible", "fichier_vide", None, None)
     assert _lire(_ecrire(tmp_path / "e.md", b"\xff\xfe\x00titre", "wb"), "spec")[1] == "encodage_invalide"

@@ -111,6 +111,45 @@ def test_un_registre_SANS_colonne_Statut_LEVE_au_lieu_de_rendre_zero():
         S._classes_registre("exécutable", "| **E1** | a | b | `exécutable` | g |\n")
 
 
+_NULLES = ("intro\n\n| Date | Run | Cible | Classe | Constat |\n| --- | --- | --- | --- | --- |\n"
+           "| d1 | wf_a | x | transport | relectures absentes |\n"
+           "| d2 | wf_b | y | **témoin manqué** | un défaut non retrouvé |\n"
+           "| d3 | wf_c | z | indécidable | texte illisible |\n"
+           "| d4 | wf_d | t | `témoin manqué` (revue réduite) | idem |\n"
+           "| d5 | wf_e | `a | b` | instrument | une barre dans un code-span ne décale pas |\n")
+
+
+def test_P2_177_le_compteur_temoin_manque_ne_compte_QUE_sa_classe_lue_par_l_EN_TETE():
+    """P2.177 (2026-10-14) : le compteur « témoin manqué » du Réfutateur. Seule la classe « témoin manqué » compte, quelle
+    que soit sa mise en forme ; indécidable, transport et instrument n'en sont pas (la REF les distingue) ; la
+    colonne se lit par l'en-tête, la ligne séparatrice ne compte pas, un « | » de code-span ne décale rien."""
+    assert S._revues_nulles("témoin manqué", _NULLES) == 2
+    assert S._revues_nulles("indécidable", _NULLES) == 1
+    assert S._revues_nulles("transport", _NULLES) == 1
+    assert S._revues_nulles("instrument", _NULLES) == 1
+
+
+def test_P2_177_un_registre_des_revues_nulles_SANS_colonne_Classe_LEVE():
+    import pytest
+    with pytest.raises(ValueError, match="Classe"):
+        S._revues_nulles("témoin manqué", "| Date | Run |\n| --- | --- |\n| d | témoin manqué |\n")
+    assert S._revues_nulles("témoin manqué", "") == 0          # registre absent : rien à compter, rien à prétendre
+
+
+def test_P2_177_chaque_document_de_la_porte_8_DECLENCHE_la_porte_dans_le_crochet():
+    """Garde de la garde : un document lu par la porte 8 mais absent du déclencheur du crochet ne serait vérifié que si
+    un AUTRE document déclencheur était committé avec lui — un compte périmé passerait seul. Le motif est relu dans
+    le crochet versionné, jamais recopié ; contrôle positif : un document hors liste ne déclenche pas."""
+    import re
+    src = open(os.path.join(os.path.dirname(__file__), "..", "..", "tools", "hooks", "pre-commit"), encoding="utf-8").read()
+    ligne = next(l for l in src.splitlines() if l.startswith("staged_syn="))
+    motif = re.compile(re.search(r"grep -E '([^']+)'", ligne).group(1))
+    for d in S._DOCS:
+        assert motif.search(d.replace(os.sep, "/")), f"{d} est lu par la porte 8 mais ne la DÉCLENCHE pas"
+    assert not motif.search("docs/EDR/UN_RECORD.md")
+    assert S._REVUES_NULLES in S._DOCS, "le registre des revues nulles porte sa balise : la porte 8 doit le LIRE"
+
+
 def test_the_repository_counters_all_return_an_int():
     """Les compteurs RÉELS s'exécutent et rendent un entier. ⚠️ Un compteur qui lève rend le cliquet
     ininterprétable : il doit lever BRUYAMMENT ici plutôt que rendre 0 en production, sans quoi

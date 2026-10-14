@@ -2057,6 +2057,79 @@ exige la réservation, et la porte 4 refuse une entrée dont le numéro est rés
 bail `kuzu`, pour un nom au lieu d'une ressource. Contre-exemple : deux réservations concurrentes du même numéro, une
 seule réussit. *Coût : agent 1-2 h.* Sans clause `closes_when` (déclaré).
 
+**P2.175 — rang 0 bis (Master 2, 2026-10-14 : avant l'audit des importorskip, commit séparé) — ✅ CLOSE le 2026-10-14
+(trouvée par INTEGRATION-LU, ouverte et fermée le même jour) — Hors dépôt, le dossier des bails suivait le CWD : un
+bail pris depuis un scratchpad était INVISIBLE à la flotte.**
+Preuve : `tools/jobs/lease.py::_repo_root` lançait `git rev-parse --git-common-dir` depuis le cwd et, hors dépôt, se
+rabattait EN SILENCE sur lui (« Sans git (ou hors dépôt) : le cwd, comme avant »). Le bail de la purge KuzuDB,
+lancée depuis le scratchpad d'INTEGRATION-LU, est parti dans `<scratchpad>/runs/leases` : le doctor de la flotte
+aurait lu 0 bail pendant 93 s, et l'exclusion de kuzu n'a tenu que par l'ordonnancement (E32, inscrite par
+INTEGRATION-LU). Contrôle positif du défaut rejoué : le lease.py de d1 (29ee5aec) et le corrigé, chargés chacun par leur chemin dans un processus neuf au cwd HORS dépôt : AVANT, les bails dans <cwd>/runs/leases (invisibles à la flotte) ; APRÈS, dans runs/leases de l'arbre principal.
+✅ **FERMÉE le 2026-10-14 (agagi-32)** — SANS argument, l'ancre est l'emplacement du MODULE (`Path(__file__)`),
+jamais le cwd : le module vit toujours dans le dépôt ou un worktree, donc la racine commune est juste quel que soit le
+cwd ; `GIT_*` est retiré de cet appel (la vérité est l'emplacement du fichier, pas un GIT_DIR hérité d'un crochet).
+Sans dépôt git autour du module — une copie isolée sans dépôt git —, la racine est l'arbre du module (parents[2]),
+déterminée et DITE sur stderr ; pas de refus (conception acceptée par Master 2). Cas mesuré par Master 2 : un pod nexus
+reçoit le code dans /work (`tools/jobs/remote.py:455`), le module y vit en /work/tools/jobs/lease.py et le cwd vaut
+/work — la racine reste /work, la même qu'avant ; côté batcave, `remote.py:1045` passe `leases_dir` explicitement :
+non touché. Un `cwd` EXPLICITE (doctor, tests) garde le comportement choisi par l'appelant. Témoins :
+`tests/sandbox/test_lease_racine.py` (5, de VRAIS sous-processus au cwd hors dépôt, qui CALCULENT `_dir(None)` sans
+jamais écrire un bail) — l'incident exact ; un GIT_DIR hérité d'un AUTRE dépôt ne détourne rien ; une copie sans git a
+ses bails dans SON arbre et le dit ; la même copie lancée depuis sa racine garde la racine d'avant (le cas /work) ;
+un cwd explicite inchangé. Windows 210 verts en 3 min 42, 0 saut (racine, jobs, jobs distants, bail sans psutil, doctor, gardes de bail, tableau du PM) ; Linux (WSL) 81 verts ; 1 cas désélectionné, le bout en bout (b) de test_lease_skip_guard, dont le pytest imbriqué de test_backend reste bloqué à la sortie sous WSL (défaut de banc connu, P2.171) — tué par motif ancré ; mutations à la main 4/4 tuées (l'ancre redevient le cwd ; GIT_* hérité ; sans git, repli sur le cwd ; repli muet), contrôle intact vert avant chacune.
+<!-- closes_when:grep_present=tools/jobs/lease.py::Path\(__file__\)\.resolve\(\)\.parent -->
+
+**P2.176 — GELÉE jusqu'à la levée du gel de méthode (le registre, ne bloque aucun run ; Master 2, 2026-10-14) —
+OUVERTE (2026-10-14, relevée par la revue de R3, P9.c, vérifiée par Master 2 et par agagi-32) — Deux classes d'erreur
+sous le MÊME numéro E27 : un compteur de classes qui ne compte pas ce qu'on croit.**
+Preuve : `docs/REF/REGISTRE_ERREURS.md:62` définit E27 comme « La VÉRIFICATION réécrit l'ÉVIDENCE » (un test de
+fumée qui rejoue le runner réel au seed de la mesure publiée et écrit à son chemin) ; `tools/check_evidence_provenance.py:12`
+(porte 20), le paragraphe de la porte 20 de CLAUDE.md et `tools/check_record_links.py:59` emploient E27 pour « une
+conclusion dont l'évidence n'est plus rouvrable » — de même que le titre de la porte 20 dans
+`tools/check_gate_mutation.py:450`, `tests/sandbox/test_evidence_provenance_gate.py`,
+`tests/sandbox/test_record_graph_completeness.py` et plusieurs revues du 2026-09-26 (sous docs/reviews). Les occurrences
+et leurs gardes se rangent donc sous une classe qui n'est pas la leur. **Remède** (retenu par Master 2 le 2026-10-14,
+à exécuter à la levée du gel) : une
+classe NEUVE pour l'évidence non rouvrable, ses citations renumérotées (code, tests, CLAUDE.md, revues), et une
+garde qui refuse qu'un numéro de classe cité porte un autre titre que celui du registre. *Coût : agent 1 h.* Sans
+clause `closes_when` (déclaré).
+
+**P2.177 — rang 0 ter (levée du gel par robla pour ce point, 2026-10-14 : « COMPTEUR D'ABORD, puis relance » d'E34)
+— ✅ CLOSE le 2026-10-14 (ouverte et fermée le même jour) — Le compteur « témoin manqué » que la REF fait monter, et
+qui décide du re-scellage des prompts du Réfutateur, n'existait NULLE PART.**
+Preuve : `docs/REF/REF-REVUE-ADVERSARIALE.md:119-120` — « le compteur `témoin manqué` s'incrémente dans `ROLES.md`.
+Deux fois → les prompts sont re-scellés » ; `ROLES.md` n'en portait aucun (« manqu » : 0 ligne, motif validé sur la
+REF, Master 2). Une règle documentée sans application (E10), révélée par la revue réduite d'E34, NULLE ce jour
+(wf_7fe5a019-982 : un témoin à défaut manqué).
+✅ **FERMÉE le 2026-10-14 (agagi-32)** — option B de Master 2 : `docs/roadmap/REFUTATEUR_REVUES_NULLES.md`, SUIVI, une
+ligne par run NUL avec sa CLASSE (témoin manqué / indécidable / transport / instrument), aucun témoin nommé (le roster
+n'est pas publié), et la balise `refutateur_temoins_manques` recomputée par la porte 8 depuis la colonne « Classe »
+(lue par l'EN-TÊTE ; un registre sans cette colonne LÈVE). Le registre entre dans les documents de la porte 8 ET dans
+son déclencheur du crochet ; un témoin vérifie que CHAQUE document de la porte 8 la déclenche (sinon un compte
+périmé passerait seul). `ROLES.md` n'est édité qu'UNE fois — la case Compteurs du Réfutateur cite le registre — par
+décision d'INTÉGRATEUR (Master 2), le writer unique PM ne tournant pas, signalée à robla ; la REF l.119-120 dit où vit
+le compteur. **Compte initial MESURÉ** (lecture seule des runs persistés `<session>/workflows/wf_*.json` des sept
+dossiers de projet AGAGI, du 2026-09-24 au 2026-10-14) : 24 revues du Réfutateur — 17 retrouvées, 7 nulles : 1 témoin
+manqué (E34, aujourd'hui), 1 indécidable (wf_b7cd5fdc-d98, S2-BASSIN-FRAGILITY v6, le 2026-09-26 : classé selon la
+lettre de la REF, Master 2, robla peut en décider autrement), 4 de transport, 1 d'instrument (le témoin cru sain qui
+faisait barrière, corrigé le 2026-09-24) ; deux runs homonymes (scripts citant le module sans être des revues)
+exclus. Publié « AU MOINS 1 » : un run antérieur ou non persisté est inconnu. Le seuil de re-scellage (2) n'est pas
+atteint ; la relance d'E34 se fait telle quelle. Windows : 92 verts en 5 min 16, 0 saut (comptes publiés, crochet, déploiement, registre des rôles, compteurs du PM, fusion) ; Linux (WSL) : 69 verts, 1 saut (le cas CRLF, Windows seul), sur une copie de TOUT l'arbre suivi — deux essais de banc d'abord, faute de data/agi_taxonomy puis d'un instrument hors des dossiers copiés ; mutations à la main 4/4 tuées (le compteur qui compte toutes les classes ; le registre sorti des documents de la porte 8 ; le crochet qui ne la déclenche plus sur lui ; un registre sans colonne Classe qui rend 0), contrôle intact vert avant chacune. Suite : P2.178 (gelée).
+<!-- closes_when:path_present=docs/roadmap/REFUTATEUR_REVUES_NULLES.md -->
+
+**P2.178 — GELÉE jusqu'à la levée du gel de méthode (le Réfutateur, ne bloque aucun run ; Master 2, 2026-10-14) —
+OUVERTE (2026-10-14, agagi-32, en fermant P2.177) — Le compteur « témoin manqué » s'écrit à la main, et le workflow
+range un témoin INDÉCIDABLE parmi les défauts non retrouvés : automatiser l'un sans corriger l'autre fausserait le
+compte.**
+Preuve : (1) `.claude/workflows/refutateur.js:253-254` — `rates` retient tout témoin dont le statut n'est ni RETROUVE
+ni MESURE, donc INDECIDABLE compris, et la revue sort NUL « defaut manque » là où la REF dit « indécidable » (code 2) ;
+mesuré sur wf_b7cd5fdc-d98 (2026-09-26). (2) Le workflow n'écrit rien lui-même, il passe par des agents ; une revue
+nulle s'inscrit donc à la main dans le registre de P2.177. **Forme** : le workflow distingue INDÉCIDABLE (code 2) de
+NUL ; une commande idempotente `--consigner-nulle` de `tools/refutateur_temoins.py`, indexée par l'identifiant du run,
+ajoute la ligne au registre ; une étape du workflow la fait lancer et relit son code de sortie (le modèle de
+`--racine-valide`) ; la porte 8 recompte. Les deux vont ensemble (Master 2). *Coût : agent 1-2 h.* Sans clause
+`closes_when` (déclaré).
+
 **P2.143 — rang 6, GELÉE jusqu'à la levée du gel de méthode (une porte, qui ne bloque aucun run) (rang fixé par Master 2 le 2026-09-28) — OUVERTE (2026-09-28, extension exécutable d'E8 DÉCIDÉE par Master 2 ; inscrite par la session SCIENCE-HARNAIS) — Un nombre de PROSE qui porte une unité ou un compte, dans un record, DÉCLARE sa source ; une porte la vérifie.**
 Preuve : E8, occurrence du 2026-09-28 — six valeurs recopiées au lieu d'être relues en un jour (0,82 d'un rapport de chemin cité comme un rapport net ; 3 processus pour 6 ; 4e-7 pour 2,1e-5 ; « 24 à 718 », chiffre de conception cité comme mesure ; dose 1,0 pour ≈ 0,66 active ; heures de build estimées), toutes attrapées avant publication par une relecture contre la source — donc par un humain ou une revue, jamais par une porte : la porte 19 ne lit que « nom = valeur » d'un paramètre de régime (revue du record [[EDR-S2-BASSIN-FRAGILITY]], P2.b : elle rend SANS_PARAMETRE sur ce record, qui écrit « phase 2 à 200 ticks »). **Forme** : une balise DÉCLARÉE par l'auteur à côté du nombre — chemin `results/*.json` SUIVI, pointeur JSON, valeur et tolérance — sur le modèle des balises de compte de la porte 8 ; la porte relit le fichier et compare ; une valeur recalculée (médiane, rapport) déclare sa fonction et ses clés d'entrée. Ce qui est porteur est DÉCLARÉ, jamais deviné : la porte ne cherche pas les nombres NON balisés (elle les COMPTE et les rapporte, comme la porte 4 rapporte les entrées sans clause). Contre-exemples gelés : les cinq valeurs de cette occurrence qui ont une source JSON. À la livraison, la forme passe exécutable. *Coût : agent 3-4 h.* Sans clause `closes_when` (déclaré) : le nom de la porte n'est pas fixé.
 
@@ -3097,7 +3170,8 @@ plus `local` pour un build. Contre-exemples gelés : `test_soumission_juge_contr
 trois tests de `construire_image` sur un faux cluster.
 <!-- closes_when:grep_present=tests/sandbox/test_jobs_remote.py::juge_contre_plafonds_et_quota -->
 
-**P2.150 — rang 22 — OUVERTE (2026-09-28, trouvée par la revue adversariale du diff « après ml-heavy », session
+**P2.150 — ✅ CLOSE le 2026-10-14 (PÉRIMÉE dès son écriture, vue en dressant l'état des dettes de la session INFRA-NEXUS ;
+décision de Master 2) — ouverte le 2026-09-28 (trouvée par la revue adversariale du diff « après ml-heavy », session
 INFRA-NEXUS) — Le témoin de LIEU torch (batcave contre nexus), qui décide que P4.18 tourne sur la batcave, n'a AUCUNE
 évidence dans le dépôt (classe E27).**
 Preuve : la REF-DEPORT-NEXUS (« Choisir le lieu ») et le bandeau du 2026-09-28 d'EDR-DEPORT-NEXUS-TEMOIN rapportent le
@@ -3109,6 +3183,15 @@ ni results/. MANIFEST et génomes vivent hors suivi dans le worktree science-pre
 suivie (les trois MANIFEST et les sha256 des génomes, ou les génomes eux-mêmes) — en RETIRANT l'adresse du registre que
 les MANIFEST portent dans leur champ `image` (dépôt public) — puis faire pointer la REF et le bandeau dessus. Sans
 clause `closes_when` (déclaré) : le chemin de l'évidence n'existe pas encore.
+✅ **FERMÉE le 2026-10-14 — le constat était FAUX dès son écriture.** L'évidence est suivie depuis le 2026-09-28 :
+`results/s2_bassin_fragility_temoin_lieu.json`, publiée par le commit du record P4.18 (838446e6, 21:16) — les trois lieux
+et leurs Jobs (430f, a6db, local-fa0a), l'image `sha256:7c860b30…`, la plateforme, les W comparés au bit
+(`W_entre_lieux_au_bit` : vrai entre nexus à 2 et à 16 threads, faux contre la batcave), leur écart max (2,4e-7), les
+empreintes ; relue le 2026-10-14 : aucune adresse. Or 838446e6 est un ANCÊTRE du commit qui écrit cette entrée
+(ea09dbb9, 21:38), et tmp/nexus l'avait fusionné à 21:26 : le `git grep` qui la fondait, sans sha ni heure cités, décrivait
+un état ANTÉRIEUR à celui qu'il qualifiait. Le cas est rangé au registre (E4 : une absence de correspondance lue comme une
+absence). La REF (« Choisir le lieu ») et le bandeau d'EDR-DEPORT-NEXUS-TEMOIN pointent désormais sur le fichier.
+<!-- closes_when:grep_present=docs/REF/REF-DEPORT-NEXUS.md::results/s2_bassin_fragility_temoin_lieu.json -->
 
 **P2.167 — ✅ CLOSE le 2026-10-13 (ouverte et fermée dans la même passe, session INFRA-NEXUS, décision de Master 2 :
 elle BLOQUAIT les runs scellés sur nexus) — l'envoi des sources, `attendre` et `rapatrier` ne toléraient AUCUN accroc de
@@ -3139,7 +3222,8 @@ Hypothèse NON établie : la charge de dix transferts simultanés par l'API cont
 survenu sans charge) ; échelonner les soumissions ne coûte rien.
 <!-- closes_when:grep_present=tests/sandbox/test_jobs_remote.py::accrocs_k_fois_puis_reponse -->
 
-**P2.168 — rang 23 — OUVERTE (2026-10-13, vue en préparant le pilote τ, session INFRA-NEXUS) — `python -m
+**P2.168 — ✅ CLOSE le 2026-10-14 (ouverte le 2026-10-13, vue en préparant le pilote τ, session INFRA-NEXUS ; entrée
+dans le gel « ce qui bloque un run » par décision de Master 2 : elle sert le lancement de R3) — `python -m
 tools.jobs.remote executer` rend 2 pour un refus LOCAL (fenêtre, garde d'image, quota, nœud éteint, accroc au-delà du
 plafond) ET le code du runner, qui peut lui-même valoir 2 (argparse) : le code de sortie seul ne les distingue pas.**
 Preuve : `main()` (`tools/jobs/remote.py`, branche `except Refus` : « return 2 ») et `code_de_sortie(...)` qui rend le code
@@ -3147,9 +3231,23 @@ du runner ; un argparse en échec sort en 2. Contournement appliqué par SCIENCE
 cellule en lisant « [remote] REFUS » dans son journal, jamais le seul code. À faire : un code DÉDIÉ au refus local (hors
 des codes d'un runner usuel et des 86/87 de `remote_entry`), publié dans la REF, avec un témoin qui fait sortir un runner
 en 2 et vérifie qu'il ne se lit pas comme un refus local. Sans clause `closes_when` (déclaré) : le code n'est pas choisi.
+✅ **FERMÉE le 2026-10-14** — chaque dénouement du déport a SON code, hors des codes d'un runner usuel et rangé avec les
+86/87 de `remote_entry` (`tools/jobs/remote.py`, `CODES_DEPORT`) : 85 refus AVANT la soumission (et arguments du CLI,
+qu'argparse rendait en 2) ; 86 refus dans le pod ; 87 sortie perdue ; 88 Job fini SANS sortie prête (son état est
+imprimé) ; 89 abandon APRÈS la soumission (le run a pu tourner : rapatrier, jamais relancer à l'aveugle). Trouvé en le
+faisant, et corrigé avec : le jumeau de ce défaut — une fin d'infrastructure (OOM, éviction, délai…) rendait 1, comme un
+runner en échec. Seul le 85 commence par « [remote] REFUS » : le classement par journal des scripts de vague reste
+juste. Un runner qui rend lui-même 85 à 89 est SIGNALÉ, jamais réécrit (`code_du_runner`). Table dans la REF (« Codes de
+sortie d'executer »). Témoins (`tests/sandbox/test_jobs_remote.py`, `test_P2_168_*`) : le runner qui sort en 2 rend 2
+sans ligne de refus ; refus avant la soumission, configuration incomplète par le VRAI chemin et arguments invalides →
+85 ; dix états de fin → leur code ; refus après la soumission → 89, ou le code qu'il porte ; `local` distingue l'avant
+de l'après ; un `REFUS.json` → 86 ; un code réservé rendu par le runner est signalé. ⚠️ Pour les scripts de vague (celui
+du pilote τ attend déjà 86 et 87 en code d'`executer`, qui ne les rendait JAMAIS : un refus du pod sortait en 2 ou en 1) :
+classer 88 et 89, nouveaux.
+<!-- closes_when:grep_present=tools/jobs/remote.py::SORTIE_REFUS_LOCAL = 85 -->
 
-**P2.173 — rang à fixer par Master 2 — OUVERTE (2026-10-13, vue en lançant le build de contrôle de P2.127, session
-INFRA-NEXUS) — Le CLI du déport REFUSE sous le `python` des sessions (3.14 sans tzdata) : `executer`, `soumettre` et
+**P2.173 — ✅ CLOSE le 2026-10-14 (ouverte le 2026-10-13, vue en lançant le build de contrôle de P2.127, session
+INFRA-NEXUS ; entrée dans le gel « ce qui bloque un run » par décision de Master 2) — Le CLI du déport REFUSE sous le `python` des sessions (3.14 sans tzdata) : `executer`, `soumettre` et
 `image` s'arrêtent sur « fuseau 'Europe/Paris' illisible ».**
 Preuve : `tools/jobs/remote.py`, calcul de la fenêtre d'allumage du nœud (`ZoneInfo(fenetre["tz"])`, branche qui lève
 `Refus`) ; sous Windows, `zoneinfo` n'a pas de base de fuseaux sans le paquet `tzdata`, absent du 3.14 en tête du PATH
@@ -3158,6 +3256,15 @@ que l'extinction du nœud tuerait — ; le défaut est qu'il ne nomme pas le rem
 en vigueur : lancer avec Python 3.13 (REF, État mesuré du 2026-10-13). **Forme** : le refus nomme le remède (installer
 tzdata, ou le 3.13 par son chemin), témoin sous un `zoneinfo` sans base ; ou une épingle d'interpréteur sur le modèle
 d'`AGAGI:INTERPRETE`. Sans clause `closes_when` (déclaré) : la forme n'est pas choisie.
+✅ **FERMÉE le 2026-10-14** — forme retenue : le refus nomme son remède (`remede_fuseau`), et il DISTINGUE les deux causes
+par la base de fuseaux de CET interpréteur — vide : il nomme l'interpréteur (`sys.executable`, version) et le remède
+(installer tzdata dans cet interpréteur, ou lancer avec le Python 3.13 du projet) ; pleine : il accuse la configuration
+(`tz` de la fenêtre), pas l'interpréteur. Le refus reste. L'épingle d'interpréteur est écartée, et dite : le CLI est
+lancé par l'appelant, qui choisit l'interpréteur ; le crochet, lui, le choisit seul (P2.157). Témoins :
+`test_P2_173_un_interpreteur_SANS_base_de_fuseaux_nomme_tzdata_et_l_interpreteur` et
+`test_P2_173_un_fuseau_ABSENT_d_une_base_presente_accuse_la_configuration_pas_l_interpreteur` (un `zoneinfo` qui refuse,
+base vide ou pleine).
+<!-- closes_when:grep_present=tools/jobs/remote.py::def remede_fuseau -->
 
 **P2.174 — rang à fixer par Master 2, à faire APRÈS R3 de P4.19 et le retest de P4.18 — OUVERTE (2026-10-13, conséquence
 de P2.134 (ii), session INFRA-NEXUS) — Basculer l'image runner sur un constraints COMPLET : toutes les dépendances
@@ -3188,8 +3295,9 @@ est trouvée. À faire : reproduire hors pytest (importer l'app, créer puis rel
 l'app de pytest, lire la pile native du fil en `pipe_write`, et joindre ou détacher le fil fautif à l'arrêt. *Coût :
 agent 1-2 h sous WSL ; calcul 0.* Dépend de : rien.
 
-**P2.170 — OUVERTE (2026-10-14, revue finale du plan 1 de P2.87, session FRONT) — onglet Index : cinq défauts mineurs
-différés, dont un manque de la spec (filtre « illisible ») et une écriture non atomique de `DATES_GIT.json`.**
+**P2.170 — OUVERTE (2026-10-14, revues du plan 1 de P2.87 et de la tâche 1 du plan 2 de P2.84, session FRONT) —
+index des artefacts, onglet Index et module science : vingt et un défauts mineurs différés, dont un manque de la spec
+(filtre « illisible ») et une écriture non atomique de `DATES_GIT.json`.**
 Preuve : relecteur opus en lecture seule, le 2026-10-13. Ses trois défauts importants (libellés qui affirmaient une
 propriété du fichier, âge négatif ramené à 0, famille non lue présentée comme vide) et quatre mineurs regradés sont
 CORRIGÉS dans le commit qui inscrit cette entrée ; restent :
@@ -3204,6 +3312,30 @@ d'une autre branche (Review Focus 2 du plan), et « relu à chaque sondage » es
 du dépôt, le cas NAS de la porte 12 — et le lien est cassé ;
 (e) `frontend/src/lib/index.ts` porte un nom de fichier-baril qu'un futur import du répertoire capterait ; un nom non
 ambigu (indexArtefacts) l'éviterait.
+Mineurs différés par les revues adversariales des pas 1 et 2 (jusque-là au seul grand livre d'exécution, hors git),
+tous dans `tools/pm/index_artefacts.py` ou `backend/app/services/index_service.py` :
+(f) les noms que git cite malgré core.quotepath=false (guillemet, antislash, caractère de contrôle — impossibles sous
+NTFS, possibles sous Linux) sortent sans_ajout_trouve ; correctif : `git log -z` ;
+(g) un `gate` d'un autre type qu'une chaîne est mis à None sans être compté ;
+(h) un titre vide rend cle_absente alors que la clé existe ;
+(i) le lecteur de titre markdown ignore les clôtures en tildes et une règle horizontale placée avant le titre ;
+(j) un fichier caché suivi dans une famille n'est ni lu ni compté hors familles ;
+(k) un fichier réduit à un BOM n'est pas classé fichier_vide ;
+(l) un mode dégradé passager du service est servi jusqu'à 60 s (un TTL court pour le mode dégradé) ;
+(m) le cache n'est pas indexé par la racine et il est servi par référence (un consommateur qui le mute le pollue) ;
+(n) validation laxiste des modèles Index* (True servi 1, « 3 » servi 3) — inatteignable depuis l'index, à durcir si un
+bloc lit du JSON externe ;
+(o) un 500 si le texte d'une exception lève lui-même (même défaut dans le service du pilotage) ;
+(p) l'image lancée SANS le volume des résultats rend « resultat : fichiers 0 » sans ligne (le compose le monte toujours) ;
+(q) le TTL du cache repose sur l'horloge murale (time.monotonic à préférer, même défaut dans le pilotage).
+Mineurs différés par la revue de la tâche 1 du plan 2 (opus, lecture seule, 2026-10-14 ; ses six importants et six
+mineurs sont corrigés dans le commit 4a), tous dans `tools/pm/science.py` :
+(r) `lire_pipeline` lit `check_preregistration_applied._ROOT`, jamais la racine reçue : `--repo-root X` sert la
+couverture d'un dépôt sous le `repo_root` d'un autre ;
+(s) des comptes égaux (graphe contre index) ne disent pas des ensembles égaux, et aucune ligne ne sort alors ;
+(t) des identifiants de capacité dupliqués, des arêtes boucles ou des arêtes établies dupliquées ne sont pas signalés ;
+(u) quand le module de la pipeline lève, la liste des pré-inscriptions — qui ne dépend que de l'index — part avec le
+bloc (une perte, pas une fabrication).
 *Coût : agent 1-2 h ; calcul 0.* Dépend de : rien.
 
 **P2.136 — rang 6 — ✅ CLOSE le 2026-09-28 (ouverte le 2026-09-26 sur arbitrage de Master 2 : la règle du registre
@@ -5329,7 +5461,7 @@ L'écran mécanique l'a remplacée, et il a coûté zéro simulation.
   par le branchement de la porte 8 elle-même. ⚠️ **Portée déclarée** : il vérifie ce qu'on lui
   DÉCLARE, il ne découvre pas les chiffres non balisés (deviner produirait des faux positifs sur
   toute date et tout chiffre historique) ; la couverture croît par annotation : aujourd'hui
-  **19 comptes balisés** <!-- count:syntheses_balisees=19 --> — et ce nombre-là est balisé LUI AUSSI, donc
+  **20 comptes balisés** <!-- count:syntheses_balisees=20 --> — et ce nombre-là est balisé LUI AUSSI, donc
   une régression de couverture se voit. *(Auto-audit du 2026-09-07 : cette phrase AFFIRMAIT cette
   propriété sans la tenir — la balise n'existait pas. Une affirmation non vérifiée écrite dans le
   cliquet qui les traque : c'est E10 au méta-niveau, corrigé le jour même. ⚠️ Et ce compteur est

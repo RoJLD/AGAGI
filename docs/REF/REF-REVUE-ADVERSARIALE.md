@@ -117,7 +117,9 @@ sur tout ratio, et elle est née ici : le 2026-09-23, une phrase vague identique
 voyait rien.
 
 **Un témoin à DÉFAUT manqué rend la revue NULLE** : rien ne s'écrit dans `docs/reviews/`, le compteur
-`témoin manqué` s'incrémente dans `ROLES.md`. **Deux fois → les prompts sont re-scellés** (ils ne
+`témoin manqué` s'incrémente dans `docs/roadmap/REFUTATEUR_REVUES_NULLES.md` — une ligne par revue nulle, avec
+sa classe (témoin manqué / indécidable / transport / instrument), compté par la porte 8, cité par `ROLES.md`
+(P2.177, 2026-10-14 : jusque-là le compteur n'existait nulle part). **Deux fois → les prompts sont re-scellés** (ils ne
 discriminent plus), et le re-scellage passe par robla. Un texte de critiques ILLISIBLE n'est pas NULLE
 mais **indécidable** (code 2) : un bug de sérialisation ne doit pas devenir un verdict de fond.
 
