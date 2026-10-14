@@ -15,6 +15,13 @@ sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..",
 
 import tools.td_step_pilot_r3 as r3  # noqa: E402
 
+# EXEMPTION DÉCLARÉE de la garde de bail (tests/conftest.py) : ce fichier MENTIONNE `MambaAgent` (des génomes du pilote,
+# construits en mémoire) mais ne simule AUCUN monde et n'ouvre jamais KuzuDB. Mesuré le 2026-10-13 sous le bail « kuzu »
+# d'E34 : la garde sautait les 49 cas, dont 37 sans torch ni agent ; une cellule courte du pilote tourne avec
+# `sys.modules["kuzu"] = None`, sans importer ni `src.graph_rag` ni un monde (seul `src.agents.world_model`, le
+# modèle interne de l'agent).
+_LEASE_GUARD_EXEMPT = True
+
 N = 576
 
 
@@ -240,42 +247,146 @@ def test_calibration_by_injection_is_deterministic_and_its_frequencies_sum_to_on
         assert sum(a["par_sigma"]["9.3"][f].values()) == pytest.approx(1.0)
 
 
-# ---------------------------------------------------------------------------------------------------- main_r3
+# ---------------------------------------------------------------------------------------------------- run par cellule
 
 
-def _main(monkeypatch, tmp_path, regle, db=None, lieu="nexus"):
-    import json as _json
-    out = tmp_path / "td_step_pilot_r3.json"
-    if db is not None:
-        out.write_text(_json.dumps(db), encoding="utf-8")
-    monkeypatch.setattr(r3, "verify", lambda name: regle)
-    monkeypatch.setattr(r3, "results_file", lambda nom: tmp_path / nom)
-    monkeypatch.setattr(r3, "stamp", lambda db, name: db)
-    if lieu is None:
-        monkeypatch.delenv("R3_LIEU", raising=False)
-    else:
-        monkeypatch.setenv("R3_LIEU", lieu)
-    return out
+import hashlib  # noqa: E402
+import json  # noqa: E402
+
+DIGEST = "sha256:" + "d" * 64
 
 
 def _regle_run():
     r = _regle()
-    r["seuils"].update({"budget_etape_s": 14400, "safety": 1.5, "unite_reference_s": 5.0,
-                        "calibration": {"sigmas_pas": [9.3], "f": [0.0], "n_rep": 2, "graine": 1}})
+    r["cellule"]["image_digest"] = DIGEST
+    r["seuils"].update({"budget_etape_s": 14400, "safety": 1.5, "unite_reference_s": 5.0})
     return r
 
 
-def test_main_REFUSES_a_wrong_place_before_any_cell_and_before_importing_torch(monkeypatch, tmp_path):
+@pytest.fixture
+def depot(monkeypatch, tmp_path):
+    """Racine jetable : cellules, pré-vol et agrégat sous tmp_path ; sceau et provenance neutralisés."""
+    monkeypatch.setattr(r3, "results_file", lambda *parties: tmp_path.joinpath(*parties))
+    monkeypatch.setattr(r3, "stamp", lambda db, name: db)
+    monkeypatch.setattr(r3, "verify", lambda name: (_ for _ in ()).throw(FileNotFoundError(name)))
+    return tmp_path
+
+
+def _jamais(*a, **k):
+    raise AssertionError("entraînement appelé alors que la cellule devait être refusée EN TÊTE")
+
+
+@pytest.mark.parametrize("bras,pas,seed,rho,motif", [
+    ("sham_x", "p1", 3, None, "inconnu"), ("lam0", "p3", 3, None, "hors règle"), ("lam0", "p1", 13, None, "hors des"),
+    ("td0_app", "p1", 3, None, "ρ exigés"), ("td0_app", "p1", 3, [1.0] * 5, "ρ exigés"),
+    ("td0_app", "p1", 3, [1.0] * 5 + [0.0], "non positif"), ("lam09", "p1", 3, [1.0] * 6, "n'appartient")])
+def test_a_cell_is_REFUSED_before_any_training_and_writes_nothing(depot, bras, pas, seed, rho, motif):
+    with pytest.raises(ValueError, match=motif):
+        r3.cellule_r3(bras, pas, seed, _regle_run(), rho=rho, entraine=_jamais)
+    assert not any(depot.rglob("*.json"))
+
+
+def _ecrire_cellule(racine, nom, rec):
+    d = racine / "td_step_pilot_r3"
+    d.mkdir(exist_ok=True)
+    (d / f"{nom}.json").write_text(json.dumps(rec), encoding="utf-8")
+    return d / f"{nom}.json"
+
+
+def _blocs(nets):
+    return {"dose_instrument": {"net_blocs": [{"W": [x]} for x in nets], "net_total": float(sum(nets)),
+                                "chemin_total": 2.0 * sum(nets), "porte_rang0_non_nul": 0}}
+
+
+def test_the_rho_argument_round_trips_EXACTLY_through_the_command_line(depot):
     regle = _regle_run()
-    appels = []
-    monkeypatch.setattr(r3, "_cellule", lambda *a: appels.append(a))
-    out = _main(monkeypatch, tmp_path, regle, lieu="batcave")
-    with pytest.raises(ValueError, match="lieu"):
-        r3.main_r3(["--etape", "1"])
-    out2 = _main(monkeypatch, tmp_path, regle, lieu=None)
-    with pytest.raises(ValueError, match="lieu"):
-        r3.main_r3(["--pre-vol"])
-    assert appels == [] and not out.exists() and not out2.exists()
+    n9, n0 = [0.3, 0.7, 1.1, 0.9, 0.5, 0.2], [0.1, 0.35, 0.55, 0.3, 0.5, 0.15]
+    _ecrire_cellule(depot, "lam09_p1_seed3", {"dose": _blocs(n9)})
+    _ecrire_cellule(depot, "lam0_p1_seed3", {"dose": _blocs(n0)})
+    arg = r3.rho_argument("p1", 3, regle)
+    relu = [float(v) for v in arg.split(",")]
+    assert relu == r3.rho_blocs(_blocs(n9), _blocs(n0), 6)                # au bit, comme dans le pod
+
+
+@pytest.mark.parametrize("cpu_app,retenu", [(70.0, True), (100.0, False), (84.0, False)])
+def test_the_preflight_decides_the_paired_arm_on_its_CPU_cost_only_and_is_FROZEN(depot, cpu_app, retenu):
+    regle = _regle_run()
+    for b, u in (("lam0", 70.0), ("lam09", 73.0), ("sham09", 73.0), ("td0_d0", 36.0), ("td0_app", cpu_app)):
+        _ecrire_cellule(depot, f"{b}_p1_seed1", {"cpu_s": u})
+    pv = r3.prevol_r3(regle)
+    assert pv["fraction_cout_apparie"] == pytest.approx(cpu_app / 252.0) and pv["apparie_retenu"] is retenu
+    assert r3.prevol_r3(regle) == pv                                        # même contenu : accepté
+    _ecrire_cellule(depot, "lam0_p1_seed1", {"cpu_s": 71.0})
+    with pytest.raises(ValueError, match="FIGÉ"):
+        r3.prevol_r3(regle)
+
+
+def test_the_preflight_REFUSES_without_its_measured_cells(depot):
+    with pytest.raises(ValueError, match="MESURÉE"):
+        r3.prevol_r3(_regle_run())
+
+
+def _cellule_complete(racine, deport, nom, rec, lieu="nexus", image=DIGEST, rc=0, sha="abc", job=None):
+    rec = dict(rec, provenance=rec.get("provenance", {"dirty": False, "git_sha": sha}), mur_s=1.0, cpu_s=1.0)
+    q = _ecrire_cellule(racine, nom, rec)
+    h = hashlib.sha256(q.read_bytes()).hexdigest()
+    j = deport / (job or f"job-{nom}")
+    j.mkdir(parents=True, exist_ok=True)
+    (j / "MANIFEST.json").write_text(json.dumps({
+        "job": j.name, "lieu": lieu, "sha": sha, "returncode": rc, "commande": ["-m", "tools.td_step_pilot_r3"],
+        "image": f"10.1.2.3:5443/x/runner:t@{image}", "cpu": {"limite_cpu": 1.0, "threads_poses": {}},
+        "debut_utc": "2026-10-14T08:00:00", "fin_utc": "2026-10-14T08:02:00",
+        "fichiers": {f"results/td_step_pilot_r3/{nom}.json": {"sha256": h}}}), encoding="utf-8")
+
+
+def test_the_aggregate_EXCLUDES_and_names_off_place_off_image_failed_dirty_or_unlinked_cells(depot):
+    regle, dep = _regle_run(), depot / "deport"
+    base = {"acc": 0.2, "dose": {}, "acc640": 0.2}
+    _cellule_complete(depot, dep, "lam0_p1_seed1", dict(base, bras="lam0", pas="p1", seed=1))
+    _cellule_complete(depot, dep, "lam0_p1_seed2", dict(base, bras="lam0", pas="p1", seed=2), lieu="batcave")
+    _cellule_complete(depot, dep, "lam0_p1_seed3", dict(base, bras="lam0", pas="p1", seed=3), image="sha256:" + "e" * 64)
+    _cellule_complete(depot, dep, "lam0_p1_seed4", dict(base, bras="lam0", pas="p1", seed=4), rc=1)
+    _cellule_complete(depot, dep, "lam0_p1_seed5", dict(base, bras="lam0", pas="p1", seed=5,
+                                                        provenance={"dirty": True}))
+    _ecrire_cellule(depot, "lam0_p1_seed6", dict(base, bras="lam0", pas="p1", seed=6, provenance={"dirty": False},
+                                                 mur_s=1.0, cpu_s=1.0))     # sans MANIFEST
+    db = r3.agreger_r3(regle, str(dep))
+    raisons = {e["cellule"]: e["raison"] for e in db["_regime"]["exclues"]}
+    assert set(raisons) == {f"lam0_p1_seed{i}" for i in (2, 3, 4, 5, 6)}
+    assert "lieu" in raisons["lam0_p1_seed2"] and "image" in raisons["lam0_p1_seed3"]
+    assert "code" in raisons["lam0_p1_seed4"] and "sale" in raisons["lam0_p1_seed5"]
+    assert "MANIFEST" in raisons["lam0_p1_seed6"]
+    assert r3._cle("lam0", "p1", 1) in db and r3._cle("lam0", "p1", 2) not in db
+    texte = (depot / "td_step_pilot_r3.json").read_text(encoding="utf-8")
+    assert "10.1.2.3" not in texte and db["_lecture"]["par_pas"]["p1"]["branche"] == "INCOMPLET"
+
+
+def test_the_aggregate_REFUSES_two_code_shas_and_rechecks_the_paired_rho_at_the_bit(depot):
+    regle, dep = _regle_run(), depot / "deport"
+    n9, n0 = [0.3, 0.7, 1.1, 0.9, 0.5, 0.2], [0.1, 0.35, 0.55, 0.3, 0.5, 0.15]
+    for b, nets in (("lam09", n9), ("lam0", n0)):
+        _cellule_complete(depot, dep, f"{b}_p1_seed3", {"bras": b, "pas": "p1", "seed": 3, "acc": 0.2,
+                                                        "dose": _blocs(nets), "acc640": 0.2})
+    bon = r3.rho_blocs(_blocs(n9), _blocs(n0), 6)
+    _cellule_complete(depot, dep, "td0_app_p1_seed3", {"bras": "td0_app", "pas": "p1", "seed": 3, "acc": 0.2,
+                                                       "dose": _blocs(n9), "acc640": 0.2,
+                                                       "rho": [x * 1.0000001 for x in bon]})
+    db = r3.agreger_r3(regle, str(dep))
+    assert {"cellule": "td0_app_p1_seed3", "raison": "ρ reçu ≠ ρ recalculé depuis lam0 et lam09 de l'agrégat"} in \
+        db["_regime"]["exclues"]
+    assert r3._cle("td0_app", "p1", 3) not in db
+    _cellule_complete(depot, dep, "lam0_p1_seed4", {"bras": "lam0", "pas": "p1", "seed": 4, "acc": 0.2,
+                                                    "dose": {}, "acc640": 0.2}, sha="autre")
+    with pytest.raises(ValueError, match="sha de code"):
+        r3.agreger_r3(regle, str(dep))
+
+
+def test_the_v2_calibration_reads_the_known_answers_without_noise():
+    regle = _regle()
+    a = r3.calibrer_lecture_v2(regle, 40.0, 0.0, [0.0], [0.0, 1.0], 5, 7)
+    assert a["par_sigma_e"]["0.0"]["0.0"] == {"TRANSPORTE": 1.0}
+    assert a["par_sigma_e"]["0.0"]["1.0"] == {"PAS_PLUS_GROS": 1.0}
+    assert a == r3.calibrer_lecture_v2(regle, 40.0, 0.0, [0.0], [0.0, 1.0], 5, 7)
 
 
 # ---------------------------------------------------------------------------------------------------- sous torch
@@ -385,50 +496,17 @@ def test_the_lr0_reference_without_training_equals_the_lr0_reference_trained(fla
     assert nu["eval_exhaustive"] == entraine["eval_exhaustive"]
 
 
-class _Horloge:
-    """Chronomètre factice : chaque cellule dure la valeur suivante de `durees` (mur = CPU)."""
-    def __init__(self, durees):
-        self.durees = list(durees)
-
-    def __call__(self):
-        d = self.durees.pop(0)
-        return type("C", (), {"elapsed": staticmethod(lambda: {"elapsed_s": d, "elapsed_cpu_s": d})})()
-
-
-class _Fenetre:
-    def close(self):
-        return {"coeurs_exterieurs": 1.0}
-
-
-def _factices(monkeypatch, durees):
-    monkeypatch.setattr(torch, "set_num_threads", lambda n: None)
-    monkeypatch.setattr(r3, "Stopwatch", _Horloge(durees))
-    monkeypatch.setattr(r3, "LoadWindow", _Fenetre)
-    monkeypatch.setattr(r3, "_lien_r0", lambda db, c: {"statut": "TEST"})
-    monkeypatch.setattr(r3, "_cellule", lambda b, p, sd, c, db: (0.2, 0.2, {"dose_instrument": {"net_total": 1.0}}))
-
-
-@pytest.mark.parametrize("unite_app,retenu", [(70.0, True), (100.0, False), (84.0, False)])
 @requires_torch
-def test_preflight_retains_the_paired_arm_on_its_MEASURED_cost_only(monkeypatch, tmp_path, unite_app, retenu):
-    regle = _regle_run()
-    _main(monkeypatch, tmp_path, regle)
-    _factices(monkeypatch, [70.0, 73.0, 73.0, 36.0, unite_app])          # lam0, lam09, sham09, td0_d0, td0_app
-    db = r3.main_r3(["--pre-vol"])
-    pv = db["_regime"]["pre_vol"]
-    assert pv["fraction_cout_apparie"] == pytest.approx(unite_app / 252.0)
-    assert pv["apparie_retenu"] is retenu                                # 84/252 = 1/3 exactement : REFUSÉ (strict)
-    assert set(pv["unites_par_bras_s"]) == {"lam0", "lam09", "sham09", "td0_d0", "td0_app"}
+def test_a_cell_writes_its_own_file_with_the_rule_setup_and_publishes_rho(depot):
+    vus = {}
 
-
-@requires_torch
-def test_a_step_REFUSES_without_a_preflight_and_step_2_before_step_1(monkeypatch, tmp_path):
-    regle = _regle_run()
-    _main(monkeypatch, tmp_path, regle)
-    _factices(monkeypatch, [])
-    with pytest.raises(ValueError, match="--pre-vol d'abord"):
-        r3.main_r3(["--etape", "1"])
-    db = {"_regime": {"pre_vol": {"apparie_retenu": True, "unites_par_bras_s": {}}}}
-    _main(monkeypatch, tmp_path, regle, db=db)
-    with pytest.raises(ValueError, match="étape 2 avant la fin de l'étape 1"):
-        r3.main_r3(["--etape", "2"])
+    def entraine(seed, lam, episodes, n_agents, K, lr, **kw):
+        vus.update(kw, lam=lam, lr=lr, episodes=episodes)
+        return 0.2, {"updates": 6000, "eval_exhaustive": {"succes": 150, "n": 576, "succes_par_agent": [9] * 16}}
+    rho = [1.5, 1.4, 1.3, 1.2, 1.1, 1.0]
+    rec = r3.cellule_r3("td0_app", "p1", 3, _regle_run(), rho=rho, entraine=entraine)
+    assert (depot / "td_step_pilot_r3" / "td0_app_p1_seed3.json").exists()
+    assert rec["rho"] == rho and vus["lr_blocs"] == rho and vus["lam"] == 0.0 and vus["lr"] == 4.0
+    assert vus["mesure_dose"] and vus["eval_exhaustive"] and vus["episodes"] == 3000 and rec["succes"] == 150
+    rec = r3.cellule_r3("sham09", "p2", 3, _regle_run(), entraine=entraine)
+    assert vus["sham"] == "decale" and vus["controle_delta"] and vus["lr_blocs"] is None and rec["rho"] is None

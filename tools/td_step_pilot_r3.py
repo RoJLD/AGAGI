@@ -14,12 +14,19 @@ publiés ; le lien au bit avec R0/R2 est publié, jamais exigé (décision 5).
 
 Lecture sur la grille EXHAUSTIVE (B·K² = 576, marge 29 pas) : d = lam09 − lam0 et e = sham09 − lam0 par seed,
 f̂ = Σe/Σd (fraction du gain que le sham CONSERVE) avec IC90 par bootstrap apparié sur les seeds, à graine déclarée.
-Usage : python tools/td_step_pilot_r3.py [--pre-vol | --etape 1 | --etape 2 | --lecture | --calibrer-lecture]
-Résultats : results/td_step_pilot_r3.json (et _calibration_lecture.json).
+Exécution CELLULE PAR CELLULE (déport nexus, une commande par Job) puis agrégat sur la batcave -- voir `main_r3`.
+Résultats : results/td_step_pilot_r3/<cellule>.json (par cellule, hors git), results/td_step_pilot_r3.json,
+_prevol.json et _calibration_lecture.json (suivis).
 """
+import argparse
+import glob
+import hashlib
 import json
+import math
 import os
 import platform
+import re
+import statistics
 import sys
 import time
 
@@ -29,8 +36,7 @@ if _ROOT not in sys.path:
 
 import numpy as np
 
-from tools.cost_guard import (COEURS_EXTERIEURS_LIBRE_MAX, CostGuard, LoadWindow, Stopwatch, cost_per_arm,
-                              project_cost_per_arm)
+from tools.cost_guard import cost_per_arm, project_cost_per_arm
 from tools.experiment_preflight import (PreflightError, ReferenceCollapsedError, assert_control_family,
                                         assert_verdict_invariant_to_optimizer, declare_design)
 from tools.grid_compare import cmp_continu, cmp_grille, marge_en_pas, sur_grille
@@ -425,34 +431,300 @@ def calibrer_lecture(regle, profil_d, sigmas, fs, n_rep, graine):
     return out
 
 
-# ---------------------------------------------------------------------------------------------------- le run
+# ---------------------------------------------------------------------------------------------------- calibration v2
 
 
-def _cellule(bras, pas, sd, c, db):
-    """(accuracy exhaustive, accuracy tirée 640, dose) d'un bras entraîné, instrumenté."""
-    lr = float(c["pas"][pas])
-    lam, sham, same_tick = _spec(bras, c)
-    lr_blocs = None
+def base_injection_v2(regle, mu, tau, sigma_e, f, rng, base=110):
+    """Modèle de bruit DÉCLARÉ v2 (règle v2, après la mesure de τ sur les seeds tenues à l'écart) : AUCUN bruit d'éval
+    (éval exhaustive, entraînement déterministe par seed) ; d_s ~ N(μ, τ) ; lam0 = base ; lam09 = base + d_s ;
+    sham09 = base + f·d_s + σ_e·z ; bras apparié = lam0 (sans avantage). Le reste (références, chemin, instrument) comme
+    `base_injection`. Pure, sans simulation."""
+    c = regle["cellule"]
+    n = _n_grille(c)
+    p = c["pas_primaire"]
+    db = base_injection(regle, [0.0] * len(c["seeds"]), 0.0, 0.0, rng, base=base)
+
+    def put(k, x):
+        db[k] = int(min(max(round(x), 0), n)) / n
+    for sd in c["seeds"]:
+        d = mu + tau * rng.standard_normal()
+        put(_cle("lam0", p, sd), base)
+        put(_cle("lam09", p, sd), base + d)
+        put(_cle("sham09", p, sd), base + f * d + sigma_e * rng.standard_normal())
+        if c.get("bras_apparie", False):
+            put(_cle(BRAS_APPARIE, p, sd), base)
+    return db
+
+
+def calibrer_lecture_v2(regle, mu, tau, sigmas_e, fs, n_rep, graine):
+    """Calibration de la lecture d'UN pas sous le modèle v2 (0 simulation) : par σ_e et par f, la fréquence de chaque
+    branche de la VRAIE lecture. Exigé avant le sceau (règle v2) : P(TRANSPORTE | f = 0) et P(PAS_PLUS_GROS | f = 1)
+    ≥ 0,8 à σ_e = τ ; fausses lectures publiées."""
+    rng = np.random.default_rng(int(graine))
+    p = regle["cellule"]["pas_primaire"]
+    out = {"modele": "v2 : sans bruit d'éval ; d ~ N(mu, tau) ; sham09 = lam0 + f·d + sigma_e·z", "mu_pas": float(mu),
+           "tau_pas": float(tau), "graine": int(graine), "n_rep": int(n_rep), "par_sigma_e": {}}
+    for se in sigmas_e:
+        par_f = {}
+        for f in fs:
+            comptes = {b: 0 for b in BRANCHES_PAS}
+            for _ in range(int(n_rep)):
+                comptes[classify_pas(base_injection_v2(regle, mu, tau, se, f, rng), regle, p)["branche"]] += 1
+            par_f[str(f)] = {b: comptes[b] / n_rep for b in BRANCHES_PAS if comptes[b]}
+        out["par_sigma_e"][str(se)] = par_f
+    return out
+
+
+# ---------------------------------------------------------------------------------------------------- le run (déport)
+# Lieu = nexus (décision 5). Le déport exécute UNE commande par Job, au sha, dans un pod qui ne voit que les fichiers
+# SUIVIS (REF-DEPORT-NEXUS) : d'où une cellule par commande, un fichier par cellule, et les ρ du bras apparié passés en
+# ARGUMENT -- calculés sur la batcave depuis les cellules lam0 et lam09 RAPATRIÉES (`rho`), relus et revérifiés à
+# l'agrégat. L'agrégat (batcave, aucune simulation) relie chaque fichier au MANIFEST du Job qui l'a produit par son
+# sha256, et EXCLUT en le nommant toute cellule sans MANIFEST, d'un autre lieu, d'une autre image, d'un code non nul ou
+# d'un arbre sale -- jamais lue. Le pré-vol est une décision FIGÉE dans son propre fichier, prise avant toute autre
+# cellule et jamais réécrite.
+
+DOSSIER = "td_step_pilot_r3"
+_IP = re.compile(r"\b\d{1,3}(?:\.\d{1,3}){3}\b")
+
+
+def _chemin_cellule(nom):
+    return str(results_file(DOSSIER, f"{nom}.json"))
+
+
+def _nom_cellule(bras, pas, sd):
+    return f"{bras}_{pas}_seed{sd}"
+
+
+def _n_blocs(c):
+    return int(c["episodes_td"]) // int(c["bloc_episodes"])
+
+
+def _refus_cellule(bras, pas, sd, c, rho):
+    """Refus EN TÊTE d'une cellule entraînée (aucune construction, aucun import de torch)."""
+    if bras not in BRAS_ENTRAINES + (BRAS_APPARIE,):
+        raise ValueError(f"bras {bras!r} inconnu de R3 : {list(BRAS_ENTRAINES) + [BRAS_APPARIE]}")
+    if bras == BRAS_APPARIE and not c.get("bras_apparie", False):
+        raise ValueError("bras apparié absent de la règle")
+    if pas not in (c["pas_primaire"], c["pas_secondaire"]):
+        raise ValueError(f"pas {pas!r} hors règle ({c['pas_primaire']}, {c['pas_secondaire']})")
+    if sd not in c["seeds"]:
+        raise ValueError(f"seed {sd} hors des seeds scellées {c['seeds'][0]}-{c['seeds'][-1]}")
     if bras == BRAS_APPARIE:
-        n_blocs = int(c["episodes_td"]) // int(c["bloc_episodes"])
-        lr_blocs = rho_blocs(db["_dose"][_cle("lam09", pas, sd)], db["_dose"][_cle("lam0", pas, sd)], n_blocs)
-    acc640, dose = _train_eval_td_step(sd, lam, c["episodes_td"], c["n_agents"], c["K"], lr,
-                                       trace_reset_per_episode=c["trace_reset_per_episode"], same_tick=same_tick,
-                                       sham=sham, mesure_dose=True, eval_exhaustive=True,
-                                       bloc_dose=c["bloc_episodes"], lr_blocs=lr_blocs,
-                                       controle_delta=(sham is not None))
+        if rho is None or len(rho) != _n_blocs(c):
+            raise ValueError(f"bras apparié : {_n_blocs(c)} multiplicateurs ρ exigés (--rho, calculés par la commande "
+                             f"`rho` depuis lam0 et lam09 rapatriés), reçu {None if rho is None else len(rho)}")
+        if not all(math.isfinite(x) and x > 0.0 for x in rho):
+            raise ValueError(f"ρ non fini ou non positif : {rho}")
+    elif rho is not None:
+        raise ValueError("--rho n'appartient qu'au bras apparié")
+
+
+def cellule_r3(bras, pas, sd, regle, rho=None, entraine=None):
+    """UNE cellule entraînée, instrumentée, évaluée exhaustivement ; écrit son fichier. `entraine` injectable."""
+    c = regle["cellule"]
+    _refus_cellule(bras, pas, sd, c, rho)
+    from tools.preregister import provenance
+    if entraine is None:
+        entraine = _train_eval_td_step
+    lam, sham, same_tick = _spec(bras, c)
+    t0, c0 = time.time(), time.process_time()
+    acc640, dose = entraine(sd, lam, c["episodes_td"], c["n_agents"], c["K"], float(c["pas"][pas]),
+                            trace_reset_per_episode=c["trace_reset_per_episode"], same_tick=same_tick, sham=sham,
+                            mesure_dose=True, eval_exhaustive=True, bloc_dose=c["bloc_episodes"],
+                            lr_blocs=(list(rho) if rho is not None else None), controle_delta=(sham is not None))
     ex = dose["eval_exhaustive"]
-    return ex["succes"] / ex["n"], acc640, dose
+    if ex["n"] != _n_grille(c):
+        raise ValueError(f"grille {ex['n']} ≠ {_n_grille(c)} : la cellule ne mesure pas le dispositif de R3")
+    rec = {"bras": bras, "pas": pas, "seed": sd, "acc": ex["succes"] / ex["n"], "succes": int(ex["succes"]),
+           "n": int(ex["n"]), "acc640": acc640, "rho": (list(rho) if rho is not None else None), "dose": dose,
+           "mur_s": time.time() - t0, "cpu_s": time.process_time() - c0, "environnement": _environnement(c),
+           "provenance": provenance()}
+    p = _chemin_cellule(_nom_cellule(bras, pas, sd))
+    os.makedirs(os.path.dirname(p), exist_ok=True)
+    json.dump(rec, open(p, "w", encoding="utf-8"), indent=1, ensure_ascii=False)
+    print(f"{bras} {pas} seed {sd} : {rec['succes']}/{rec['n']} ({rec['mur_s']:.0f} s mur) -> {p}", flush=True)
+    return rec
 
 
-def _reference(ref, sd, c):
+def reference_r3(ref, sd, regle, entraine=None):
     """Référence lr 0 : AUCUN entraînement (à lr 0 les paramètres ne bougent pas -- témoin dans les tests), éval
-    exhaustive seule sur le substrat construit au même seed."""
-    _, dose = _train_eval_td_step(sd, 0.0, 0, c["n_agents"], c["K"], 0.0, eval_batches=0,
-                                  trace_reset_per_episode=c["trace_reset_per_episode"],
-                                  same_tick=(ref == "lr0_reference_d0"), eval_exhaustive=True)
+    exhaustive seule sur le substrat construit au même seed ; écrit son fichier."""
+    c = regle["cellule"]
+    if ref not in REFERENCES:
+        raise ValueError(f"référence {ref!r} inconnue : {list(REFERENCES)}")
+    if sd not in c["seeds"]:
+        raise ValueError(f"seed {sd} hors des seeds scellées")
+    from tools.preregister import provenance
+    if entraine is None:
+        entraine = _train_eval_td_step
+    t0, c0 = time.time(), time.process_time()
+    _, dose = entraine(sd, 0.0, 0, c["n_agents"], c["K"], 0.0, eval_batches=0,
+                       trace_reset_per_episode=c["trace_reset_per_episode"], same_tick=(ref == "lr0_reference_d0"),
+                       eval_exhaustive=True)
     ex = dose["eval_exhaustive"]
-    return ex["succes"] / ex["n"], dose
+    rec = {"ref": ref, "seed": sd, "acc": ex["succes"] / ex["n"], "succes": int(ex["succes"]), "n": int(ex["n"]),
+           "dose": dose, "mur_s": time.time() - t0, "cpu_s": time.process_time() - c0,
+           "environnement": _environnement(c), "provenance": provenance()}
+    p = _chemin_cellule(f"{ref}_seed{sd}")
+    os.makedirs(os.path.dirname(p), exist_ok=True)
+    json.dump(rec, open(p, "w", encoding="utf-8"), indent=1, ensure_ascii=False)
+    return rec
+
+
+def rho_argument(pas, sd, regle):
+    """L'argument --rho du bras apparié (batcave, aucune simulation) : ρ_b depuis les cellules lam09 et lam0 RAPATRIÉES
+    du même seed et du même pas, écrits en repr exacte (un flottant relu dans le pod est le même au bit)."""
+    lire = lambda b: json.load(open(_chemin_cellule(_nom_cellule(b, pas, sd)), encoding="utf-8"))["dose"]  # noqa: E731
+    rho = rho_blocs(lire("lam09"), lire("lam0"), _n_blocs(regle["cellule"]))
+    return ",".join(repr(float(x)) for x in rho)
+
+
+def _sha256(p):
+    return hashlib.sha256(open(p, "rb").read()).hexdigest()
+
+
+def _index_manifestes(deport):
+    """{(« dossier/fichier » de sortie, sha256): résumé du MANIFEST} -- l'image par son DIGEST seulement (dépôt
+    public)."""
+    out = {}
+    for p in glob.glob(os.path.join(deport, "*", "MANIFEST.json")):
+        try:
+            m = json.load(open(p, encoding="utf-8"))
+        except (OSError, ValueError):
+            continue
+        if "tools.td_step_pilot_r3" not in (m.get("commande") or []):
+            continue
+        dig = re.search(r"@(sha256:[0-9a-f]{64})", m.get("image") or "")
+        cpu = m.get("cpu") or {}
+        resume = {"job": m.get("job"), "lieu": m.get("lieu"), "sha": m.get("sha"), "returncode": m.get("returncode"),
+                  "image_digest": dig.group(1) if dig else None, "limite_cpu": cpu.get("limite_cpu"),
+                  "threads_poses": cpu.get("threads_poses"), "debut_utc": m.get("debut_utc"),
+                  "fin_utc": m.get("fin_utc"), "duree_mur_s": m.get("duree_mur_s"),
+                  "cpu_user_s": m.get("cpu_user_s")}
+        for rel, info in (m.get("fichiers") or {}).items():
+            fin = rel.replace("\\", "/").split("/")[-2:]      # dossier/fichier : la racine est celle du déploiement
+            if len(fin) == 2 and fin[0] == DOSSIER and isinstance(info, dict) and info.get("sha256"):
+                out[("/".join(fin), info["sha256"])] = resume
+    return out
+
+
+def prevol_r3(regle):
+    """Pré-vol FIGÉ (batcave, aucune simulation), depuis les cellules du seed 1 au pas primaire : unité CPU PAR BRAS,
+    décision d'inclure le bras apparié sur son COÛT seul (fraction STRICTEMENT sous le seuil), projection par étape
+    (refus `CostTooHighToStart` au-delà du budget). Écrit results/td_step_pilot_r3_prevol.json UNE fois : une décision
+    prise ne se réécrit pas (refus si le fichier existe avec un autre contenu)."""
+    c, s = regle["cellule"], regle["seuils"]
+    sd, p = c["seeds"][0], c["pas_primaire"]
+    bras = list(BRAS_ENTRAINES) + ([BRAS_APPARIE] if c.get("bras_apparie", False) else [])
+    u = {}
+    for b in bras:
+        q = _chemin_cellule(_nom_cellule(b, p, sd))
+        if not os.path.exists(q):
+            raise ValueError(f"pré-vol : cellule {os.path.basename(q)} absente -- l'unité est MESURÉE, jamais supposée")
+        u[b] = float(json.load(open(q, encoding="utf-8"))["cpu_s"])
+    autres = sum(u[b] for b in BRAS_ENTRAINES)
+    frac = (u[BRAS_APPARIE] / autres) if (BRAS_APPARIE in u and autres > 0) else None
+    retenu = bool(frac is not None and frac < s["fraction_cout_apparie_max"])
+    bras_run = list(BRAS_ENTRAINES) + ([BRAS_APPARIE] if retenu else [])
+    n_par_bras = {b: len(c["seeds"]) for b in bras_run}
+    n_par_bras.update({r: len(c["seeds"]) for r in REFERENCES})
+    unites = dict(u)
+    unites.update({r: s["unite_reference_s"] for r in REFERENCES})
+    pv = {"unites_cpu_par_bras_s": u, "fraction_cout_apparie": frac, "seuil_fraction": s["fraction_cout_apparie_max"],
+          "apparie_retenu": retenu,
+          "projection_etape_s": project_cost_per_arm(unites, n_par_bras, s["budget_etape_s"], safety=s["safety"],
+                                                     label="TD-STEP-PILOT-R3 étape"),
+          "par_bras": cost_per_arm(unites, n_par_bras, safety=s["safety"])["par_bras"]}
+    dest = str(results_file("td_step_pilot_r3_prevol.json"))
+    texte = json.dumps(pv, indent=1, ensure_ascii=False, sort_keys=True)
+    if os.path.exists(dest) and open(dest, encoding="utf-8").read() != texte:
+        raise ValueError("pré-vol déjà FIGÉ avec un autre contenu : une décision prise ne se réécrit pas")
+    open(dest, "w", encoding="utf-8").write(texte)
+    return pv
+
+
+def agreger_r3(regle, deport=os.path.join("runs", "deport")):
+    """Agrégat (batcave, aucune simulation) : relit les cellules, les relie à leur MANIFEST par sha256, EXCLUT et nomme
+    toute cellule hors lieu / hors image / code non nul / arbre sale / sans MANIFEST, revérifie les ρ du bras apparié,
+    refuse de mêler deux sha de code, puis lit (`lecture_r3`) et publie results/td_step_pilot_r3.json."""
+    c = regle["cellule"]
+    index = _index_manifestes(deport)
+    db = {"_dose": {}, "_g640": {}, "_temps_s": {}}
+    exclues, manifestes, shas = [], {}, set()
+    for q in sorted(glob.glob(os.path.join(str(results_file(DOSSIER)), "*.json"))):
+        nom = os.path.basename(q)[:-5]
+        rec = json.load(open(q, encoding="utf-8"))
+        m = index.get((f"{DOSSIER}/{nom}.json", _sha256(q)))
+        raison = None
+        if m is None:
+            raison = "aucun MANIFEST ne porte ce fichier (sha256)"
+        elif m["lieu"] != c["lieu"]:
+            raison = f"lieu {m['lieu']!r} ≠ {c['lieu']!r}"
+        elif c.get("image_digest") and m["image_digest"] != c["image_digest"]:
+            raison = f"image {m['image_digest']} ≠ {c['image_digest']}"
+        elif m["returncode"] != 0:
+            raison = f"code {m['returncode']}"
+        elif (rec.get("provenance") or {}).get("dirty") is not False:
+            raison = "arbre sale ou provenance absente"
+        if raison:
+            exclues.append({"cellule": nom, "raison": raison})
+            continue
+        shas.add(m["sha"])
+        k = _cle_ref(rec["ref"], rec["seed"]) if "ref" in rec else _cle(rec["bras"], rec["pas"], rec["seed"])
+        db[k], db["_dose"][k] = rec["acc"], rec["dose"]
+        if rec.get("acc640") is not None:
+            db["_g640"][k] = rec["acc640"]
+        db["_temps_s"][k] = {"mur_s": rec["mur_s"], "cpu_s": rec["cpu_s"]}
+        manifestes[k] = m
+    if len(shas) > 1:
+        raise ValueError(f"cellules de {len(shas)} sha de code différents : refus d'agréger -- {sorted(shas)}")
+    for k in [k for k in list(db) if k.startswith(BRAS_APPARIE + "|")]:          # ρ revérifiés au bit
+        _, p, sd = k.split("|")
+        p, sd = p[4:], int(sd[5:])
+        k9, k0 = _cle("lam09", p, sd), _cle("lam0", p, sd)
+        attendu = (rho_blocs(db["_dose"][k9], db["_dose"][k0], _n_blocs(c))
+                   if k9 in db["_dose"] and k0 in db["_dose"] else None)
+        recu = json.load(open(_chemin_cellule(_nom_cellule(BRAS_APPARIE, p, sd)), encoding="utf-8"))["rho"]
+        if attendu is None or [float(x) for x in recu] != [float(x) for x in attendu]:
+            exclues.append({"cellule": _nom_cellule(BRAS_APPARIE, p, sd),
+                            "raison": "ρ reçu ≠ ρ recalculé depuis lam0 et lam09 de l'agrégat"})
+            for champ in (db, db["_dose"], db["_g640"], db["_temps_s"], manifestes):
+                champ.pop(k, None)
+    pv_path = str(results_file("td_step_pilot_r3_prevol.json"))
+    debuts = {k: m["debut_utc"] for k, m in manifestes.items()}
+    p1, p2 = c["pas_primaire"], c["pas_secondaire"]
+    fins_p1 = [manifestes[k]["fin_utc"] for k in manifestes if f"|pas={p1}|" in k]
+    debs_p2 = [debuts[k] for k in debuts if f"|pas={p2}|" in k]
+    db["_regime"] = {k: v for k, v in c.items() if k != "seeds"}
+    db["_regime"].update({
+        "pre_vol": json.load(open(pv_path, encoding="utf-8")) if os.path.exists(pv_path) else None,
+        "exclues": exclues, "sha_code": sorted(shas), "manifestes": manifestes,
+        "etape2_apres_etape1": (min(debs_p2) > max(fins_p1)) if (debs_p2 and fins_p1) else None})
+    db["_regime"]["lien_r0"] = _lien_r0(db, c)
+    n = _n_grille(c)                                   # d de l'étape 1 : DESCRIPTIF, ne change aucun seuil
+    d1 = [int(round((db[_cle("lam09", p1, sd)] - db[_cle("lam0", p1, sd)]) * n)) for sd in c["seeds"]
+          if _cle("lam09", p1, sd) in db and _cle("lam0", p1, sd) in db]
+    db["_regime"]["d_etape1"] = {"d_pas": d1, "moyenne_pas": statistics.mean(d1) if d1 else None,
+                                 "et_pas": statistics.stdev(d1) if len(d1) >= 2 else None,
+                                 "tenues_a_l_ecart": {k: (regle["seuils"].get("calibration") or {}).get(k)
+                                                      for k in ("mu_pas", "tau_pas")}}
+    n_cellules = len(c["seeds"]) * 2 * (len(BRAS_ENTRAINES) + int(bool(c.get("bras_apparie")))) + \
+        len(c["seeds"]) * len(REFERENCES)
+    db["_design"] = declare_design(
+        question=regle["question"],
+        replication_unit="seed (une population de %d agents par cellule ; bras appariés par seed)" % c["n_agents"],
+        n_independent=len(c["seeds"]),
+        links={"accuracy_exhaustive_par_bras": "measured", "dose_chemin_et_net_par_agent": "measured",
+               "controle_chemin_td0_d0": "measured", "references_lr0": "measured", "f_hat": "measured"},
+        cost_estimate=regle["cout"], control_family=assert_control_family(cells=n_cellules, alpha_family=0.05))
+    db["_lecture"] = lecture_r3(db, regle)
+    texte = json.dumps(stamp(db, RULE_R3), indent=1, ensure_ascii=False)
+    if _IP.search(texte):
+        raise ValueError("adresse de type IP dans l'agrégat (dépôt public) : refus d'écrire")
+    dest = str(results_file("td_step_pilot_r3.json"))
+    open(dest, "w", encoding="utf-8").write(texte)
+    return db
 
 
 def _lien_r0(db, c):
@@ -483,7 +755,9 @@ def _environnement(c):
     import torch
     return {"torch": torch.__version__, "numpy": np.__version__, "python": platform.python_version(),
             "hote": platform.node(), "systeme": platform.platform(), "threads_torch": torch.get_num_threads(),
-            "lieu_declare": os.environ.get("R3_LIEU"), "coeurs_logiques": os.cpu_count()}
+            "threads_env": {v: os.environ.get(v) for v in ("OMP_NUM_THREADS", "OPENBLAS_NUM_THREADS",
+                                                           "MKL_NUM_THREADS", "NUMEXPR_NUM_THREADS")},
+            "coeurs_logiques": os.cpu_count()}
 
 
 def _profil_d_r0(c):
@@ -496,128 +770,56 @@ def _profil_d_r0(c):
 
 
 def main_r3(argv=None):
-    argv = list(sys.argv[1:] if argv is None else argv)
+    """CLI. Dans un pod (une commande par Job) : `cellule --bras B --pas P --seed S [--rho r1,…]`, `reference --ref R
+    --seed S`. Sur la batcave, sans simulation : `rho --pas P --seed S` (l'argument du bras apparié), `prevol`,
+    `agreger [--deport DIR]`, `calibrer-lecture` (modèle v2 déclaré par la règle), `lecture`."""
+    ap = argparse.ArgumentParser(description=__doc__.splitlines()[0])
+    sp = ap.add_subparsers(dest="cmd", required=True)
+    a = sp.add_parser("cellule")
+    a.add_argument("--bras", required=True)
+    a.add_argument("--pas", required=True)
+    a.add_argument("--seed", type=int, required=True)
+    a.add_argument("--rho", default=None)
+    r = sp.add_parser("reference")
+    r.add_argument("--ref", required=True)
+    r.add_argument("--seed", type=int, required=True)
+    h = sp.add_parser("rho")
+    h.add_argument("--pas", required=True)
+    h.add_argument("--seed", type=int, required=True)
+    sp.add_parser("prevol")
+    g = sp.add_parser("agreger")
+    g.add_argument("--deport", default=os.path.join("runs", "deport"))
+    sp.add_parser("calibrer-lecture")
+    sp.add_parser("lecture")
+    x = ap.parse_args(argv)
     regle = verify(RULE_R3)
-    c, s = regle["cellule"], regle["seuils"]
-    out_path = str(results_file("td_step_pilot_r3.json"))
-    db = json.load(open(out_path, encoding="utf-8")) if os.path.exists(out_path) else {}
-    if "--lecture" in argv:
-        print(json.dumps(lecture_r3(db, regle), indent=1, ensure_ascii=False))
+    if x.cmd == "cellule":
+        rho = [float(v) for v in x.rho.split(",")] if x.rho else None
+        return cellule_r3(x.bras, x.pas, x.seed, regle, rho=rho)
+    if x.cmd == "reference":
+        return reference_r3(x.ref, x.seed, regle)
+    if x.cmd == "rho":
+        arg = rho_argument(x.pas, x.seed, regle)
+        print(arg)
+        return arg
+    if x.cmd == "prevol":
+        pv = prevol_r3(regle)
+        print(json.dumps(pv, indent=1, ensure_ascii=False))
+        return pv
+    if x.cmd == "agreger":
+        db = agreger_r3(regle, x.deport)
+        print(json.dumps(db["_lecture"], indent=1, ensure_ascii=False))
         return db
-    if "--calibrer-lecture" in argv:
-        cal = calibrer_lecture(regle, _profil_d_r0(c), s["calibration"]["sigmas_pas"], s["calibration"]["f"],
-                               s["calibration"]["n_rep"], s["calibration"]["graine"])
-        cal_path = str(results_file("td_step_pilot_r3_calibration_lecture.json"))
-        json.dump(stamp(cal, RULE_R3), open(cal_path, "w", encoding="utf-8"), indent=1)
-        print(json.dumps(cal["par_sigma"], indent=1), "\n->", cal_path)
-        return cal
-    lieu = os.environ.get("R3_LIEU")
-    if lieu != c["lieu"]:
-        raise ValueError(f"TD-STEP-PILOT-R3 : lieu scellé {c['lieu']!r}, déclaré {lieu!r} (R3_LIEU) -- refus avant "
-                         "toute cellule (décision 5)")
-    import torch
-    torch.set_num_threads(int(c["threads"]))
-    etape = "pre-vol" if "--pre-vol" in argv else ("2" if "--etape" in argv and argv[argv.index("--etape") + 1] == "2"
-                                                   else "1")
-    bras = _bras_du_pas(c)
-    cellules = ([_cle(b, p, sd) for p in (c["pas_primaire"], c["pas_secondaire"]) for sd in c["seeds"] for b in bras]
-                + [_cle_ref(r, sd) for r in REFERENCES for sd in c["seeds"]])
-    design = declare_design(
-        question=regle["question"],
-        replication_unit="seed (une population de %d agents par cellule ; bras appariés par seed)" % c["n_agents"],
-        n_independent=len(c["seeds"]),
-        links={"accuracy_exhaustive_par_bras": "measured", "dose_chemin_et_net_par_agent": "measured",
-               "controle_chemin_td0_d0": "measured", "references_lr0": "measured", "f_hat": "measured"},
-        cost_estimate=regle["cout"],
-        control_family=assert_control_family(cells=len(cellules), alpha_family=0.05))
-    db.setdefault("_design", design)
-    db.setdefault("_regime", {k: v for k, v in c.items() if k != "seeds"})
-    db["_regime"].setdefault("environnement", _environnement(c))
-    for champ in ("_dose", "_g640", "_temps_s"):
-        db.setdefault(champ, {})
-
-    def persister():
-        json.dump(stamp(db, RULE_R3), open(out_path, "w", encoding="utf-8"), indent=1)
-
-    def mesurer(k):
-        fen, chrono = LoadWindow(), Stopwatch()
-        if k.split("|")[0] in REFERENCES:
-            ref, sd = k.split("|")[0], int(k.split("|")[1][5:])
-            acc, dose = _reference(ref, sd, c)
-            acc640 = None
-        else:
-            b, p, sd = k.split("|")[0], k.split("|")[1][4:], int(k.split("|")[2][5:])
-            acc, acc640, dose = _cellule(b, p, sd, c, db)
-        el = chrono.elapsed()
-        charge = fen.close()
-        db[k], db["_dose"][k] = acc, dose
-        if acc640 is not None:
-            db["_g640"][k] = acc640
-        db["_temps_s"][k] = {"mur_s": el["elapsed_s"], "cpu_s": el["elapsed_cpu_s"],
-                             "coeurs_exterieurs": charge["coeurs_exterieurs"]}
-        persister()
-        print(f"  {k}: {acc:.4f} ({el['elapsed_s']:.1f} s mur, {el['elapsed_cpu_s']:.1f} s cpu)", flush=True)
-        return db["_temps_s"][k]
-
-    if etape == "pre-vol":
-        # Un seed complet au pas primaire, bras par bras, chronométré machine NOTÉE : l'unité PAR BRAS scellée par la
-        # règle, puis la décision (déclarée d'avance, sur le COÛT seul) d'inclure ou non le bras apparié.
-        sd = c["seeds"][0]
-        for b in list(BRAS_ENTRAINES) + ([BRAS_APPARIE] if c.get("bras_apparie", False) else []):
-            k = _cle(b, c["pas_primaire"], sd)
-            if k not in db:
-                mesurer(k)
-        u = {b: db["_temps_s"][_cle(b, c["pas_primaire"], sd)]["mur_s"] for b in _bras_du_pas(c)}
-        autres = sum(u[b] for b in BRAS_ENTRAINES)
-        frac = (u[BRAS_APPARIE] / autres) if (BRAS_APPARIE in u and autres > 0) else None
-        db["_regime"]["pre_vol"] = {"unites_par_bras_s": u, "fraction_cout_apparie": frac,
-                                    "seuil_fraction": s["fraction_cout_apparie_max"],
-                                    "apparie_retenu": bool(frac is not None
-                                                           and frac < s["fraction_cout_apparie_max"]),
-                                    "charge_seuil_coeurs_libre": COEURS_EXTERIEURS_LIBRE_MAX,
-                                    "lien_r0": _lien_r0(db, c)}
-        persister()
-        print(json.dumps(db["_regime"]["pre_vol"], indent=1, ensure_ascii=False))
-        return db
-    pv = db["_regime"].get("pre_vol")
-    if not pv:
-        raise ValueError("TD-STEP-PILOT-R3 : --pre-vol d'abord -- l'unité par bras est MESURÉE, jamais supposée")
-    p = c["pas_primaire"] if etape == "1" else c["pas_secondaire"]
-    if etape == "2":
-        manq = [k for k in cellules if f"|pas={c['pas_primaire']}|" in k and k not in db]
-        if manq:
-            raise ValueError(f"TD-STEP-PILOT-R3 : étape 2 avant la fin de l'étape 1 ({len(manq)} cellules manquent)")
-        if "puissance_etape2" not in db["_regime"]:
-            L1 = classify_pas(db, regle, c["pas_primaire"])
-            prof = L1.get("d_pas") or _profil_d_r0(c)
-            db["_regime"]["puissance_etape2"] = calibrer_lecture(regle, prof, s["calibration"]["sigmas_pas"],
-                                                                 s["calibration"]["f"], s["calibration"]["n_rep"],
-                                                                 s["calibration"]["graine"] + 1)
-            persister()
-    bras_run = [b for b in _bras_du_pas(c) if b != BRAS_APPARIE or pv["apparie_retenu"]]
-    a_faire = [_cle(b, p, sd) for sd in c["seeds"] for b in bras_run if _cle(b, p, sd) not in db]
-    if etape == "1":
-        a_faire += [_cle_ref(r, sd) for r in REFERENCES for sd in c["seeds"] if _cle_ref(r, sd) not in db]
-    n_par_bras = {}
-    for k in a_faire:
-        n_par_bras[k.split("|")[0]] = n_par_bras.get(k.split("|")[0], 0) + 1
-    unites = dict(pv["unites_par_bras_s"])
-    unites.update({r: s["unite_reference_s"] for r in REFERENCES})
-    db["_regime"].setdefault("projections", {})[f"etape_{etape}"] = {
-        "projection_s": project_cost_per_arm(unites, n_par_bras, s["budget_etape_s"], safety=s["safety"],
-                                             label=f"TD-STEP-PILOT-R3 étape {etape}"),
-        "par_bras": cost_per_arm(unites, n_par_bras, safety=s["safety"])["par_bras"], "n_par_bras": n_par_bras}
-    persister()
-    garde = CostGuard(s["budget_etape_s"], label=f"TD-STEP-PILOT-R3 étape {etape}", clock=time.monotonic)
-    for k in a_faire:                                       # ordre : lam0, lam09 AVANT td0_app (ρ en dépend)
-        mesurer(k)
-        garde.tick()
-    if etape == "1":
-        db["_regime"]["lien_r0"] = _lien_r0(db, c)        # publié, jamais exigé (décision 5)
-    db["_lecture"] = lecture_r3(db, regle)
-    persister()
-    print(json.dumps(db["_lecture"], indent=1, ensure_ascii=False))
-    print("->", out_path)
+    if x.cmd == "calibrer-lecture":
+        cal = regle["seuils"]["calibration"]
+        out = calibrer_lecture_v2(regle, cal["mu_pas"], cal["tau_pas"], cal["sigmas_e_pas"], cal["f"], cal["n_rep"],
+                                  cal["graine"])
+        dest = str(results_file("td_step_pilot_r3_calibration_lecture.json"))
+        json.dump(stamp(out, RULE_R3), open(dest, "w", encoding="utf-8"), indent=1, ensure_ascii=False)
+        print(json.dumps(out["par_sigma_e"], indent=1), "\n->", dest)
+        return out
+    db = json.load(open(str(results_file("td_step_pilot_r3.json")), encoding="utf-8"))
+    print(json.dumps(lecture_r3(db, regle), indent=1, ensure_ascii=False))
     return db
 
 
