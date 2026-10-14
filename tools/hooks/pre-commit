@@ -12,12 +12,14 @@ fail=0
 # PATH du registre), et la porte 15 (`sys.executable -m pytest`) refusait tout commit qui la déclenchait. Une porte
 # qui avalerait l'ImportError rendrait vert sous le même interpréteur. Ordre : `AGAGI_PYTHON` (ÉPINGLÉ : s'il ne
 # convient pas, REFUS — jamais remplacé en silence), puis `python`, `python3`, enfin `py -3.13` (lanceur Windows).
-# « Convient » = numpy ET pytest trouvables (`importlib.util.find_spec` : présence, sans le coût d'un import). Aucun
+# « Convient » = numpy, pytest ET psutil trouvables (`importlib.util.find_spec` : présence, sans le coût d'un import ;
+# psutil depuis P2.171 : sans lui, les bails se lisaient MORTS — le correctif rend son absence sûre, l'exiger donne aux
+# portes la lecture EXACTE au lieu de la lecture prudente). Aucun
 # candidat -> REFUS qui nomme chaque essai. Le choix est DIT sur une ligne. Rien que des commandes internes du shell :
 # le bloc tient sous un PATH réduit. Le bloc AGAGI:PORTE-ABSENTE lance `${AGAGI_PY:-python}` : sans ce bloc-ci (un
 # squelette de test), il retombe sur l'ancien comportement. Contre-exemples gelés : tests/sandbox/test_hook_interprete.py.
 _agagi_essai() {
-  _agagi_vu=$("$@" -c "import sys, importlib.util as u; m = [n for n in ('numpy', 'pytest') if u.find_spec(n) is None]; print('Python ' + sys.version.split()[0] + (' SANS ' + ', '.join(m) if m else '')); sys.exit(1 if m else 0)" 2>&1)
+  _agagi_vu=$("$@" -c "import sys, importlib.util as u; m = [n for n in ('numpy', 'pytest', 'psutil') if u.find_spec(n) is None]; print('Python ' + sys.version.split()[0] + (' SANS ' + ', '.join(m) if m else '')); sys.exit(1 if m else 0)" 2>&1)
 }
 AGAGI_PY=""
 AGAGI_PY_ARG=""
@@ -27,7 +29,7 @@ if [ -n "${AGAGI_PYTHON:-}" ]; then
     AGAGI_PY="$AGAGI_PYTHON"
   else
     echo "[agagi/pre-commit] REFUS (P2.157) : AGAGI_PYTHON=$AGAGI_PYTHON ne convient pas ($_agagi_vu)."
-    echo "   Un interpréteur ÉPINGLÉ qui manque numpy ou pytest n'est jamais remplacé en silence : corrige AGAGI_PYTHON, ou retire-la."
+    echo "   Un interpréteur ÉPINGLÉ qui manque numpy, pytest ou psutil n'est jamais remplacé en silence : corrige AGAGI_PYTHON, ou retire-la."
     exit 1
   fi
 else
@@ -55,7 +57,7 @@ else
     fi
   fi
   if [ -z "$AGAGI_PY" ]; then
-    echo "[agagi/pre-commit] REFUS (P2.157) : aucun interpréteur n'a numpy ET pytest —$_agagi_essais"
+    echo "[agagi/pre-commit] REFUS (P2.157) : aucun interpréteur n'a numpy, pytest ET psutil —$_agagi_essais"
     echo "   Les portes tourneraient sans les dépendances du projet. Fixe AGAGI_PYTHON=<le python du projet>."
     exit 1
   fi

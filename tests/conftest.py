@@ -173,12 +173,17 @@ def _foreign_kuzu_holder():
         protege = set(_doctor._protected_pids()) | {os.getpid()}
     except Exception:
         return None                     # module absent ou illisible : ne rien bloquer, ne rien prétendre
-    for lz in etat.get("live", []):
+    # P2.171 : un détenteur INDÉTERMINÉ (ni lisible ni absent) compte comme tenant le bail tant que celui-ci n'a pas
+    # expiré — vivant tant qu'on ne sait pas. Avant, sans psutil, tout bail était « mort » et la garde ne sautait rien.
+    from tools.jobs import lease as _lease
+    indetermines = [lz for lz in etat.get("indetermine", []) if not _lease.is_expired(lz)]
+    for lz in list(etat.get("live", [])) + indetermines:
         if getattr(lz, "resource", None) != "kuzu":
             continue
         if getattr(lz, "pid", None) in protege:
             continue                    # c'est nous : ne pas s'auto-bloquer
-        return f"{getattr(lz, 'owner', None) or '?'} (pid={getattr(lz, 'pid', '?')})"
+        suffixe = " — INDÉTERMINÉ" if lz in indetermines else ""
+        return f"{getattr(lz, 'owner', None) or '?'} (pid={getattr(lz, 'pid', '?')}){suffixe}"
     return None
 
 

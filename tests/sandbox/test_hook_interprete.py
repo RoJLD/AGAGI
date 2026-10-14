@@ -54,12 +54,16 @@ _FANTOME = ("import sys, importlib.util as u\n"
             "print('fantome-execute par ' + sys.executable + ' | numpy=' + str(u.find_spec('numpy') is not None))\n")
 
 
-def _cale(dossier, nom, sans_dependances, lanceur=False):
-    """Une cale shell nommée `nom` : le vrai interpréteur, ou le même en -S (sans numpy ni pytest). `lanceur` imite
-    `py` : elle avale l'option de version « -3.13 » qui précède les arguments."""
+def _cale(dossier, nom, sans_dependances, lanceur=False, sans_psutil=None):
+    """Une cale shell nommée `nom` : le vrai interpréteur, ou le même en -S (sans numpy, pytest ni psutil). `lanceur`
+    imite `py` : elle avale l'option de version « -3.13 » qui précède les arguments. `sans_psutil` (P2.171) : un dossier
+    dont le `sitecustomize.py` pose sys.modules["psutil"] = None — numpy et pytest restent, psutil seul disparaît
+    (find_spec rend None pour un module posé à None)."""
     corps = "#!/bin/sh\n"
     if lanceur:
         corps += "if [ \"$1\" = \"-3.13\" ]; then shift; fi\n"
+    if sans_psutil:
+        corps += f"PYTHONPATH=\"{sans_psutil}\"\nexport PYTHONPATH\n"
     corps += f"exec \"{_REEL}\" {'-S ' if sans_dependances else ''}\"$@\"\n"
     p = os.path.join(dossier, nom)
     with open(p, "w", encoding="utf-8", newline="\n") as fh:
@@ -73,8 +77,8 @@ class _Depot:
         os.makedirs(os.path.join(self.p, "tools"))
         dossier_cales = str(tmp_path / "cales")
         os.makedirs(dossier_cales)
-        for nom, sans, lanceur in cales:
-            _cale(dossier_cales, nom, sans, lanceur)
+        for nom, sans, lanceur, *sans_psutil in cales:
+            _cale(dossier_cales, nom, sans, lanceur, *sans_psutil)
         self.env_git = {k: v for k, v in os.environ.items() if not k.startswith("GIT_")}
         chemin = [dossier_cales]
         if os.name == "nt":
@@ -169,6 +173,25 @@ def test_P2_157_le_lanceur_py_3_13_est_le_DERNIER_repli(tmp_path):
     assert code == 0 and avance, sortie
     assert _lance_par(sortie) == _VRAI, sortie
     assert "interpréteur des portes : py -3.13 (Python " in sortie, sortie
+
+
+def test_P2_171_un_candidat_SANS_psutil_est_ECARTE_du_choix(tmp_path):
+    """P2.171 : `python` a numpy et pytest mais PAS psutil (sitecustomize qui le masque) ; `python3` a tout. Sans
+    psutil, les bails se lisaient morts : le crochet doit écarter ce candidat, le DIRE, et lancer les portes avec
+    python3."""
+    masque = tmp_path / "masque_psutil"
+    masque.mkdir()
+    (masque / "sitecustomize.py").write_text("import sys\nsys.modules['psutil'] = None\n", encoding="utf-8")
+    d = _Depot(tmp_path, [("python", False, False, str(masque).replace("\\", "/")), ("python3", False, False)])
+    code, sortie, avance = d.commit_essai()
+    assert code == 0 and avance, sortie
+    assert _lance_par(sortie) == _VRAI, sortie
+    assert "interpréteur des portes : python3 (Python " in sortie, sortie
+    # contrôle positif : le candidat écarté l'a été POUR psutil — la cale seule, interrogée comme le fait le crochet
+    r = subprocess.run([shutil.which("sh"), "-c", "python -c \"import importlib.util as u; print(u.find_spec('psutil') is None, "
+                        "u.find_spec('numpy') is None)\""], capture_output=True, text=True, env=d.env_crochet,
+                       timeout=60)
+    assert r.stdout.split() == ["True", "False"], (r.stdout, r.stderr)
 
 
 def test_P2_157_AUCUN_candidat_ne_convient_REFUS_qui_nomme_CHAQUE_essai(tmp_path):

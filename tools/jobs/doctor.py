@@ -149,17 +149,33 @@ def classify_leases(*, leases_dir=None, now=None):
       * `orphan`        : détenteur disparu (PID absent ou réattribué, via `proc_create_time`).
 
     `dead` reste l'UNION des deux derniers : les appelants existants (dont `--kill`, qui refuse déjà de
-    tuer un détenteur vivant) gardent leur sémantique."""
-    live, expired_alive, orphan = [], [], []
+    tuer un détenteur vivant) gardent leur sémantique.
+
+    P2.171 (2026-10-13) — un QUATRIÈME état, `indetermine` : le détenteur ne peut être déclaré ni vivant ni mort (ni
+    psutil ni l'API du système ne le lisent). Il n'est PAS dans `dead` : jamais réapé. Il ne compte pas non plus parmi
+    les `live`, pour que le rapport DISE qu'on ne sait pas — les appelants qui doivent s'abstenir devant un bail tenu
+    (la garde de bail des tests) le lisent explicitement. Avant, l'absence de psutil rendait TOUT bail orphelin."""
+    live, expired_alive, orphan, indetermine = [], [], [], []
     for lz in _lease.read_all(leases_dir=leases_dir):
-        if _lease.is_live(lz, now=now):
+        s = _lease.holder_status(lz)
+        if s == "indetermine":
+            indetermine.append(lz)
+        elif s == "vivant" and not _lease.is_expired(lz, now=now):
             live.append(lz)
-        elif _lease.is_holder_alive(lz):
+        elif s == "vivant":
             expired_alive.append(lz)
         else:
             orphan.append(lz)
-    return {"live": live, "expired_alive": expired_alive, "orphan": orphan,
+    return {"live": live, "expired_alive": expired_alive, "orphan": orphan, "indetermine": indetermine,
             "dead": expired_alive + orphan}
+
+
+def _psutil_lisible() -> bool:
+    try:
+        import psutil  # noqa: F401
+        return True
+    except Exception:                                   # noqa: BLE001
+        return False
 
 
 def main(argv=None) -> int:
@@ -172,21 +188,28 @@ def main(argv=None) -> int:
     procs = project_processes(args.older_min)
 
     print(f"bails : {len(cls['live'])} vivant(s), {len(cls['expired_alive'])} expiré(s) à détenteur "
-          f"VIVANT, {len(cls['orphan'])} orphelin(s)")
+          f"VIVANT, {len(cls['orphan'])} orphelin(s), {len(cls['indetermine'])} INDÉTERMINÉ(s)")
     for lz in cls["live"]:
         print(f"  VIVANT   {lz.resource:<12} pid={lz.pid:<7} owner={lz.owner!r}")
     for lz in cls["expired_alive"]:
         print(f"  EXPIRÉ   {lz.resource:<12} pid={lz.pid:<7} owner={lz.owner!r}  "
               "[détenteur VIVANT — heartbeat manquant, PAS un orphelin : ne pas réaper]")
+    for lz in cls["indetermine"]:
+        print(f"  INDÉTERMINÉ {lz.resource:<9} pid={lz.pid:<7} owner={lz.owner!r}  [détenteur ni lisible ni absent : "
+              "VIVANT PRÉSUMÉ, jamais réapé (P2.171)]")
     for lz in cls["orphan"]:
         print(f"  ORPHELIN {lz.resource:<12} pid={lz.pid:<7} owner={lz.owner!r}  [détenteur disparu]")
 
-    print(f"\nprocessus python du projet (hors moi et mes ancêtres) : {len(procs)}")
+    if _psutil_lisible():
+        print(f"\nprocessus python du projet (hors moi et mes ancêtres) : {len(procs)}")
+    else:                                    # P2.171 : « 0 » serait une affirmation ; c'est une ignorance
+        print(f"\nprocessus python du projet : ILLISIBLES (psutil absent sous {sys.executable}) — ni 0 ni libre ; "
+              "relancer le doctor sous le Python du projet")
     for p in procs[:15]:
         print(f"  pid={p['pid']:<7} age={p['age_min']:6.1f}min rss={p['rss_mb']:7.0f}Mo  {p['cmd']}")
 
     if not args.kill:
-        if cls["dead"] or procs:
+        if cls["dead"] or procs or cls["indetermine"]:
             print("\n(lecture seule — `--kill` ne réape que les ORPHELINS)")
         return 0
 
@@ -194,9 +217,12 @@ def main(argv=None) -> int:
     for lz in cls["expired_alive"]:
         print(f"  REFUS  {lz.resource} : détenteur VIVANT malgré un TTL expiré -> heartbeat manquant, "
               "pas un orphelin. Signalé, non tué.")
+    for lz in cls["indetermine"]:
+        print(f"  REFUS  {lz.resource} : détenteur INDÉTERMINÉ (pid={lz.pid}) — vivant tant qu'on ne sait pas. "
+              "Non réapé, non tué (P2.171).")
     for lz in cls["orphan"]:
-        if _lease.is_holder_alive(lz):       # course : il a pu revivre entre la lecture et ici
-            print(f"  REFUS  {lz.resource} : détenteur redevenu VIVANT depuis la lecture. Non tué.")
+        if _lease.holder_status(lz) != "mort":     # course, ou devenu illisible : seul un MORT établi se réape
+            print(f"  REFUS  {lz.resource} : détenteur redevenu VIVANT ou INDÉTERMINÉ depuis la lecture. Non tué.")
             continue
         _lease.release(lz)
         n_l += 1

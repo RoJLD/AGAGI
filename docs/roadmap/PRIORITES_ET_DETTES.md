@@ -1989,6 +1989,48 @@ apparié — qui vaut mutation, puisque retirer la garde EST l'état d'avant : A
 P2.165, ci-dessous).
 <!-- closes_when:grep_present=tests/sandbox/test_torch_inworld.py::requires_torch = pytest.mark.skipif -->
 
+**P2.171 — rang 0 (Master 2, 2026-10-13 : en tête de file, AVANT la purge KuzuDB, qui a besoin d'un bail sûr) — ✅ CLOSE
+le 2026-10-14 (ouverte le 2026-10-13 au soir, mesurée par Master 2 ; numérotée 170 dans le worktree, renumérotée parce
+que Front a pris P2.170 entre-temps) — Sans psutil, TOUT bail était jugé MORT : l'exclusion mutuelle de kuzu cassée en
+silence.**
+Preuve : `tools/jobs/lease.py::proc_create_time` rendait None dans DEUX cas que rien ne distinguait — processus absent
+ET psutil absent — et `is_holder_alive` lisait ce None comme « mort » ; la docstring annonçait un mode « dégradé à
+l'existence du PID » que le code n'avait pas. Sous le « python » du PATH de la batcave (3.14, sans psutil, P2.157),
+mesuré par Master 2 le 2026-10-13 : le doctor a affiché ORPHELIN le bail VIVANT du run d'E34, avec « 0 processus »
+pendant que huit tournaient (sous 3.13 : « 1 vivant »). Un `doctor --kill` l'aurait réapé ; un `acquire` l'aurait PRIS.
+Même faute dans `doctor.project_processes`, qui rendait `[]` — donc « 0 » — sans psutil. Le contrôle positif du défaut
+est rejoué : le lease.py de d1 (b4e81b1a), chargé à part, sur un VRAI processus vivant : avec psutil « vivant », SANS psutil is_holder_alive = False — le vivant jugé MORT ; le lease.py corrigé, même processus, même blocage : « vivant ».
+✅ **FERMÉE le 2026-10-14 (agagi-32)** — (1) `lease.identite(pid)` rend TROIS états (« absent », « present »,
+« inconnu ») et l'instant de création : psutil, sinon l'API du système — ctypes sous Windows (OpenProcess,
+GetExitCodeProcess, GetProcessTimes : le MÊME FILETIME que psutil, donc l'identité anti-réutilisation de PID reste
+entière sans psutil), `os.kill(pid, 0)` et /proc sous POSIX (formule de psutil) —, sinon « inconnu » ;
+(2) `holder_status` : vivant / mort / indéterminé ; `is_holder_alive` = « pas mort » — vivant tant qu'on ne sait pas,
+donc `acquire` lève ResourceBusy devant un indéterminé ; (3) `doctor.classify_leases` : quatrième état `indetermine`,
+HORS de `dead` ; le doctor l'AFFICHE, `--kill` le REFUSE, la boucle des orphelins ne réape qu'un mort ÉTABLI ; sans
+psutil, la ligne des processus dit « ILLISIBLES », jamais « 0 » ; (4) la garde de bail des tests compte un indéterminé
+non expiré comme détenteur ; (5) le bloc `AGAGI:INTERPRETE` du crochet (P2.157) exige AUSSI psutil (décision de
+Master 2) : le correctif rend son absence sûre, l'exiger donne aux portes la lecture EXACTE au lieu de la prudente.
+Témoins : `tests/sandbox/test_lease_sans_psutil.py` (6 : de VRAIS processus enfants, des bails sous `tmp_path`,
+psutil bloqué par `sys.modules` — le CONTRE-EXEMPLE : un vivant n'est jamais jugé mort, « vivant » exact là où l'API du
+système lit l'identité, et `acquire` refuse ; un mort est mort ; un PID réattribué n'est jamais « vivant » ; « inconnu »
+= indéterminé, et `doctor --kill` le garde ; le doctor dit ILLISIBLES ; non-régression avec psutil) et
+`tests/sandbox/test_hook_interprete.py::test_P2_171_un_candidat_SANS_psutil_est_ECARTE_du_choix`. Windows {WIN} ;
+Linux (WSL) 103 verts ; 1 cas désélectionné, le bout en bout (b) de test_lease_skip_guard, dont le pytest imbriqué de test_backend est resté BLOQUÉ À LA SORTIE sous WSL au premier essai — défaut de banc connu (vert sous WSL le 2026-10-13, 83 verts), processus tué par son motif ancré ; mutations à la main 6/6 tuées (« inconnu » lu comme mort ; plus de repli sur l'API du système ; un indéterminé qui n'est plus vivant ; un indéterminé classé orphelin ; « 0 processus » au lieu d'ILLISIBLES ; le crochet qui n'exige plus psutil), contrôle intact vert avant chacune. Crochet redéployé : à redéployer juste APRÈS l'avance rapide de ce commit (if git merge --ff-only …; then cp …; fi) ; le constat de la porte 22 est postérieur à ce commit, donc dans le compte-rendu. Registre : E4.
+<!-- closes_when:grep_present=tools/jobs/lease.py::def holder_status -->
+
+**P2.172 — GELÉE jusqu'à la levée du gel de méthode (outillage de la flotte, ne bloque aucun run ; Master 2,
+2026-10-13) — OUVERTE (2026-10-14, agagi-32) — Un numéro de backlog se vérifie « libre » puis s'écrit plus tard : deux
+sessions qui vérifient au même moment prennent le même.**
+Preuve : deux collisions en deux jours, toutes deux sur un numéro qui n'existait QUE sur le disque d'un worktree —
+P2.156 (le 2026-10-13 : la session E34 l'a vérifié libre et committé, le mien vivait dans `.worktrees/bail` ; renommé
+P2.165) et P2.170 (dans la nuit : Front, `40b08b2b` ; le mien dans `.worktrees/psutil` ; renommé P2.171). La porte 4
+refuse le doublon, mais au COMMIT : trop tard pour éviter un renommage des tests, des commentaires et des scripts.
+**Forme** : un outil de réservation à écrire (nom proposé : reserver_numero, sous tools/pm) — un fichier par numéro sous le `.git` COMMUN, créé de façon ATOMIQUE
+(`O_EXCL` : la création échoue si le fichier existe), portant session, sujet, heure et TTL ; l'écriture d'une entrée
+exige la réservation, et la porte 4 refuse une entrée dont le numéro est réservé par une AUTRE session. Le principe du
+bail `kuzu`, pour un nom au lieu d'une ressource. Contre-exemple : deux réservations concurrentes du même numéro, une
+seule réussit. *Coût : agent 1-2 h.* Sans clause `closes_when` (déclaré).
+
 **P2.143 — rang 6, GELÉE jusqu'à la levée du gel de méthode (une porte, qui ne bloque aucun run) (rang fixé par Master 2 le 2026-09-28) — OUVERTE (2026-09-28, extension exécutable d'E8 DÉCIDÉE par Master 2 ; inscrite par la session SCIENCE-HARNAIS) — Un nombre de PROSE qui porte une unité ou un compte, dans un record, DÉCLARE sa source ; une porte la vérifie.**
 Preuve : E8, occurrence du 2026-09-28 — six valeurs recopiées au lieu d'être relues en un jour (0,82 d'un rapport de chemin cité comme un rapport net ; 3 processus pour 6 ; 4e-7 pour 2,1e-5 ; « 24 à 718 », chiffre de conception cité comme mesure ; dose 1,0 pour ≈ 0,66 active ; heures de build estimées), toutes attrapées avant publication par une relecture contre la source — donc par un humain ou une revue, jamais par une porte : la porte 19 ne lit que « nom = valeur » d'un paramètre de régime (revue du record [[EDR-S2-BASSIN-FRAGILITY]], P2.b : elle rend SANS_PARAMETRE sur ce record, qui écrit « phase 2 à 200 ticks »). **Forme** : une balise DÉCLARÉE par l'auteur à côté du nombre — chemin `results/*.json` SUIVI, pointeur JSON, valeur et tolérance — sur le modèle des balises de compte de la porte 8 ; la porte relit le fichier et compare ; une valeur recalculée (médiane, rapport) déclare sa fonction et ses clés d'entrée. Ce qui est porteur est DÉCLARÉ, jamais deviné : la porte ne cherche pas les nombres NON balisés (elle les COMPTE et les rapporte, comme la porte 4 rapporte les entrées sans clause). Contre-exemples gelés : les cinq valeurs de cette occurrence qui ont une source JSON. À la livraison, la forme passe exécutable. *Coût : agent 3-4 h.* Sans clause `closes_when` (déclaré) : le nom de la porte n'est pas fixé.
 

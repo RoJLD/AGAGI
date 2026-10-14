@@ -103,28 +103,116 @@ def _write(lease: Lease, leases_dir: Optional[Path]) -> None:
     _path(lease.resource, leases_dir).write_text(json.dumps(asdict(lease)), encoding="utf-8")
 
 
-def proc_create_time(pid: int) -> Optional[float]:
-    """Instant de création du processus, ou None s'il n'existe pas. Sans psutil -> None (dégradé :
-    l'identité se réduit alors à l'existence du PID)."""
+_STILL_ACTIVE = 259                        # GetExitCodeProcess : le processus n'a pas fini
+_EPOCH_FILETIME_S = 11644473600.0          # 1601-01-01 -> 1970-01-01, en secondes (convention de psutil)
+
+
+def _identite_windows(pid: int):
+    """Existence et instant de création par l'API Windows (ctypes), SANS psutil : même source que psutil (le FILETIME
+    de création), donc des instants comparables à 1 s près."""
+    import ctypes
+    from ctypes import wintypes
+    k32 = ctypes.WinDLL("kernel32", use_last_error=True)
+    k32.OpenProcess.restype = wintypes.HANDLE
+    k32.OpenProcess.argtypes = [wintypes.DWORD, wintypes.BOOL, wintypes.DWORD]
+    k32.GetExitCodeProcess.argtypes = [wintypes.HANDLE, ctypes.POINTER(wintypes.DWORD)]
+    k32.GetProcessTimes.argtypes = [wintypes.HANDLE] + [ctypes.POINTER(wintypes.FILETIME)] * 4
+    k32.CloseHandle.argtypes = [wintypes.HANDLE]
+    h = k32.OpenProcess(0x1000, False, int(pid))         # PROCESS_QUERY_LIMITED_INFORMATION
+    if not h:
+        err = ctypes.get_last_error()
+        if err == 87:                                    # ERROR_INVALID_PARAMETER : aucun processus de ce PID
+            return "absent", None
+        if err == 5:                                     # ERROR_ACCESS_DENIED : il EXISTE, on ne peut pas le lire
+            return "present", None
+        return "inconnu", None
+    try:
+        code = wintypes.DWORD()
+        if not k32.GetExitCodeProcess(h, ctypes.byref(code)):
+            return "inconnu", None
+        if code.value != _STILL_ACTIVE:
+            return "absent", None                        # fini : la poignée survit au processus
+        t = [wintypes.FILETIME() for _ in range(4)]
+        if not k32.GetProcessTimes(h, *(ctypes.byref(x) for x in t)):
+            return "present", None
+        ft = (t[0].dwHighDateTime << 32) | t[0].dwLowDateTime
+        return "present", ft / 1e7 - _EPOCH_FILETIME_S
+    finally:
+        k32.CloseHandle(h)
+
+
+def _identite_posix(pid: int):
+    """Existence par `os.kill(pid, 0)`, instant de création par /proc (Linux, formule de psutil) quand il existe."""
+    try:
+        os.kill(int(pid), 0)
+    except ProcessLookupError:
+        return "absent", None
+    except PermissionError:
+        return "present", None
+    except Exception:                                    # noqa: BLE001 — ni oui ni non : on ne sait pas
+        return "inconnu", None
+    try:
+        with open(f"/proc/{int(pid)}/stat", encoding="utf-8", errors="replace") as fh:
+            champs = fh.read().rsplit(")", 1)[1].split()
+        with open("/proc/stat", encoding="utf-8") as fh:
+            btime = next(float(l.split()[1]) for l in fh if l.startswith("btime"))
+        return "present", float(champs[19]) / os.sysconf("SC_CLK_TCK") + btime
+    except Exception:                                    # noqa: BLE001 — pas de /proc : l'existence seule
+        return "present", None
+
+
+def identite(pid: int):
+    """P2.171 (2026-10-13) — (« absent » | « present » | « inconnu », instant de création ou None). TROIS états : « je
+    ne sais pas » n'est ni « absent » ni « présent ». Avant, `proc_create_time` rendait None AUSSI quand psutil manquait,
+    et `is_holder_alive` lisait ce None comme « mort » : sous un Python sans psutil (le 3.14 du PATH de la batcave depuis
+    le 30/09), le doctor a affiché ORPHELIN le bail VIVANT du run d'E34 (mesuré par Master 2 le 13/10), et un `--kill` l'aurait
+    réapé, un `acquire` l'aurait PRIS — l'exclusion de kuzu cassée en silence. Les docstrings promettaient un mode
+    « dégradé à l'existence du PID » que le code n'avait pas. Ordre : psutil ; sinon l'API du système (ctypes sous
+    Windows, os.kill + /proc sous POSIX) ; sinon « inconnu »."""
     try:
         import psutil
-    except Exception:
-        return None
+    except Exception:                                    # noqa: BLE001 — absent ou bloqué : l'API du système
+        psutil = None
+    if psutil is not None:
+        try:
+            return "present", float(psutil.Process(int(pid)).create_time())
+        except psutil.NoSuchProcess:
+            return "absent", None
+        except Exception:                                # noqa: BLE001 — AccessDenied, zombie : l'API du système tranche
+            pass
     try:
-        return float(psutil.Process(pid).create_time())
-    except Exception:
-        return None
+        return _identite_windows(pid) if os.name == "nt" else _identite_posix(pid)
+    except Exception:                                    # noqa: BLE001
+        return "inconnu", None
+
+
+def proc_create_time(pid: int) -> Optional[float]:
+    """Instant de création du processus, ou None s'il n'existe pas OU s'il est illisible — pour TROIS états, lire
+    `identite` (P2.171). Sans psutil, l'API du système le fournit (ctypes sous Windows, /proc sous Linux)."""
+    return identite(pid)[1]
+
+
+def holder_status(lease: Lease) -> str:
+    """« vivant » | « mort » | « indetermine » (P2.171). Le sens prudent est « vivant tant qu'on ne sait pas » : un
+    détenteur INDÉTERMINÉ n'est jamais repris par `acquire`, jamais réapé par le doctor. Un PID réattribué après crash
+    (même PID, AUTRE instant de création) est mort ; présent sans identité lisible alors que le bail en porte une :
+    indéterminé (le PID a pu être réattribué, on ne peut pas le prouver)."""
+    etat, ct = identite(lease.pid)
+    if etat == "absent":
+        return "mort"
+    if etat == "inconnu":
+        return "indetermine"
+    if ct is not None and lease.proc_create_time:
+        return "mort" if abs(ct - lease.proc_create_time) > 1.0 else "vivant"
+    if lease.proc_create_time:
+        return "indetermine"
+    return "vivant"                                      # bail sans identité (écrit sans elle) : la présence suffit
 
 
 def is_holder_alive(lease: Lease) -> bool:
     """Le détenteur tourne-t-il ENCORE, et est-ce bien LUI ? Un PID réattribué après crash ne doit pas
-    être pris pour le détenteur (ni, a fortiori, être tué par le doctor)."""
-    ct = proc_create_time(lease.pid)
-    if ct is None:
-        return False
-    if lease.proc_create_time and abs(ct - lease.proc_create_time) > 1.0:
-        return False                       # même PID, AUTRE processus -> le détenteur est mort
-    return True
+    être pris pour le détenteur (ni, a fortiori, être tué par le doctor). INDÉTERMINÉ compte pour VIVANT (P2.171)."""
+    return holder_status(lease) != "mort"
 
 
 def is_expired(lease: Lease, *, now: Optional[float] = None) -> bool:
